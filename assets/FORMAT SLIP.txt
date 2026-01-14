@@ -1,0 +1,39 @@
+No. Rekap :				 		Periode :
+
+Document ini bersifat pribadi
+hanya dikirim kepada yang bersangkutan
+
+INFORMASI UTAMA
+Nama				:
+Gaji Pokok			:
+Jam kerja/ Hari			:
+
+GAJI BULANAN
+Gaji Pokok			:
+Overtime			:
+Potongan telat			:
+Potongan tidak hadir		:
+Potongan Kasbon			:
+
+Gaji bersih yang di terima
+Rp.
+*Dihitung otomatis oleh sistem berdasarkan aturan jam masuk
+
+TUNJANGAN HARIAN
+Uang Makan			:
+Uang Transport			:
+	
+*uang harian sudah diberikan setiap hari selama kamu aktif clockin
+(kebutuhan makan secara real kadang melebihi ketentuan)
+
+TOTAL NILAI PENDAPATAN
+Gaji bersih yang di terima	:
+Tunjangan Makan			:
+Tunjangan Transport		:
+TOTAL nilai pendapatan		:
+
+
+
+	"Kerjo bareng ing LABALABA.ADV iki ora mung kanggo kantor, tapi kanggo awakmu juga, Rezeki sing kamu tompo saben dino lan saben akhir bulan sejatine yaiku balikane jerih payahmu."
+			Maturnuwun wis dadi bagian penting nang keluarga cilik iki
+					LABALABA.ADV
