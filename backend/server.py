@@ -30,6 +30,9 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 app = FastAPI()
+@app.get("/")
+async def root_health_check():
+    return {"status": "ok", "service": "backend absensi"}
 api_router = APIRouter(prefix="/api")
 
 
@@ -204,6 +207,14 @@ class StockItem(BaseModel):
     price: Optional[float] = 0
     notes: Optional[str] = ""
 
+class StockUpdate(BaseModel):
+    name: Optional[str] = None
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    price: Optional[float] = None
+    notes: Optional[str] = None
+    usage_category: Optional[str] = None
+
 class StockResponse(BaseModel):
     id: str
     name: str
@@ -360,6 +371,7 @@ async def _finalize_session(attendance_record: Dict[str, Any], clock_out_time: d
 async def _close_expired_sessions(employee_id: Optional[str] = None) -> None:
     now_utc = datetime.now(timezone.utc)
     local_now = _to_local(now_utc)
+    effective_work_start_local = local_now
     query = {"clock_out": None}
     if employee_id:
         query["employee_id"] = employee_id
@@ -630,14 +642,16 @@ async def clock_in(data: AttendanceClockIn):
     status_message = "Overtime session started" if session_type == "overtime" else "Clock-in on time"
 
     if session_type == "normal":
-    is_late = current_time_minutes > work_start
+        is_late = current_time_minutes > work_start
         late_minutes = max(0, current_time_minutes - work_start)
-        status_message = "Clock-in on time" if not is_late else f"Terlambat {late_minutes} menit. Gaji dihitung mulai dari jam {current_hour:02d}:{current_minute:02d}"
 
-    if session_type == "normal" and current_time_minutes <= work_start:
-        effective_work_start_local = local_now.replace(hour=9, minute=0, second=0, microsecond=0)
-    else:
-        effective_work_start_local = local_now
+        if is_late:
+            status_message = (
+                f"Terlambat {late_minutes} menit. "
+                f"Gaji dihitung mulai dari jam {current_hour:02d}:{current_minute:02d}"
+            )
+        else:
+            status_message = "Clock-in on time"
     
     attendance = Attendance(
         employee_id=data.employee_id,
@@ -852,7 +866,7 @@ async def get_cashflow_summary(month: Optional[str] = None):
     balance = total_income - total_expense
     net_after_salary = balance - total_salary
     
-        return {
+    return {
         "total_income": total_income,
         "total_expense": total_expense,
         "balance": balance,
@@ -1202,13 +1216,14 @@ async def create_stock(stock: StockItem):
     return stock_dict
 
 @api_router.put("/stock/{stock_id}", response_model=StockResponse)
-async def update_stock(stock_id: str, stock: StockItem):
+async def update_stock(stock_id: str, stock: StockUpdate):
     existing = await db.stock.find_one({"id": stock_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Stock item not found")
     
-    update_dict = stock.model_dump()
-    await db.stock.update_one({"id": stock_id}, {"$set": update_dict})
+    update_dict = stock.model_dump(exclude_none=True)
+    if update_dict:
+        await db.stock.update_one({"id": stock_id}, {"$set": update_dict})
 
     updated = await db.stock.find_one({"id": stock_id}, {"_id": 0})
     return updated

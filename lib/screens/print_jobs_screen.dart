@@ -138,7 +138,7 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
           .map(_normalizeStockItem)
           .toList();
       final printStocks = normalized.where((stock) {
-        return stock['category'] == 'PRINT';
+        return (stock['usage_category']?.toString().toUpperCase() ?? 'UMUM') == 'PRINT';
       }).toList();
 
       if (!mounted) return;
@@ -389,8 +389,20 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
       'hpp': price,
       'is_active': isActive,
       'category': category,
+      'usage_category': _normalizeUsageCategory(raw),
       'notes': raw['notes'] ?? raw['description'] ?? raw['note'],
     };
+  }
+
+  String _normalizeUsageCategory(Map<String, dynamic> raw) {
+    final rawValue = raw['usage_category'] ??
+        raw['usageCategory'] ??
+        raw['usage'] ??
+        raw['type'] ??
+        raw['group'];
+    final normalized = rawValue?.toString().toUpperCase() ?? '';
+    if (normalized == 'PRINT') return 'PRINT';
+    return 'UMUM';
   }
 
   double _parseNumeric(dynamic value) {

@@ -11,6 +11,7 @@ class AdminStockScreen extends StatefulWidget {
 
 class _AdminStockScreenState extends State<AdminStockScreen> {
   late Future<List<Map<String, dynamic>>> _stocksFuture;
+  final Map<String, bool> _isUpdatingUsage = {};
 
   @override
   void initState() {
@@ -67,6 +68,12 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
   String _stockCategory(Map<String, dynamic> stock) {
     final raw = stock['category'] ?? stock['kategori'] ?? stock['type'] ?? stock['group'];
     return raw?.toString() ?? 'UMUM';
+  }
+
+  String _stockUsageCategory(Map<String, dynamic> stock) {
+    final raw = stock['usage_category'] ?? stock['usageCategory'] ?? stock['usage'] ?? stock['type'] ?? 'UMUM';
+    final normalized = raw.toString().toUpperCase();
+    return normalized == 'PRINT' ? 'PRINT' : 'UMUM';
   }
 
   String _stockUnit(Map<String, dynamic> stock) {
@@ -156,6 +163,30 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
     }
   }
 
+  Future<void> _changeUsageCategory(Map<String, dynamic> stock, String usage) async {
+    final stockId = _stockId(stock);
+    if (stockId.isEmpty) return;
+    if (_stockUsageCategory(stock) == usage) return;
+    setState(() => _isUpdatingUsage[stockId] = true);
+    try {
+      await ApiService.updateStockUsageCategory(
+        stockId: stockId,
+        usageCategory: usage,
+      );
+      if (!mounted) return;
+      await _refreshStocks();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengubah penggunaan: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingUsage[stockId] = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -220,12 +251,32 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
                         Text(
                           '$category • ${_formatNumber(quantity)} ${unit.isNotEmpty ? unit : ''}',
                         ),
+                        const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text(
-                              'Min stok: ${threshold > 0 ? _formatNumber(threshold) : '-'}',
-                              style: TextStyle(color: Colors.grey.shade600),
+                            const Text('Penggunaan: ', style: TextStyle(color: Colors.black87)),
+                            DropdownButton<String>(
+                              value: _stockUsageCategory(stock),
+                              items: const [
+                                DropdownMenuItem(value: 'PRINT', child: Text('PRINT')),
+                                DropdownMenuItem(value: 'UMUM', child: Text('UMUM')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  _changeUsageCategory(stock, value);
+                                }
+                              },
                             ),
+                            if (_isUpdatingUsage[_stockId(stock)] == true)
+                              const SizedBox(width: 8, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                        Text(
+                          'Min stok: ${threshold > 0 ? _formatNumber(threshold) : '-'}',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
                             if (lowStock) ...[
                               const SizedBox(width: 8),
                               Icon(Icons.warning_amber, color: Colors.red.shade600, size: 18),

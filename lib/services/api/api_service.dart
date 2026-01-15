@@ -236,10 +236,22 @@ class ApiService {
     required String stockId,
     required double quantity,
     required String type,
+    String? usageCategory,
   }) async {
     final payload = <String, dynamic>{
       'quantity': quantity,
       'type': type,
+      if (usageCategory != null) 'usage_category': usageCategory,
+    };
+    await _updateStockRecord(stockId, payload);
+  }
+
+  static Future<void> updateStockUsageCategory({
+    required String stockId,
+    required String usageCategory,
+  }) async {
+    final payload = <String, dynamic>{
+      'usage_category': usageCategory,
     };
     await _updateStockRecord(stockId, payload);
   }
