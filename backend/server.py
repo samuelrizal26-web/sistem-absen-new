@@ -206,6 +206,7 @@ class StockItem(BaseModel):
     unit: str
     price: Optional[float] = 0
     notes: Optional[str] = ""
+    usage_category: str = "UMUM"
 
 class StockUpdate(BaseModel):
     name: Optional[str] = None
@@ -220,8 +221,9 @@ class StockResponse(BaseModel):
     name: str
     quantity: float
     unit: str
-    price: float
-    notes: str
+    price: Optional[float] = None
+    notes: Optional[str] = None
+    usage_category: str
     created_at: str
 
 class PrintJob(BaseModel):
