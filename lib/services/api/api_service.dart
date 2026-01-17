@@ -458,9 +458,9 @@ class ApiService {
   static Future<Map<String, dynamic>> fetchEmployeeDetail(String employeeId) async {
     final responses = await Future.wait([
       http.get(_uri('/employees/$employeeId')),
-      http.get(_uri('/attendance/$employeeId')),
+      http.get(_uri('/attendance/employee/$employeeId')),
       http.get(_uri('/advances/$employeeId')),
-      http.get(_uri('/attendance/$employeeId/summary')),
+      http.get(_uri('/attendance/daily-summary/$employeeId')),
     ]);
 
     final statusOk = responses.every((r) => r.statusCode == 200);

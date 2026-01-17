@@ -1,6 +1,19 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:sistem_absen_flutter_v2/core/utils/number_formatter.dart';
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
+
+const List<String> _stockUnitOptions = [
+  'pcs',
+  'Roll',
+  'Meter',
+  'Kg (Kilogram)',
+  'Liter',
+  'Box',
+  'Pack',
+];
 
 class AdminStockScreen extends StatefulWidget {
   const AdminStockScreen({super.key});
@@ -11,12 +24,39 @@ class AdminStockScreen extends StatefulWidget {
 
 class _AdminStockScreenState extends State<AdminStockScreen> {
   late Future<List<Map<String, dynamic>>> _stocksFuture;
-  final Map<String, bool> _isUpdatingUsage = {};
 
   @override
   void initState() {
     super.initState();
     _stocksFuture = _loadStocks();
+  }
+
+  Future<void> _handleEditStock(Map<String, dynamic> stock) async {
+    final stockId = _stockId(stock);
+    if (stockId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data stock tidak valid')),
+      );
+      return;
+    }
+    final payload = await _showEditStockDialog(stock);
+    if (payload == null) return;
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    try {
+      await _updateStockDetails(stockId, payload);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data stock diperbarui')),
+      );
+      await _refreshStocks();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui stock: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<List<Map<String, dynamic>>> _loadStocks() async {
@@ -27,7 +67,9 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
 
   Future<void> _refreshStocks() async {
     final next = _loadStocks();
-    setState(() => _stocksFuture = next);
+    setState(() {
+      _stocksFuture = next;
+    });
     await next;
   }
 
@@ -65,11 +107,6 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
     return _stockQuantity(stock) <= threshold;
   }
 
-  String _stockCategory(Map<String, dynamic> stock) {
-    final raw = stock['category'] ?? stock['kategori'] ?? stock['type'] ?? stock['group'];
-    return raw?.toString() ?? 'UMUM';
-  }
-
   String _stockUsageCategory(Map<String, dynamic> stock) {
     final raw = stock['usage_category'] ?? stock['usageCategory'] ?? stock['usage'] ?? stock['type'] ?? 'UMUM';
     final normalized = raw.toString().toUpperCase();
@@ -88,55 +125,46 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
         '';
   }
 
-  Future<void> _showAdjustStockDialog(Map<String, dynamic> stock, String type) async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final actionLabel = type == 'in' ? 'Tambah Stok' : 'Kurangi Stok';
-    final result = await showDialog<bool>(
+  Future<void> _updateStockDetails(String stockId, Map<String, dynamic> payload) async {
+    final uri = Uri.parse('${ApiService.baseUrl}/stock/$stockId');
+    final response = await http.put(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['detail'] ?? 'Gagal memperbarui stok');
+    }
+  }
+
+  Future<Map<String, dynamic>?> _showEditStockDialog(Map<String, dynamic> stock) async {
+    final stockId = _stockId(stock);
+    if (stockId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data stock tidak valid')),
+      );
+      return null;
+    }
+    final unit = _stockUnit(stock);
+    final price = _parseNumeric(stock['price'] ?? stock['hpp'] ?? stock['price_per_unit']);
+    final notes = stock['notes']?.toString() ?? '';
+    final payload = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(actionLabel),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Jumlah',
-              prefixIcon: Icon(Icons.numbers),
-            ),
-            validator: (value) {
-              final parsed = double.tryParse(value?.replaceAll(',', '.') ?? '');
-              if (parsed == null || parsed <= 0) {
-                return 'Masukkan angka lebih dari 0';
-              }
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.of(context).pop(true);
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
+      builder: (context) => _StockFormDialog(
+        title: 'Edit Barang',
+        initialName: _stockName(stock),
+        initialQuantity: _stockQuantity(stock),
+        initialUnit: unit.isNotEmpty ? unit : 'pcs',
+        initialPrice: price,
+        initialNotes: notes,
+        initialUsageCategory: _stockUsageCategory(stock),
       ),
     );
-    if (result != true) {
-      return;
-    }
-    final quantity = double.tryParse(controller.text.replaceAll(',', '.')) ?? 0;
-    if (quantity <= 0) {
-      return;
-    }
+    return payload;
+  }
+
+  Future<void> _showDeleteStockDialog(Map<String, dynamic> stock) async {
     final stockId = _stockId(stock);
     if (stockId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -144,46 +172,65 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
       );
       return;
     }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Stock'),
+        content: const Text('Apakah Anda yakin ingin menghapus stock ini?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     try {
-      await ApiService.updateStock(
-        stockId: stockId,
-        quantity: quantity,
-        type: type,
-      );
+      await ApiService.deleteStock(stockId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$actionLabel berhasil')),
+        const SnackBar(content: Text('Stock dihapus')),
       );
       await _refreshStocks();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui stok: $e')),
+        SnackBar(content: Text('Gagal menghapus stock: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
-  Future<void> _changeUsageCategory(Map<String, dynamic> stock, String usage) async {
-    final stockId = _stockId(stock);
-    if (stockId.isEmpty) return;
-    if (_stockUsageCategory(stock) == usage) return;
-    setState(() => _isUpdatingUsage[stockId] = true);
+  Future<Map<String, dynamic>?> _showAddStockDialog() async {
+    final payload = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => const _StockFormDialog(title: 'Tambah Barang'),
+    );
+    return payload;
+  }
+
+  Future<void> _handleAddStock() async {
+    final payload = await _showAddStockDialog();
+    if (payload == null) return;
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
     try {
-      await ApiService.updateStockUsageCategory(
-        stockId: stockId,
-        usageCategory: usage,
-      );
+      await ApiService.createStock(payload);
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Barang ditambahkan')),
+      );
       await _refreshStocks();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengubah penggunaan: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Gagal menambahkan barang: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _isUpdatingUsage[stockId] = false);
-      }
     }
   }
 
@@ -193,6 +240,7 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
       appBar: AppBar(
         title: const Text('Admin Stock'),
       ),
+      backgroundColor: const Color(0xFFD8EBFF),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _stocksFuture,
         builder: (context, snapshot) {
@@ -217,86 +265,208 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
               ),
             );
           }
+          final totalItems = stocks.length;
+          final lowStockCount = stocks.where(_isLowStock).length;
           return RefreshIndicator(
             onRefresh: _refreshStocks,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: stocks.length,
+              itemCount: stocks.length + 1,
               itemBuilder: (context, index) {
-                final stock = stocks[index];
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFBFEFFF),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Data stok bahan LB.ADV',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Pantau jumlah bahan, nilai persediaan, dan stock menipis.',
+                              style: TextStyle(color: Colors.black54),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF6C57E8), Color(0xFF9675FF)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Total Item', style: TextStyle(color: Colors.white70)),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '$totalItems',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFFFF905A), Color(0xFFFFC08F)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Stock Menipis', style: TextStyle(color: Colors.white70)),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '$lowStockCount',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _handleAddStock,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Tambah Barang'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0E95C9),
+                                minimumSize: const Size.fromHeight(48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                final stock = stocks[index - 1];
                 final quantity = _stockQuantity(stock);
                 final threshold = _stockThreshold(stock);
                 final lowStock = _isLowStock(stock);
                 final unit = _stockUnit(stock);
-                final category = _stockCategory(stock);
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: ListTile(
-                    isThreeLine: true,
-                    leading: CircleAvatar(
-                      backgroundColor: lowStock ? Colors.red.shade300 : Colors.blue.shade300,
-                      child: Text(
-                        _stockName(stock).isEmpty ? '-' : _stockName(stock)[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                final price = _parseNumeric(stock['price'] ?? stock['hpp'] ?? stock['price_per_unit']);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                    title: Text(
-                      _stockName(stock),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '$category • ${_formatNumber(quantity)} ${unit.isNotEmpty ? unit : ''}',
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Text('Penggunaan: ', style: TextStyle(color: Colors.black87)),
-                            DropdownButton<String>(
-                              value: _stockUsageCategory(stock),
-                              items: const [
-                                DropdownMenuItem(value: 'PRINT', child: Text('PRINT')),
-                                DropdownMenuItem(value: 'UMUM', child: Text('UMUM')),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  _changeUsageCategory(stock, value);
-                                }
-                              },
-                            ),
-                            if (_isUpdatingUsage[_stockId(stock)] == true)
-                              const SizedBox(width: 8, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                        Text(
-                          'Min stok: ${threshold > 0 ? _formatNumber(threshold) : '-'}',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-                            if (lowStock) ...[
-                              const SizedBox(width: 8),
-                              Icon(Icons.warning_amber, color: Colors.red.shade600, size: 18),
-                              const SizedBox(width: 4),
-                              const Text(
-                                'Stok rendah',
-                                style: TextStyle(color: Colors.red),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: lowStock ? Colors.red.shade300 : Colors.blue.shade300,
+                                child: Text(
+                                  _stockName(stock).isEmpty ? '-' : _stockName(stock)[0].toUpperCase(),
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  _stockName(stock),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) {
+                                if (value == 'edit') {
+                                  _handleEditStock(stock);
+                                  } else if (value == 'delete') {
+                                    _showDeleteStockDialog(stock);
+                                  }
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                  PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                                ],
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '${_formatNumber(quantity)} ${unit.isNotEmpty ? unit : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'HPP: Rp ${_formatNumber(price)}',
+                            style: TextStyle(color: Colors.grey.shade700),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Penggunaan: ${_stockUsageCategory(stock)}',
+                            style: TextStyle(color: Colors.grey.shade700),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Min stok: ${threshold > 0 ? _formatNumber(threshold) : '-'}',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                          if (lowStock) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'Stok rendah',
+                              style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600),
+                            ),
                           ],
-                        ),
-                      ],
-                    ),
-                    trailing: PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert),
-                      onSelected: (value) => _showAdjustStockDialog(stock, value),
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(value: 'in', child: Text('Tambah Stok')),
-                        PopupMenuItem(value: 'out', child: Text('Kurangi Stok')),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -305,6 +475,156 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _StockFormDialog extends StatefulWidget {
+  final String title;
+  final String initialName;
+  final double initialQuantity;
+  final String initialUnit;
+  final double initialPrice;
+  final String initialNotes;
+  final String initialUsageCategory;
+
+  const _StockFormDialog({
+    Key? key,
+    required this.title,
+    this.initialName = '',
+    this.initialQuantity = 0,
+    this.initialUnit = 'pcs',
+    this.initialPrice = 0,
+    this.initialNotes = '',
+    this.initialUsageCategory = 'UMUM',
+  }) : super(key: key);
+
+  @override
+  State<_StockFormDialog> createState() => _StockFormDialogState();
+}
+
+class _StockFormDialogState extends State<_StockFormDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _quantityController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _notesController;
+  late String _selectedUnit;
+  late String _usageCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _quantityController = TextEditingController(
+      text: widget.initialQuantity > 0 ? widget.initialQuantity.toString() : '',
+    );
+    _priceController = TextEditingController(
+      text: widget.initialPrice > 0 ? widget.initialPrice.toString() : '',
+    );
+    _notesController = TextEditingController(text: widget.initialNotes);
+    _selectedUnit = widget.initialUnit.isNotEmpty ? widget.initialUnit : 'pcs';
+    _usageCategory = widget.initialUsageCategory.isNotEmpty ? widget.initialUsageCategory : 'UMUM';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _quantityController.dispose();
+    _priceController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  void _handleSave() {
+    final name = _nameController.text.trim();
+    final unit = _selectedUnit.trim();
+    final quantity = double.tryParse(_quantityController.text.replaceAll(',', '.')) ?? 0;
+    if (name.isEmpty || unit.isEmpty || quantity <= 0) {
+      return;
+    }
+    Navigator.of(context).pop({
+      'name': name,
+      'quantity': quantity,
+      'unit': _selectedUnit,
+      'price': double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0,
+      'notes': _notesController.text.trim(),
+      'usage_category': _usageCategory,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(labelText: 'Nama'),
+          ),
+          TextField(
+            controller: _quantityController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Jumlah'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _selectedUnit,
+            decoration: const InputDecoration(labelText: 'Satuan'),
+            items: _stockUnitOptions
+                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _selectedUnit = value);
+            },
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _priceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Harga per Unit (Opsional)'),
+          ),
+          TextField(
+            controller: _notesController,
+            decoration: const InputDecoration(labelText: 'Catatan (Opsional)'),
+          ),
+          const SizedBox(height: 12),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Kategori Penggunaan', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          Row(
+            children: [
+              Radio<String>(
+                value: 'UMUM',
+                groupValue: _usageCategory,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _usageCategory = value);
+                },
+              ),
+              const Text('UMUM'),
+              Radio<String>(
+                value: 'PRINT',
+                groupValue: _usageCategory,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _usageCategory = value);
+                },
+              ),
+              const Text('PRINT'),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Batal')),
+        ElevatedButton(
+          onPressed: _handleSave,
+        child: const Text('Simpan'),
+        ),
+      ],
     );
   }
 }
