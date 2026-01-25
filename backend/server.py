@@ -801,8 +801,12 @@ async def clock_in(data: AttendanceClockIn):
     status_message = "Overtime session started" if session_type == "overtime" else "Clock-in on time"
 
     if session_type == "normal":
-    is_late = current_time_minutes > work_start
-        late_minutes = max(0, current_time_minutes - work_start)
+        if work_start is not None:
+            is_late = current_time_minutes > work_start
+            late_minutes = max(0, current_time_minutes - work_start)
+        else:
+            is_late = False
+            late_minutes = 0
 
         if is_late:
             status_message = (
