@@ -1190,7 +1190,7 @@ async def get_cashflow_summary(month: Optional[str] = None):
     balance = total_income - total_expense
     net_after_salary = balance - total_salary
     
-        return {
+    return {
         "total_income": total_income,
         "total_expense": total_expense,
         "balance": balance,
@@ -1564,7 +1564,7 @@ async def update_stock(stock_id: str, stock: StockUpdate):
     
     update_dict = stock.model_dump(exclude_none=True)
     if update_dict:
-    await db.stock.update_one({"id": stock_id}, {"$set": update_dict})
+        await db.stock.update_one({"id": stock_id}, {"$set": update_dict})
 
     updated = await db.stock.find_one({"id": stock_id}, {"_id": 0})
     return updated
