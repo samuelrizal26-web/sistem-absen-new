@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:sistem_absen_flutter_v2/core/utils/crew_salary_slip_pdf.dart';
-import 'package:sistem_absen_flutter_v2/core/utils/pdf_export_wrapper.dart';
 import 'package:sistem_absen_flutter_v2/models/employee.dart';
+import 'package:sistem_absen_flutter_v2/screens/admin/export_payroll_slip_screen.dart';
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 
 class AdminCrewDashboardScreen extends StatefulWidget {
@@ -29,13 +28,30 @@ class _CrewDashboardData {
 
 class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
   late final Future<_CrewDashboardData> _dashboardFuture;
-  DateTime _selectedSlipPeriod = DateTime.now();
-  bool _isExportingSlip = false;
+  late String _currentStatus;
+  bool _isUpdatingStatus = false;
 
   @override
   void initState() {
+    debugPrint('ADMIN CREW DASHBOARD INIT');
     super.initState();
     _dashboardFuture = _loadDashboard();
+    _currentStatus = (widget.employee.status ?? 'inactive').toLowerCase();
+  }
+
+  void _onExportPressed() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExportPayrollSlipScreen(
+          employees: [
+            {
+              'id': widget.employee.employeeId,
+              'name': widget.employee.name,
+            },
+          ],
+        ),
+      ),
+    );
   }
 
   Future<_CrewDashboardData> _loadDashboard() async {
@@ -53,178 +69,20 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
     return formatter.format(value);
   }
 
-  Future<DateTime?> _showSlipPeriodDialog() async {
-    final now = DateTime.now();
-    final monthNames = List<String>.generate(
-      12,
-      (index) => DateFormat('MMMM', 'id_ID').format(DateTime(0, index + 1)),
-    );
-    final years = List<int>.generate(5, (index) => now.year - index);
-    int selectedMonth = _selectedSlipPeriod.month;
-    int selectedYear = _selectedSlipPeriod.year;
-
-    return showDialog<DateTime>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Pilih Periode Slip Gaji'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<int>(
-                  value: selectedMonth,
-                  decoration: const InputDecoration(labelText: 'Bulan'),
-                  items: List.generate(
-                    12,
-                    (index) => DropdownMenuItem(
-                      value: index + 1,
-                      child: Text(monthNames[index]),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => selectedMonth = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<int>(
-                  value: selectedYear,
-                  decoration: const InputDecoration(labelText: 'Tahun'),
-                  items: years
-                      .map((year) => DropdownMenuItem(value: year, child: Text(year.toString())))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => selectedYear = value);
-                  },
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(DateTime(selectedYear, selectedMonth)),
-                child: const Text('Export'),
-              ),
-            ],
-          );
-        });
-      },
-    );
+  String _formatCurrencyMaybe(num? value) {
+    if (value == null) return '-';
+    return _formatCurrency(value);
   }
 
-  List<Map<String, dynamic>> _filterDailyRecordsByPeriod(
-    List<Map<String, dynamic>> records,
-    DateTime period,
-  ) {
-    return records.where((entry) {
-      final date = _parseDate(entry['date']);
-      if (date == null) return false;
-      return date.year == period.year && date.month == period.month;
-    }).toList();
-  }
 
-  DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
-    final text = value.toString();
-    final clean = text.contains('T') ? text.split('T').first : text.split(' ').first;
-    return DateTime.tryParse(clean);
-  }
-
-  double _sumKasbonForPeriod(List<dynamic> advances, DateTime period) {
-    return advances.fold<double>(0, (sum, item) {
-      final advance = item as Map<String, dynamic>;
-      final date = _parseDate(advance['date']);
-      if (date == null || date.year != period.year || date.month != period.month) {
-        return sum;
-      }
-      final amount = advance['amount'];
-      return sum + _toDouble(amount);
-    });
-  }
-
-  double _toDouble(dynamic value) {
-    if (value == null) return 0;
-    if (value is num) return value.toDouble();
-    if (value is String) {
-      return double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
-    }
-    return 0;
-  }
-
-  Future<void> _exportSalarySlip() async {
-    final selectedPeriod = await _showSlipPeriodDialog();
-    if (selectedPeriod == null) return;
-    setState(() {
-      _selectedSlipPeriod = selectedPeriod;
-      _isExportingSlip = true;
-      _dashboardFuture = _loadDashboard();
-    });
-    try {
-      final payload = await _dashboardFuture;
-      final dailyRecords =
-          (payload.dailySummary['daily'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-      final periodEntries = _filterDailyRecordsByPeriod(dailyRecords, selectedPeriod);
-      final totalWorkMinutes = periodEntries.fold<double>(
-        0,
-        (sum, entry) => sum + (_toDouble(entry['total_work_minutes'])),
-      );
-      final totalSalary =
-          periodEntries.fold<double>(0, (sum, entry) => sum + (_toDouble(entry['total_salary'])));
-      final totalKasbon = _sumKasbonForPeriod(payload.advances, selectedPeriod);
-      final netSalary = totalSalary - totalKasbon;
-      final periodLabel = DateFormat('MMMM yyyy', 'id_ID').format(selectedPeriod);
-      final bytes = await generateCrewSalarySlipPdf(
-        employeeName: widget.employee.name,
-        position: widget.employee.position ?? '-',
-        periodLabel: periodLabel,
-        totalHours: totalWorkMinutes / 60,
-        totalDays: periodEntries.length,
-        totalSalary: totalSalary,
-        totalKasbon: totalKasbon,
-        netSalary: netSalary,
-        dailyDetails: periodEntries,
-      );
-      await PdfExportWrapper.sharePdf(
-        bytes: bytes,
-        filename: 'Slip_Gaji_${widget.employee.name}_${periodLabel.replaceAll(' ', '_')}.pdf',
-        context: context,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal export slip gaji: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isExportingSlip = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('ADMIN CREW DASHBOARD BUILD');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crew Dashboard'),
         backgroundColor: const Color(0xFF0A4D68),
-        actions: [
-          IconButton(
-            tooltip: 'Export Slip Gaji',
-            onPressed: _isExportingSlip ? null : _exportSalarySlip,
-            icon: _isExportingSlip
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                  )
-                : const Icon(Icons.picture_as_pdf),
-          ),
-        ],
       ),
       backgroundColor: const Color(0xFFEAFBFF),
       body: FutureBuilder<_CrewDashboardData>(
@@ -236,15 +94,18 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
           if (snapshot.hasError) {
             return Center(child: Text('Gagal memuat data: ${snapshot.error}'));
           }
+          if (snapshot.hasData) {
+            debugPrint('DASHBOARD DATA RAW: ${snapshot.data}');
+          }
           final payload = snapshot.requireData;
           final summary = payload.summary;
           final dailySummary = payload.dailySummary;
           final advances = payload.advances;
 
-          final totalSalary = (dailySummary['total_salary'] as num?)?.toDouble() ?? 0;
-          final totalKasbon = (summary['total_advances'] as num?)?.toDouble() ?? 0;
-          final totalNet = (summary['net_salary'] as num?)?.toDouble() ?? 0;
+          final totalSalary = dailySummary['total_salary'] as num?;
+          final totalNet = summary['net_salary'] as num?;
           final dailyRecords = (dailySummary['daily'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+          final outstandingKasbon = _calculateOutstandingKasbon(advances);
 
           return SafeArea(
             child: Column(
@@ -252,7 +113,7 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
               children: [
                 _buildHeader(),
                 const SizedBox(height: 16),
-                _buildSummaryCards(totalSalary, totalKasbon, totalNet),
+                _buildSummaryCards(totalSalary, outstandingKasbon, totalNet),
                 const SizedBox(height: 16),
                 Expanded(child: _buildTabs(dailyRecords, advances)),
               ],
@@ -265,7 +126,8 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
 
   Widget _buildHeader() {
     final employee = widget.employee;
-    final isActive = (employee.status ?? '').toLowerCase() == 'active';
+    final isActive = _currentStatus == 'active';
+    final isWorkFinished = !isActive;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
@@ -287,23 +149,72 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(employee.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(
+                    employee.name,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
-                  Text(employee.position ?? '-', style: const TextStyle(color: Colors.black54)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(isActive ? Icons.check_circle : Icons.cancel, color: isActive ? Colors.green : Colors.redAccent, size: 16),
-                      const SizedBox(width: 6),
-                      Text(isActive ? 'Active' : 'Inactive', style: TextStyle(color: isActive ? Colors.green : Colors.redAccent)),
-                    ],
+                  Text(
+                    employee.position ?? '-',
+                    style: const TextStyle(color: Colors.black54),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    employee.statusCrew ?? '-',
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            Chip(
-              label: Text(employee.statusCrew ?? '-', style: const TextStyle(color: Colors.white)),
-              backgroundColor: const Color(0xFF0A4D68),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    Icon(isActive ? Icons.check_circle : Icons.cancel,
+                        color: isActive ? Colors.green : Colors.redAccent, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      isActive ? 'Active' : 'Inactive',
+                      style: TextStyle(color: isActive ? Colors.green : Colors.redAccent),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isWorkFinished ? 'Kerja selesai • export tersedia' : 'Kerja berjalan • export setelah selesai',
+                  style: const TextStyle(fontSize: 12, color: Colors.black45),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: _isUpdatingStatus ? null : _toggleWorkState,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isActive ? Colors.red : Colors.green,
+                    minimumSize: const Size(140, 40),
+                  ),
+                  child: Text(
+                    isActive ? 'OFF – Selesaikan Kerja' : 'ON – Mulai Kerja',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: isWorkFinished ? _onExportPressed : null,
+                  icon: const Icon(Icons.picture_as_pdf, size: 18),
+                  label: const Text('Export PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0A4D68),
+                    minimumSize: const Size(140, 40),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -311,16 +222,34 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
     );
   }
 
-  Widget _buildSummaryCards(double salary, double kasbon, double net) {
+  Widget _buildSummaryCards(num? salary, num? kasbon, num? net) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          Expanded(child: _StatsCard(label: 'Gaji', value: _formatCurrency(salary), color: const Color(0xFF4CAF50))),
+          Expanded(
+            child: _StatsCard(
+              label: 'Gaji',
+              value: _formatCurrencyMaybe(salary),
+              color: const Color(0xFF4CAF50),
+            ),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: _StatsCard(label: 'Kasbon', value: _formatCurrency(kasbon), color: const Color(0xFFFF7043))),
+          Expanded(
+            child: _StatsCard(
+              label: 'Kasbon',
+              value: _formatCurrencyMaybe(kasbon),
+              color: const Color(0xFFFF7043),
+            ),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: _StatsCard(label: 'Gaji Bersih', value: _formatCurrency(net), color: const Color(0xFF1E88E5))),
+          Expanded(
+            child: _StatsCard(
+              label: 'Gaji Bersih',
+              value: _formatCurrencyMaybe(net),
+              color: const Color(0xFF1E88E5),
+            ),
+          ),
         ],
       ),
     );
@@ -412,6 +341,60 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
         );
       },
     );
+  }
+
+  double _calculateOutstandingKasbon(List<dynamic> advances) {
+    return advances.fold<double>(0.0, (sum, advance) {
+      if (advance is! Map<String, dynamic>) return sum;
+      final remaining = (advance['remaining_balance'] as num?)?.toDouble() ??
+          (advance['remaining_amount'] as num?)?.toDouble() ??
+          (advance['amount'] as num?)?.toDouble() ??
+          0;
+      return sum + remaining;
+    });
+  }
+
+  Future<void> _toggleWorkState() async {
+    final target = _currentStatus == 'active' ? 'inactive' : 'active';
+    setState(() => _isUpdatingStatus = true);
+    try {
+      final payload = _buildStatusPayload(target);
+      await ApiService.updateEmployee(widget.employee.employeeId, payload);
+      setState(() => _currentStatus = target);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            target == 'active' ? 'Crew kembali bekerja' : 'Kerja diselesaikan, export tersedia',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengubah status: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingStatus = false);
+      }
+    }
+  }
+
+  Map<String, dynamic> _buildStatusPayload(String targetStatus) {
+    final employee = widget.employee;
+    return {
+      'name': employee.name,
+      'whatsapp': employee.whatsapp ?? '',
+      'pin': employee.pin ?? '',
+      'birthplace': employee.birthplace ?? '',
+      'birthdate': employee.birthdate ?? '',
+      'position': employee.position ?? '',
+      'status_crew': employee.statusCrew ?? '',
+      'monthly_salary': employee.monthlySalary ?? 0,
+      'work_hours_per_day': employee.workHoursPerDay ?? 0,
+      'status': targetStatus,
+    };
   }
 
   Widget _buildProfileTab() {

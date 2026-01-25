@@ -9,7 +9,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Any, Dict, List, Optional
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
+import calendar
 import bcrypt
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -63,6 +64,8 @@ class EmployeeCreate(BaseModel):
     status_crew: str
     monthly_salary: float
     work_hours_per_day: float
+    allowance_meal: Optional[float] = None
+    allowance_transport: Optional[float] = None
     status: str = "active"
 
 class Employee(BaseModel):
@@ -97,6 +100,8 @@ class EmployeeResponse(BaseModel):
     hourly_rate: float
     status: str
     created_at: str
+    allowance_meal: Optional[float] = None
+    allowance_transport: Optional[float] = None
 
 class AttendanceClockIn(BaseModel):
     employee_id: str
@@ -116,6 +121,8 @@ class Attendance(BaseModel):
     salary_earned: Optional[float] = None
     deduction_amount: Optional[float] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    payroll_period_id: Optional[str] = None
+    payroll_locked: bool = Field(default=False)
 
 class AttendanceResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -132,26 +139,47 @@ class AttendanceResponse(BaseModel):
 class AdvanceCreate(BaseModel):
     employee_id: str
     amount: float
-    notes: Optional[str] = None
+    note: Optional[str] = Field(default=None, alias="notes")
+
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 class Advance(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     employee_id: str
     amount: float
-    notes: Optional[str] = None
+    note: Optional[str] = None
     date: str
-    status: str = "pending"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class AdvanceResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
     employee_id: str
     amount: float
-    notes: Optional[str] = None
+    note: Optional[str] = None
     date: str
+
+class PayrollPeriodCreate(BaseModel):
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+class PayrollPeriod(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    start_date: str
+    end_date: str
+    status: str = "open"
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    locked_at: Optional[str] = None
+
+class PayrollPeriodResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    start_date: str
+    end_date: str
     status: str
+    created_at: str
+    locked_at: Optional[str] = None
 
 class LoginRequest(BaseModel):
     employee_id: str
@@ -295,6 +323,7 @@ def verify_pin(pin: str, hashed: str) -> bool:
     return bcrypt.checkpw(pin.encode('utf-8'), hashed.encode('utf-8'))
 
 LOCAL_TZ_OFFSET = timedelta(hours=7)
+LOCAL_TIMEZONE = timezone(LOCAL_TZ_OFFSET)
 
 
 def _to_local(utc_dt: datetime) -> datetime:
@@ -305,6 +334,14 @@ def _to_utc(local_dt: datetime) -> datetime:
     return local_dt - LOCAL_TZ_OFFSET
 
 
+def ensure_local_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=LOCAL_TIMEZONE)
+    return dt
+
+
 async def _finalize_session(attendance_record: Dict[str, Any], clock_out_time: datetime) -> Optional[Dict[str, Any]]:
     if attendance_record.get("clock_out"):
         return None
@@ -312,6 +349,11 @@ async def _finalize_session(attendance_record: Dict[str, Any], clock_out_time: d
     employee = await db.employees.find_one({"id": attendance_record["employee_id"]})
     if not employee:
         return None
+
+    if attendance_record.get("payroll_locked"):
+        raise HTTPException(status_code=400, detail="Attendance record is locked")
+
+    period = await _ensure_period_open_for_date(attendance_record["date"])
 
     session_type = attendance_record.get("session_type", "normal")
     effective_start_iso = attendance_record.get("effective_work_start")
@@ -355,8 +397,10 @@ async def _finalize_session(attendance_record: Dict[str, Any], clock_out_time: d
             "clock_out": clock_out_time.isoformat(),
             "work_duration_minutes": duration_minutes,
             "salary_earned": salary,
-            "deduction_amount": deduction,
-            "effective_work_start": local_start.isoformat()
+        "deduction_amount": deduction,
+        "effective_work_start": local_start.isoformat(),
+        "payroll_period_id": period["id"],
+        "payroll_locked": False
         }}
     )
 
@@ -372,7 +416,7 @@ async def _finalize_session(attendance_record: Dict[str, Any], clock_out_time: d
 
 async def _close_expired_sessions(employee_id: Optional[str] = None) -> None:
     now_utc = datetime.now(timezone.utc)
-    local_now = _to_local(now_utc)
+    local_now = ensure_local_aware(_to_local(now_utc))
     effective_work_start_local = local_now
     query = {"clock_out": None}
     if employee_id:
@@ -384,16 +428,24 @@ async def _close_expired_sessions(employee_id: Optional[str] = None) -> None:
         session_date_str = record.get("date")
         if not session_date_str:
             continue
-        session_date = datetime.strptime(session_date_str, "%Y-%m-%d")
+        try:
+            session_date = datetime.strptime(session_date_str, "%Y-%m-%d")
+        except ValueError:
+            continue
 
         if session_type == "normal":
-            auto_close_local = session_date.replace(hour=21, minute=0, second=0, microsecond=0)
+            auto_close_local = ensure_local_aware(
+                session_date.replace(hour=21, minute=0, second=0, microsecond=0)
+            )
             if local_now < auto_close_local:
                 continue
             target_local = auto_close_local
         else:
-            cap_local = session_date.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-            forced_local = cap_local + timedelta(hours=3)
+            cap_local = ensure_local_aware(
+                session_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                + timedelta(days=1)
+            )
+            forced_local = ensure_local_aware(cap_local + timedelta(hours=3))
             if local_now >= forced_local:
                 target_local = forced_local
             elif local_now >= cap_local:
@@ -408,6 +460,108 @@ async def _close_expired_sessions(employee_id: Optional[str] = None) -> None:
 def calculate_hourly_rate(monthly_salary: float, work_hours_per_day: float) -> float:
     total_hours = work_hours_per_day * 22
     return monthly_salary / total_hours if total_hours > 0 else 0
+
+
+def _default_payroll_range(reference: Optional[date] = None) -> tuple[str, str]:
+    ref_date = reference or datetime.now(timezone.utc).date()
+    start = ref_date.replace(day=1)
+    last_day = calendar.monthrange(ref_date.year, ref_date.month)[1]
+    end = ref_date.replace(day=last_day)
+    return start.isoformat(), end.isoformat()
+
+
+async def _get_open_period_for_date(date_str: str) -> Optional[Dict[str, Any]]:
+    return await db.payroll_periods.find_one({
+        "start_date": {"$lte": date_str},
+        "end_date": {"$gte": date_str},
+        "status": "open"
+    })
+
+
+async def _ensure_period_open_for_date(date_str: str) -> Dict[str, Any]:
+    period = await _get_open_period_for_date(date_str)
+    if not period:
+        raise HTTPException(status_code=400, detail="No open payroll period for this date")
+    return period
+
+
+async def _get_period(period_id: str) -> Optional[Dict[str, Any]]:
+    return await db.payroll_periods.find_one({"id": period_id}, {"_id": 0})
+
+
+def _format_payroll_period_label(period: Dict[str, Any]) -> str:
+    start = period.get("start_date")
+    if not start:
+        return f"{period.get('start_date', '-')}"
+    try:
+        start_date = datetime.fromisoformat(start)
+        return start_date.strftime("%b %Y")
+    except Exception:
+        return start
+
+
+async def _sum_advances_in_period(employee_id: str, start_date: str, end_date: str) -> float:
+    advances = await db.advances.find({
+        "employee_id": employee_id,
+        "date": {"$gte": start_date, "$lte": end_date}
+    }, {"_id": 0}).to_list(1000)
+    return sum(float(adv.get("amount") or 0) for adv in advances)
+
+
+async def _prepare_payroll_slip(
+    period_id: str,
+    employee_id: str,
+    require_locked: bool = False,
+) -> Dict[str, Any]:
+    period = await _get_period(period_id)
+    if not period:
+        raise HTTPException(status_code=404, detail="Payroll period not found")
+    if require_locked and period.get("status") != "locked":
+        raise HTTPException(status_code=400, detail="Payroll period must be locked for this operation")
+
+    employee = await db.employees.find_one({"id": employee_id}, {"_id": 0, "pin_hash": 0})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    attendance_records = await db.attendance.find(
+        {
+            "employee_id": employee_id,
+            "clock_out": {"$ne": None},
+            "date": {"$gte": period["start_date"], "$lte": period["end_date"]}
+        },
+        {"_id": 0}
+    ).sort("date", 1).to_list(1000)
+
+    minutes_worked = sum(record.get("work_duration_minutes") or 0 for record in attendance_records)
+    minute_rate = (employee.get("hourly_rate") or 0) / 60 if employee.get("hourly_rate") else 0
+    salary_gross = minutes_worked * minute_rate
+    total_deduction = sum(record.get("deduction_amount") or 0 for record in attendance_records)
+    total_kasbon_periode = await _sum_advances_in_period(employee_id, period["start_date"], period["end_date"])
+    net_salary = max(0, salary_gross - total_deduction - total_kasbon_periode)
+
+    return {
+        "period": {
+            "id": period["id"],
+            "start_date": period["start_date"],
+            "end_date": period["end_date"],
+            "status": period["status"]
+        },
+        "employee": {
+            "id": employee["id"],
+            "name": employee["name"],
+            "position": employee.get("position"),
+            "monthly_salary": employee.get("monthly_salary"),
+            "work_hours_per_day": employee.get("work_hours_per_day")
+        },
+        "attendance": attendance_records,
+        "minutes_worked": minutes_worked,
+        "minute_rate": minute_rate,
+        "salary_gross": salary_gross,
+        "total_deduction": total_deduction,
+        "total_kasbon_periode": total_kasbon_periode,
+        "net_salary": net_salary
+    }
+
 
 # Employee Routes
 @api_router.post("/employees", response_model=EmployeeResponse)
@@ -467,7 +621,7 @@ async def update_employee(employee_id: str, employee: EmployeeCreate):
     if not existing:
         raise HTTPException(status_code=404, detail="Employee not found")
     
-    update_dict = employee.model_dump()
+    update_dict = employee.model_dump(exclude_unset=True)
     if 'pin' in update_dict and update_dict['pin']:
         update_dict['pin_hash'] = hash_pin(update_dict['pin'])
     update_dict.pop('pin', None)
@@ -608,6 +762,7 @@ async def clock_in(data: AttendanceClockIn):
         )
     
     today = local_now.strftime("%Y-%m-%d")
+    period = await _ensure_period_open_for_date(today)
     
     if session_type == "normal":
         existing_normal = await db.attendance.find_one({
@@ -625,7 +780,7 @@ async def clock_in(data: AttendanceClockIn):
             "employee_id": data.employee_id,
             "date": today,
             "session_type": "overtime"
-        })
+    })
         if existing_overtime:
             raise HTTPException(status_code=400, detail="Overtime session already recorded for today")
         open_normal = await db.attendance.find_one({
@@ -639,12 +794,14 @@ async def clock_in(data: AttendanceClockIn):
         if open_normal:
             raise HTTPException(status_code=400, detail="Normal session still open")
 
+    effective_work_start_local = local_now
+
     is_late = False
     late_minutes = 0
     status_message = "Overtime session started" if session_type == "overtime" else "Clock-in on time"
 
     if session_type == "normal":
-        is_late = current_time_minutes > work_start
+    is_late = current_time_minutes > work_start
         late_minutes = max(0, current_time_minutes - work_start)
 
         if is_late:
@@ -652,8 +809,8 @@ async def clock_in(data: AttendanceClockIn):
                 f"Terlambat {late_minutes} menit. "
                 f"Gaji dihitung mulai dari jam {current_hour:02d}:{current_minute:02d}"
             )
-        else:
-            status_message = "Clock-in on time"
+    else:
+        status_message = "Clock-in on time"
     
     attendance = Attendance(
         employee_id=data.employee_id,
@@ -668,6 +825,8 @@ async def clock_in(data: AttendanceClockIn):
     doc['is_late'] = is_late
     doc['late_minutes'] = late_minutes
     doc['effective_work_start'] = effective_work_start_local.isoformat()
+    doc['payroll_period_id'] = period["id"]
+    doc['payroll_locked'] = False
     
     await db.attendance.insert_one(doc)
     
@@ -756,6 +915,173 @@ async def get_all_attendance():
     
     return attendance_records
 
+
+# Payroll Period routes
+@api_router.post("/payroll-periods", response_model=PayrollPeriodResponse)
+async def create_payroll_period(payload: PayrollPeriodCreate):
+    start_date = payload.start_date
+    end_date = payload.end_date
+    if start_date and end_date:
+        try:
+            start = datetime.fromisoformat(start_date).date()
+            end = datetime.fromisoformat(end_date).date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        if start > end:
+            raise HTTPException(status_code=400, detail="Start date must be before end date.")
+        start_iso = start.isoformat()
+        end_iso = end.isoformat()
+    else:
+        start_iso, end_iso = _default_payroll_range()
+
+    overlapping = await db.payroll_periods.find_one({
+        "status": "open",
+        "start_date": {"$lte": end_iso},
+        "end_date": {"$gte": start_iso}
+    })
+    if overlapping:
+        raise HTTPException(status_code=400, detail="Existing open payroll period overlaps this range.")
+
+    period = PayrollPeriod(start_date=start_iso, end_date=end_iso)
+    doc = period.model_dump()
+    await db.payroll_periods.insert_one(doc)
+    return period.model_dump()
+
+
+@api_router.get("/payroll-periods", response_model=List[PayrollPeriodResponse])
+async def list_payroll_periods():
+    periods = await db.payroll_periods.find({}, {"_id": 0}).sort("start_date", -1).to_list(100)
+    return periods
+
+
+@api_router.get("/payroll-periods/{period_id}", response_model=PayrollPeriodResponse)
+async def get_payroll_period(period_id: str):
+    period = await _get_period(period_id)
+    if not period:
+        raise HTTPException(status_code=404, detail="Payroll period not found")
+    return period
+
+
+@api_router.post("/payroll-periods/{period_id}/lock", response_model=PayrollPeriodResponse)
+async def lock_payroll_period(period_id: str):
+    period = await _get_period(period_id)
+    if not period:
+        raise HTTPException(status_code=404, detail="Payroll period not found")
+    if period["status"] == "locked":
+        raise HTTPException(status_code=400, detail="Payroll period already locked")
+
+    await _close_expired_sessions()
+    locked_at = datetime.now(timezone.utc).isoformat()
+    await db.payroll_periods.update_one(
+        {"id": period_id},
+        {"$set": {"status": "locked", "locked_at": locked_at}}
+    )
+    period.update({"status": "locked", "locked_at": locked_at})
+    await db.attendance.update_many(
+        {
+            "date": {"$gte": period["start_date"], "$lte": period["end_date"]}
+        },
+        {
+            "$set": {
+                "payroll_locked": True,
+                "payroll_period_id": period_id
+            }
+        }
+    )
+    return period
+
+
+@api_router.get("/payroll-periods/{period_id}/slip/{employee_id}")
+async def get_payroll_slip(period_id: str, employee_id: str):
+    return await _prepare_payroll_slip(period_id, employee_id)
+
+
+def _build_payroll_slip_pdf(slip: Dict[str, Any]) -> BytesIO:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=32, leftMargin=32, topMargin=32, bottomMargin=32)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    period = slip.get("period") or {}
+    employee = slip.get("employee") or {}
+
+    elements.append(Paragraph("Slip Payroll", styles["Title"]))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Periode", styles["Heading5"]))
+    elements.append(Paragraph(f"{period.get('start_date')} – {period.get('end_date')}", styles["Normal"]))
+    elements.append(Paragraph(f"Status: {period.get('status')}", styles["Normal"]))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Karyawan", styles["Heading5"]))
+    elements.append(Paragraph(employee.get("name", "-"), styles["Normal"]))
+    elements.append(Paragraph("ID: " + (employee.get("id", "-")), styles["Normal"]))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Detail Angka", styles["Heading5"]))
+    table_data = [
+        ["Field", "Nilai"],
+        ["minutes_worked", str(slip.get("minutes_worked"))],
+        ["salary_gross", str(slip.get("salary_gross"))],
+        ["total_kasbon_periode", str(slip.get("total_kasbon_periode"))],
+        ["total_deduction", str(slip.get("total_deduction"))],
+        ["net_salary", str(slip.get("net_salary"))],
+    ]
+    table = Table(table_data, colWidths=[220, 220])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#263238")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#B0BEC5")),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+    ]))
+    elements.append(table)
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+@api_router.get("/payroll-periods/exportable")
+async def list_exportable_periods():
+    periods = await db.payroll_periods.find(
+        {"status": "locked"},
+        {"_id": 0}
+    ).sort("end_date", -1).limit(3).to_list(3)
+
+    result = []
+    for period in periods:
+        result.append({
+            "id": period["id"],
+            "label": _format_payroll_period_label(period),
+            "start": period.get("start_date"),
+            "end": period.get("end_date")
+        })
+    return result
+
+
+@api_router.get("/payroll-periods/{period_id}/slip/{employee_id}/pdf")
+async def download_payroll_slip_pdf(period_id: str, employee_id: str):
+    slip = await _prepare_payroll_slip(period_id, employee_id, require_locked=True)
+    pdf_buffer = _build_payroll_slip_pdf(slip)
+    filename = f"slip_{employee_id}_{period_id}.pdf"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return StreamingResponse(pdf_buffer, media_type="application/pdf", headers=headers)
+
+
+async def mark_locked_attendance_records():
+    """Migration helper - call manually to mark archived attendance."""
+    locked_periods = await db.payroll_periods.find({"status": "locked"}).to_list(1000)
+    for period in locked_periods:
+        await db.attendance.update_many(
+            {
+                "date": {"$gte": period["start_date"], "$lte": period["end_date"]}
+            },
+            {
+                "$set": {
+                    "payroll_period_id": period["id"],
+                    "payroll_locked": True
+                }
+            }
+        )
+
 # Advance Routes
 @api_router.post("/advances", response_model=AdvanceResponse)
 async def create_advance(advance: AdvanceCreate):
@@ -764,37 +1090,29 @@ async def create_advance(advance: AdvanceCreate):
         raise HTTPException(status_code=404, detail="Employee not found")
     
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    await _ensure_period_open_for_date(today)
     
     advance_obj = Advance(
         employee_id=advance.employee_id,
         amount=advance.amount,
-        notes=advance.notes,
-        date=today,
-        status="approved"
+        note=advance.note,
+        date=today
     )
     
     doc = advance_obj.model_dump()
-    doc['created_at'] = doc['created_at'].isoformat()
-    
     await db.advances.insert_one(doc)
     
-    return AdvanceResponse(
-        id=advance_obj.id,
-        employee_id=advance_obj.employee_id,
-        amount=advance_obj.amount,
-        notes=advance_obj.notes,
-        date=advance_obj.date,
-        status=advance_obj.status
-    )
+    return AdvanceResponse(**doc)
 
 @api_router.get("/advances/employee/{employee_id}", response_model=List[AdvanceResponse])
 async def get_employee_advances(employee_id: str):
-    advances = await db.advances.find(
+    advances_raw = await db.advances.find(
         {"employee_id": employee_id},
         {"_id": 0}
     ).sort("date", -1).to_list(1000)
+    advances = [_normalize_advance_doc(adv) for adv in advances_raw]
     
-    return advances
+    return [_normalize_advance_doc(adv) for adv in advances]
 
 @api_router.get("/advances/all", response_model=List[AdvanceResponse])
 async def get_all_advances():
@@ -803,7 +1121,7 @@ async def get_all_advances():
         {"_id": 0}
     ).sort("date", -1).to_list(1000)
     
-    return advances
+    return [_normalize_advance_doc(adv) for adv in advances]
 
 # Cashflow Routes
 @api_router.post("/cashflow", response_model=CashflowResponse)
@@ -868,7 +1186,7 @@ async def get_cashflow_summary(month: Optional[str] = None):
     balance = total_income - total_expense
     net_after_salary = balance - total_salary
     
-    return {
+        return {
         "total_income": total_income,
         "total_expense": total_expense,
         "balance": balance,
@@ -897,7 +1215,6 @@ async def _build_employee_report_payload(employee_id: str):
     total_advances = sum(
         adv.get('amount', 0) or 0
         for adv in advances
-        if (adv.get('status') or '').lower() == 'approved'
     )
     net_salary = total_salary - total_advances
     
@@ -908,6 +1225,7 @@ async def _build_employee_report_payload(employee_id: str):
         "summary": {
             "total_salary": total_salary,
             "total_advances": total_advances,
+            "total_kasbon_periode": total_advances,
             "net_salary": net_salary
         },
         "daily_salary_summary": salary_summary
@@ -921,11 +1239,29 @@ def _format_currency_idr(value) -> str:
     return f"Rp {numeric:,.0f}".replace(",", ".")
 
 
+def _normalize_advance_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
+    note_value = doc.get("note") or doc.get("notes")
+    return {
+        "id": doc.get("id"),
+        "employee_id": doc.get("employee_id"),
+        "amount": float(doc.get("amount") or 0),
+        "note": note_value,
+        "date": doc.get("date")
+    }
+
+
 async def _aggregate_daily_salary(employee_id: str) -> Dict[str, Any]:
     records = await db.attendance.find(
         {"employee_id": employee_id, "clock_out": {"$ne": None}},
         {"_id": 0}
     ).sort("date", -1).to_list(1000)
+
+    if not records:
+        return {
+            "total_work_minutes": 0,
+            "total_salary": 0,
+            "daily": []
+        }
 
     daily: Dict[str, Dict[str, float]] = {}
     for record in records:
@@ -1075,7 +1411,7 @@ def _build_employee_report_pdf(report_data: dict) -> BytesIO:
             ["Total Gaji", "Total Kasbon", "Gaji Bersih"],
             [
                 _format_currency_idr(summary.get("total_salary")),
-                _format_currency_idr(summary.get("total_advances")),
+                _format_currency_idr(summary.get("total_kasbon_periode")),
                 _format_currency_idr(summary.get("net_salary")),
             ],
         ],
@@ -1132,15 +1468,14 @@ def _build_employee_report_pdf(report_data: dict) -> BytesIO:
     advances = report_data["advances"]
     elements.append(Paragraph("Catatan Kasbon", section_style))
     if advances:
-        advances_data = [["Tanggal", "Nominal", "Keterangan", "Status"]]
+        advances_data = [["Tanggal", "Nominal", "Keterangan"]]
         for adv in advances[:30]:
             advances_data.append([
                 _format_date(adv.get("date") or adv.get("request_date")),
                 _format_currency_idr(adv.get("amount")),
-                adv.get("notes") or adv.get("reason") or "-",
-                (adv.get("status") or "-").capitalize(),
+                adv.get("note") or adv.get("notes") or adv.get("reason") or "-",
             ])
-        advances_table = Table(advances_data, repeatRows=1, colWidths=[80, 80, 200, 60])
+        advances_table = Table(advances_data, repeatRows=1, colWidths=[80, 80, 200])
         advances_table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#37474F")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -1225,7 +1560,7 @@ async def update_stock(stock_id: str, stock: StockUpdate):
     
     update_dict = stock.model_dump(exclude_none=True)
     if update_dict:
-        await db.stock.update_one({"id": stock_id}, {"$set": update_dict})
+    await db.stock.update_one({"id": stock_id}, {"$set": update_dict})
 
     updated = await db.stock.find_one({"id": stock_id}, {"_id": 0})
     return updated

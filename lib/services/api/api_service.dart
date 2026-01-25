@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:sistem_absen_flutter_v2/models/employee.dart';
@@ -47,6 +49,57 @@ class ApiService {
       return result;
     }
     throw Exception('Gagal memuat data kasbon');
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchPayrollPeriods() async {
+    final response = await http.get(_uri('/payroll-periods'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    throw Exception('Gagal memuat daftar periode payroll');
+  }
+
+  static Future<Map<String, dynamic>> fetchPayrollPeriodDetail(String periodId) async {
+    final response = await http.get(_uri('/payroll-periods/$periodId'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    final error = _safeDecode(response.body);
+    throw Exception(error['detail'] ?? 'Gagal memuat detail periode payroll');
+  }
+
+  static Future<Map<String, dynamic>> fetchPayrollSlip({
+    required String periodId,
+    required String employeeId,
+  }) async {
+    final response = await http.get(_uri('/payroll-periods/$periodId/slip/$employeeId'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    final error = _safeDecode(response.body);
+    throw Exception(error['detail'] ?? 'Gagal memuat slip payroll');
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchExportablePayrollPeriods() async {
+    final response = await http.get(_uri('/payroll-periods'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    throw Exception('Gagal memuat periode exportable');
+  }
+
+  static Future<Uint8List> downloadPayrollSlipPdf({
+    required String periodId,
+    required String employeeId,
+  }) async {
+    final response = await http.get(_uri('/payroll-periods/$periodId/slip/$employeeId/pdf'));
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    }
+    final error = _safeDecode(response.body);
+    throw Exception(error['detail'] ?? 'Gagal mengunduh slip payroll');
   }
 
   static Future<void> deductKasbon({
@@ -456,27 +509,66 @@ class ApiService {
 
   // EMPLOYEE DETAIL ----------------------------------------------------------
   static Future<Map<String, dynamic>> fetchEmployeeDetail(String employeeId) async {
-    final responses = await Future.wait([
-      http.get(_uri('/employees/$employeeId')),
-      http.get(_uri('/attendance/employee/$employeeId')),
-      http.get(_uri('/advances/$employeeId')),
-      http.get(_uri('/attendance/daily-summary/$employeeId')),
-    ]);
+    debugPrint('FETCH EMPLOYEE DETAIL CALLED: $employeeId');
 
-    final statusOk = responses.every((r) => r.statusCode == 200);
-    if (!statusOk) {
-      throw Exception('Gagal memuat detail karyawan');
+    final employeeRes = await http.get(_uri('/employees/$employeeId'));
+    debugPrint('EMPLOYEE STATUS: ${employeeRes.statusCode}');
+    if (employeeRes.statusCode != 200) {
+      throw Exception('Employee tidak ditemukan');
     }
 
-    final attendances = jsonDecode(responses[1].body) as List<dynamic>;
-    await ensureAutoClockOut(employeeId, attendances);
+    final result = <String, dynamic>{};
+    result['employee'] = jsonDecode(employeeRes.body);
 
-    return {
-      'employee': jsonDecode(responses[0].body),
-      'attendance': attendances,
-      'advances': jsonDecode(responses[2].body),
-      'summary': jsonDecode(responses[3].body),
-    };
+    try {
+      final attendanceRes = await http.get(_uri('/attendance/employee/$employeeId'));
+      debugPrint('ATTENDANCE STATUS: ${attendanceRes.statusCode}');
+      if (attendanceRes.statusCode == 200) {
+        final attendanceList = jsonDecode(attendanceRes.body) as List<dynamic>;
+        await ensureAutoClockOut(employeeId, attendanceList);
+        result['attendance'] = attendanceList;
+      } else {
+        result['attendance'] = [];
+      }
+    } catch (e) {
+      debugPrint('ATTENDANCE ERROR: $e');
+      result['attendance'] = [];
+    }
+
+    try {
+      final advancesRes = await http.get(_uri('/advances/employee/$employeeId'));
+      debugPrint('ADVANCES STATUS: ${advancesRes.statusCode}');
+      if (advancesRes.statusCode == 200) {
+        result['advances'] = jsonDecode(advancesRes.body);
+      } else {
+        result['advances'] = [];
+      }
+    } catch (e) {
+      debugPrint('ADVANCES ERROR: $e');
+      result['advances'] = [];
+    }
+
+    try {
+      final summaryRes = await http.get(_uri('/attendance/daily-summary/$employeeId'));
+      debugPrint('SUMMARY STATUS: ${summaryRes.statusCode}');
+      if (summaryRes.statusCode == 200) {
+        result['summary'] = jsonDecode(summaryRes.body);
+      } else {
+        result['summary'] = {
+          'total_salary': 0,
+          'total_days': 0,
+        };
+      }
+    } catch (e) {
+      debugPrint('SUMMARY ERROR: $e');
+      result['summary'] = {
+        'total_salary': 0,
+        'total_days': 0,
+      };
+    }
+
+    debugPrint('EMPLOYEE DETAIL MERGED (SAFE): $result');
+    return result;
   }
 
   static Future<Map<String, dynamic>> fetchDailySalarySummary(String employeeId) async {
