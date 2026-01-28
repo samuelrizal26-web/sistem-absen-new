@@ -31,6 +31,12 @@ Future<Uint8List> generateSalarySlipPdf({
   final pw.TextStyle normalStyle = pw.TextStyle(font: fontRegular, fontSize: 11);
   final pw.TextStyle warnStyle = pw.TextStyle(font: fontBold, fontSize: 11, color: pdf_core.PdfColors.red);
   final pw.TextStyle italicStyle = pw.TextStyle(font: fontLight, fontSize: 10, fontStyle: pw.FontStyle.italic);
+  final pw.TextStyle noteStyle = pw.TextStyle(
+    font: fontLight,
+    fontSize: 9,
+    fontStyle: pw.FontStyle.italic,
+    color: pdf_core.PdfColors.grey700,
+  );
 
   final totalMealAllowance = mealAllowancePerDay * clockInCount;
   final totalTransportAllowance = transportAllowancePerDay * clockInCount;
@@ -67,6 +73,7 @@ Future<Uint8List> generateSalarySlipPdf({
                       pw.Text('Periode : $period', style: headingStyle),
                     ],
                   ),
+                  pw.SizedBox(height: 6),
                   pw.Center(
                     child: pw.Text(
                       'PERINGATAN: INFORMASI INI HANYA UNTUK YANG BERSANGKUTAN',
@@ -110,7 +117,7 @@ Future<Uint8List> generateSalarySlipPdf({
                     style: pw.TextStyle(font: fontBold, fontSize: 14),
                   ),
                   pw.SizedBox(height: 4),
-                  pw.Text('*Dihitung otomatis oleh sistem berdasarkan aturan jam masuk', style: normalStyle),
+                  pw.Text('*Dihitung otomatis oleh sistem berdasarkan aturan jam masuk', style: noteStyle),
                   pw.SizedBox(height: sectionSpacing),
                   pw.Text('TUNJANGAN HARIAN', style: headingStyle),
                   pw.SizedBox(height: 6),
@@ -133,8 +140,11 @@ Future<Uint8List> generateSalarySlipPdf({
                     ],
                   ),
                   pw.SizedBox(height: 6),
-                  pw.Text('*uang harian sudah diberikan setiap hari selama kamu aktif clockin', style: normalStyle),
-                  pw.Text('(kebutuhan makan secara real kadang melebihi ketentuan)', style: italicStyle),
+                  pw.Text('*uang harian sudah diberikan setiap hari selama kamu aktif clockin', style: noteStyle),
+                  pw.Text(
+                    '(kebutuhan makan secara real kadang melebihi ketentuan)',
+                    style: noteStyle,
+                  ),
                   pw.SizedBox(height: sectionSpacing),
                   pw.Text('TOTAL NILAI PENDAPATAN', style: headingStyle),
                   pw.SizedBox(height: 6),
