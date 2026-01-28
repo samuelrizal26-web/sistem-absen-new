@@ -63,106 +63,112 @@ Future<Uint8List> generateSalarySlipPdf({
               ],
             ),
             pw.Divider(),
-            pw.SizedBox(height: 12),
-            pw.SizedBox(height: 14),
-            pw.Center(
-              child: pw.Text(
-                'PERINGATAN: INFORMASI INI HANYA UNTUK YANG BERSANGKUTAN',
-                style: warnStyle,
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(top: 12),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Center(
+                    child: pw.Text(
+                      'PERINGATAN: INFORMASI INI HANYA UNTUK YANG BERSANGKUTAN',
+                      style: warnStyle,
+                    ),
+                  ),
+                  pw.SizedBox(height: sectionSpacing),
+                  pw.Text('INFORMASI UTAMA', style: headingStyle),
+                  pw.SizedBox(height: 6),
+                  pw.Table(
+                    columnWidths: const {
+                      0: pw.FlexColumnWidth(2),
+                      1: pw.FlexColumnWidth(4),
+                    },
+                    children: [
+                      _buildInfoRow('Nama', employeeName, normalStyle),
+                      _buildInfoRow('Gaji Pokok', _formatCurrency(monthlySalary), normalStyle),
+                      _buildInfoRow('Jam kerja / Hari', '${workHoursPerDay.toStringAsFixed(1)} jam', normalStyle),
+                    ],
+                  ),
+                  pw.SizedBox(height: sectionSpacing),
+                  pw.Text('GAJI BULANAN', style: headingStyle),
+                  pw.SizedBox(height: 6),
+                  pw.Table(
+                    columnWidths: const {
+                      0: pw.FlexColumnWidth(3),
+                      1: pw.FlexColumnWidth(3),
+                    },
+                    children: [
+                      _buildInfoRow('Gaji Pokok', _formatCurrency(monthlySalary), normalStyle),
+                      _buildInfoRow('Lembur', _formatCurrency(overtime), normalStyle),
+                      _buildInfoRow('Potongan telat', _formatCurrency(latePenalty), normalStyle),
+                      _buildInfoRow('Potongan tidak hadir', _formatCurrency(absencePenalty), normalStyle),
+                      _buildInfoRow('Potongan Kasbon', _formatCurrency(kasbonCut), normalStyle),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Text('Gaji bersih yang di terima', style: normalStyle),
+                  pw.Text(
+                    _formatCurrency(computedNetSalary),
+                    style: pw.TextStyle(font: fontBold, fontSize: 14),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text('*Dihitung otomatis oleh sistem berdasarkan aturan jam masuk', style: normalStyle),
+                  pw.SizedBox(height: sectionSpacing),
+                  pw.Text('TUNJANGAN HARIAN', style: headingStyle),
+                  pw.SizedBox(height: 6),
+                  pw.Table(
+                    columnWidths: const {
+                      0: pw.FlexColumnWidth(4),
+                      1: pw.FlexColumnWidth(2),
+                    },
+                    children: [
+                      _buildInfoRow(
+                        'Tunjangan Makan :',
+                        '$clockInCount x ${_formatCurrency(mealAllowancePerDay)} = ${_formatCurrency(totalMealAllowance)}',
+                        normalStyle,
+                      ),
+                      _buildInfoRow(
+                        'Tunjangan Transport :',
+                        '$clockInCount x ${_formatCurrency(transportAllowancePerDay)} = ${_formatCurrency(totalTransportAllowance)}',
+                        normalStyle,
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Text('*uang harian sudah diberikan setiap hari selama kamu aktif clockin', style: normalStyle),
+                  pw.Text('(kebutuhan makan secara real kadang melebihi ketentuan)', style: italicStyle),
+                  pw.SizedBox(height: sectionSpacing),
+                  pw.Text('TOTAL NILAI PENDAPATAN', style: headingStyle),
+                  pw.SizedBox(height: 6),
+                  pw.Table(
+                    columnWidths: const {
+                      0: pw.FlexColumnWidth(3),
+                      1: pw.FlexColumnWidth(3),
+                    },
+                    children: [
+                      _buildInfoRow('Gaji bersih yang di terima', _formatCurrency(computedNetSalary), normalStyle),
+                      _buildInfoRow('Tunjangan Makan', _formatCurrency(totalMealAllowance), normalStyle),
+                      _buildInfoRow('Tunjangan Transport', _formatCurrency(totalTransportAllowance), normalStyle),
+                      _buildInfoRow('TOTAL nilai pendapatan', _formatCurrency(totalNetIncome), normalStyle),
+                    ],
+                  ),
+                  pw.SizedBox(height: sectionSpacing + 4),
+                  pw.Center(
+                    child: pw.Text(
+                      '"Kerjo bareng ing LABALABA.ADV iki ora mung kanggo kantor, tapi kanggo awakmu juga, Rezeki sing kamu tompo saben dino lan saben akhir bulan sejatine yaiku balikane jerih payahmu."',
+                      textAlign: pw.TextAlign.center,
+                      style: italicStyle,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Center(
+                    child: pw.Text('Maturnuwun wis dadi bagian penting nang keluarga cilik iki', style: normalStyle),
+                  ),
+                  pw.SizedBox(height: 16),
+                  pw.Center(
+                    child: pw.Text('LABALABA.ADV', style: pw.TextStyle(font: fontBold)),
+                  ),
+                ],
               ),
-            ),
-            pw.SizedBox(height: sectionSpacing),
-            pw.Text('INFORMASI UTAMA', style: headingStyle),
-            pw.SizedBox(height: 6),
-            pw.Table(
-              columnWidths: const {
-                0: pw.FlexColumnWidth(2),
-                1: pw.FlexColumnWidth(4),
-              },
-              children: [
-                _buildInfoRow('Nama', employeeName, normalStyle),
-                _buildInfoRow('Gaji Pokok', _formatCurrency(monthlySalary), normalStyle),
-                _buildInfoRow('Jam kerja / Hari', '${workHoursPerDay.toStringAsFixed(1)} jam', normalStyle),
-              ],
-            ),
-            pw.SizedBox(height: sectionSpacing),
-            pw.Text('GAJI BULANAN', style: headingStyle),
-            pw.SizedBox(height: 6),
-            pw.Table(
-              columnWidths: const {
-                0: pw.FlexColumnWidth(3),
-                1: pw.FlexColumnWidth(3),
-              },
-              children: [
-                _buildInfoRow('Gaji Pokok', _formatCurrency(monthlySalary), normalStyle),
-                _buildInfoRow('Lembur', _formatCurrency(overtime), normalStyle),
-                _buildInfoRow('Potongan telat', _formatCurrency(latePenalty), normalStyle),
-                _buildInfoRow('Potongan tidak hadir', _formatCurrency(absencePenalty), normalStyle),
-                _buildInfoRow('Potongan Kasbon', _formatCurrency(kasbonCut), normalStyle),
-              ],
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text('Gaji bersih yang di terima', style: normalStyle),
-            pw.Text(
-              _formatCurrency(computedNetSalary),
-              style: pw.TextStyle(font: fontBold, fontSize: 14),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text('*Dihitung otomatis oleh sistem berdasarkan aturan jam masuk', style: normalStyle),
-            pw.SizedBox(height: sectionSpacing),
-            pw.Text('TUNJANGAN HARIAN', style: headingStyle),
-            pw.SizedBox(height: 6),
-            pw.Table(
-              columnWidths: const {
-                0: pw.FlexColumnWidth(4),
-                1: pw.FlexColumnWidth(2),
-              },
-              children: [
-                _buildInfoRow(
-                  'Tunjangan Makan :',
-                  '$clockInCount x ${_formatCurrency(mealAllowancePerDay)} = ${_formatCurrency(totalMealAllowance)}',
-                  normalStyle,
-                ),
-                _buildInfoRow(
-                  'Tunjangan Transport :',
-                  '$clockInCount x ${_formatCurrency(transportAllowancePerDay)} = ${_formatCurrency(totalTransportAllowance)}',
-                  normalStyle,
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 6),
-            pw.Text('*uang harian sudah diberikan setiap hari selama kamu aktif clockin', style: normalStyle),
-            pw.Text('(kebutuhan makan secara real kadang melebihi ketentuan)', style: italicStyle),
-            pw.SizedBox(height: sectionSpacing),
-            pw.Text('TOTAL NILAI PENDAPATAN', style: headingStyle),
-            pw.SizedBox(height: 6),
-            pw.Table(
-              columnWidths: const {
-                0: pw.FlexColumnWidth(3),
-                1: pw.FlexColumnWidth(3),
-              },
-              children: [
-                _buildInfoRow('Gaji bersih yang di terima', _formatCurrency(computedNetSalary), normalStyle),
-                _buildInfoRow('Tunjangan Makan', _formatCurrency(totalMealAllowance), normalStyle),
-                _buildInfoRow('Tunjangan Transport', _formatCurrency(totalTransportAllowance), normalStyle),
-                _buildInfoRow('TOTAL nilai pendapatan', _formatCurrency(totalNetIncome), normalStyle),
-              ],
-            ),
-            pw.SizedBox(height: sectionSpacing + 4),
-            pw.Center(
-              child: pw.Text(
-                '"Kerjo bareng ing LABALABA.ADV iki ora mung kanggo kantor, tapi kanggo awakmu juga, Rezeki sing kamu tompo saben dino lan saben akhir bulan sejatine yaiku balikane jerih payahmu."',
-                textAlign: pw.TextAlign.center,
-                style: italicStyle,
-              ),
-            ),
-            pw.SizedBox(height: 4),
-            pw.Center(
-              child: pw.Text('Maturnuwun wis dadi bagian penting nang keluarga cilik iki', style: normalStyle),
-            ),
-            pw.SizedBox(height: 16),
-            pw.Center(
-              child: pw.Text('LABALABA.ADV', style: pw.TextStyle(font: fontBold)),
             ),
           ],
         );
