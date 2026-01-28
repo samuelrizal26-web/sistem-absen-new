@@ -55,19 +55,18 @@ Future<Uint8List> generateSalarySlipPdf({
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.SizedBox(height: 30),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('No. Rekap : $rekapNumber', style: headingStyle),
-                pw.Text('Periode : $period', style: headingStyle),
-              ],
-            ),
-            pw.Divider(),
             pw.Padding(
-              padding: const pw.EdgeInsets.only(top: 12),
+              padding: const pw.EdgeInsets.only(top: 14),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('No. Rekap : $rekapNumber', style: headingStyle),
+                      pw.Text('Periode : $period', style: headingStyle),
+                    ],
+                  ),
                   pw.Center(
                     child: pw.Text(
                       'PERINGATAN: INFORMASI INI HANYA UNTUK YANG BERSANGKUTAN',
