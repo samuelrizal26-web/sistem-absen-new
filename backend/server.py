@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
+from bson import ObjectId
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -340,6 +341,16 @@ def ensure_local_aware(dt: Optional[datetime]) -> Optional[datetime]:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=LOCAL_TIMEZONE)
     return dt
+
+
+def _stringify_object_ids(obj: Any) -> Any:
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {key: _stringify_object_ids(value) for key, value in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_object_ids(item) for item in obj]
+    return obj
 
 
 async def _finalize_session(attendance_record: Dict[str, Any], clock_out_time: datetime) -> Optional[Dict[str, Any]]:
@@ -1694,7 +1705,10 @@ async def create_print_job(request: Request):
         },
     )
     # endregion
-    return job_dict
+    created = await db.print_jobs.find_one({"id": job_dict['id']})
+    if not created:
+        raise HTTPException(status_code=500, detail="Failed to fetch created print job")
+    return _stringify_object_ids(created)
 
 @api_router.put("/print-jobs/{job_id}", response_model=PrintJobResponse)
 async def update_print_job(job_id: str, request: Request):
