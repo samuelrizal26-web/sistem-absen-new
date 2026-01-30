@@ -1609,6 +1609,31 @@ async def get_print_jobs(only_project: bool = False):
 async def create_print_job(request: Request):
     # Terima semua data sebagai dict untuk menyimpan field tambahan
     job_data = await request.json()
+    materials = job_data.get("materials")
+    if not materials and job_data.get("material_id"):
+        materials = [
+            {
+                "material_id": job_data["material_id"],
+                "quantity": job_data.get("quantity", 1),
+            }
+        ]
+    if not materials:
+        raise HTTPException(status_code=400, detail="No material provided")
+    normalized_materials = []
+    for material in materials:
+        material_id = material.get("material_id")
+        if isinstance(material_id, str):
+            try:
+                material_id = ObjectId(material_id)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid material_id format")
+        normalized_materials.append(
+            {
+                "material_id": material_id,
+                "quantity": float(material.get("quantity", 1)),
+            }
+        )
+    job_data["materials"] = normalized_materials
     # region agent log
     debug_log(
         "H2",
@@ -1616,7 +1641,7 @@ async def create_print_job(request: Request):
         "Incoming print job",
         {
             "project_name": job_data.get("project_name"),
-            "materials_len": len(job_data.get("materials") or []),
+            "materials_len": len(job_data["materials"]),
         },
     )
     # endregion
