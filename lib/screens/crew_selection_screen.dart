@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:sistem_absen_flutter_v2/models/employee.dart';
 import 'package:sistem_absen_flutter_v2/screens/admin/admin_login_choice_screen.dart';
+import 'package:sistem_absen_flutter_v2/screens/cashflow_home_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/crew_dashboard_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/print_jobs_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/project_screen.dart';
@@ -55,10 +56,16 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
     }
   }
 
-  void _onCrewTapped(Employee employee) {
-    showDialog(
+  Future<void> _onCrewTapped(Employee employee) async {
+    final loggedInEmployee = await showDialog<Employee>(
       context: context,
       builder: (context) => _PinVerificationDialog(employee: employee),
+    );
+    if (loggedInEmployee == null) return;
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => CrewDashboardScreen(employee: loggedInEmployee)),
     );
   }
 
@@ -81,9 +88,8 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
   }
 
   void _onCashflowTapped() {
-    showDialog(
-      context: context,
-      builder: (_) => const _CashflowDialog(),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CashflowHomeScreen()),
     );
   }
 
@@ -286,10 +292,20 @@ class _PinVerificationDialog extends StatefulWidget {
 class _PinVerificationDialogState extends State<_PinVerificationDialog> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoggingIn = false;
+  String? _errorMessage;
 
   Future<void> _verifyPin() async {
     if (!mounted) return;
-    setState(() { _isLoggingIn = true; });
+    if (_pinController.text.trim().length != 6) {
+      setState(() {
+        _errorMessage = 'PIN harus 6 digit';
+      });
+      return;
+    }
+    setState(() {
+      _isLoggingIn = true;
+      _errorMessage = null;
+    });
 
     try {
       final url = Uri.parse('https://sistem-absen-production.up.railway.app/api/auth/employee-login');
@@ -304,20 +320,22 @@ class _PinVerificationDialogState extends State<_PinVerificationDialog> {
       if (response.statusCode == 200) {
         final responseBody = json.decode(response.body);
         final loggedInEmployee = Employee.fromJson(responseBody['employee']);
-
-        Navigator.of(context).pop();
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => CrewDashboardScreen(employee: loggedInEmployee)),
-        );
+        Navigator.of(context).pop(loggedInEmployee);
       } else {
         final errorBody = json.decode(response.body);
         throw Exception(errorBody['detail'] ?? 'PIN Salah atau tidak terdaftar');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
-      Navigator.of(context).pop();
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+      });
     } finally {
-      if (mounted) setState(() { _isLoggingIn = false; });
+      if (mounted) {
+        setState(() {
+          _isLoggingIn = false;
+        });
+      }
     }
   }
 
@@ -357,6 +375,14 @@ class _PinVerificationDialogState extends State<_PinVerificationDialog> {
                 label: const Text('Masuk dengan PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25A18E), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
               ),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ]),
     );
   }
@@ -460,179 +486,3 @@ class _HeaderButton extends StatelessWidget {
     );
   }
 }
-
-class _CashflowDialog extends StatefulWidget {
-  const _CashflowDialog();
-
-  @override
-  State<_CashflowDialog> createState() => _CashflowDialogState();
-}
-
-class _CashflowDialogState extends State<_CashflowDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _dateController = TextEditingController();
-  DateTime _selectedDate = DateTime.now();
-  String _type = 'income';
-  bool _isSubmitting = false;
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    _descriptionController.dispose();
-    _dateController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _dateController.text = _selectedDate.toIso8601String().split('T').first;
-  }
-
-  Future<void> _pickDate() async {
-    final result = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (result != null) {
-      setState(() {
-        _selectedDate = result;
-        _dateController.text = _selectedDate.toIso8601String().split('T').first;
-      });
-    }
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSubmitting = true);
-    try {
-      await ApiService.createCashflow({
-        'type': _type,
-        'category': _type == 'income' ? 'Pemasukan' : 'Pengeluaran',
-        'amount': double.tryParse(_amountController.text) ?? 0,
-        'description': _descriptionController.text,
-        'date': _selectedDate.toIso8601String().split('T').first,
-      });
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cashflow berhasil dicatat'), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Catat Cashflow',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0A4D68)),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _dateController,
-                readOnly: true,
-                onTap: _pickDate,
-                decoration: InputDecoration(
-                  labelText: 'Tanggal',
-                  suffixIcon: const Icon(Icons.calendar_today),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _type,
-                decoration: InputDecoration(
-                  labelText: 'Tipe',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'income', child: Text('Pemasukan')),
-                  DropdownMenuItem(value: 'expense', child: Text('Pengeluaran')),
-                ],
-                onChanged: (value) => setState(() => _type = value ?? 'income'),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _amountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Jumlah (Rp)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                validator: (value) => (value == null || value.isEmpty) ? 'Jumlah wajib diisi' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Catatan (opsional)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00ACC1),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Simpan Cashflow',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-
-
