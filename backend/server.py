@@ -1867,24 +1867,45 @@ async def check_material_stock(material: str):
 
 @api_router.get("/print-jobs/summary")
 async def get_print_jobs_summary():
-    jobs = await db.print_jobs.find({}).to_list(length=None)
-    
-    total_revenue = sum(job.get('price', 0) * job.get('quantity', 1) for job in jobs)
+    jobs = await db.print_jobs.find({}, {"price": 1, "quantity": 1, "material": 1, "payment_method": 1}).to_list(length=None)
+
+    total_revenue = 0.0
+    cash_revenue = 0.0
+    transfer_revenue = 0.0
     total_jobs = len(jobs)
-    
-    # Group by material
-    by_material = {}
+    by_material: Dict[str, Dict[str, float]] = {}
+
     for job in jobs:
-        material = job.get('material', 'unknown')
-        if material not in by_material:
-            by_material[material] = {'count': 0, 'revenue': 0}
-        by_material[material]['count'] += 1
-        by_material[material]['revenue'] += job.get('price', 0) * job.get('quantity', 1)
-    
+        price = float(job.get('price') or 0)
+        quantity = float(job.get('quantity') or job.get('amount') or 1)
+        amount = price * max(quantity, 0)
+        total_revenue += amount
+        method = str(job.get('payment_method') or 'cash').strip().lower()
+        if method == 'transfer':
+            transfer_revenue += amount
+        else:
+            cash_revenue += amount
+
+        material_key = str(job.get('material') or 'unknown').strip()
+        if not material_key:
+            material_key = 'unknown'
+        entry = by_material.setdefault(material_key, {"total_qty": 0.0, "total_revenue": 0.0})
+        entry["total_qty"] += max(quantity, 0)
+        entry["total_revenue"] += amount
+
     return {
         "total_revenue": total_revenue,
+        "cash_revenue": cash_revenue,
+        "transfer_revenue": transfer_revenue,
         "total_jobs": total_jobs,
-        "by_material": by_material
+        "by_material": [
+            {
+                "material": material,
+                "total_qty": entry["total_qty"],
+                "total_revenue": entry["total_revenue"],
+            }
+            for material, entry in by_material.items()
+        ],
     }
 
 

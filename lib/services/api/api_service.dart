@@ -12,15 +12,20 @@ class ApiService {
   static String get baseUrl => _baseUrl;
 
   static Uri _uri(String path, [Map<String, dynamic>? queryParameters]) {
-    return Uri.parse('$_baseUrl$path').replace(queryParameters: queryParameters);
+    return Uri.parse(
+      '$_baseUrl$path',
+    ).replace(queryParameters: queryParameters);
   }
 
-  static Future<List<Employee>> fetchEmployees({bool onlyActive = false}) async {
+  static Future<List<Employee>> fetchEmployees({
+    bool onlyActive = false,
+  }) async {
     final response = await http.get(
       _uri('/employees', onlyActive ? {'status': 'active'} : null),
     );
 
     if (response.statusCode == 200) {
+      debugPrint('FETCH EMPLOYEES RESPONSE: ${response.body}');
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Employee.fromJson(e)).toList();
     }
@@ -60,7 +65,9 @@ class ApiService {
     throw Exception('Gagal memuat daftar periode payroll');
   }
 
-  static Future<Map<String, dynamic>> fetchPayrollPeriodDetail(String periodId) async {
+  static Future<Map<String, dynamic>> fetchPayrollPeriodDetail(
+    String periodId,
+  ) async {
     final response = await http.get(_uri('/payroll-periods/$periodId'));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
@@ -73,7 +80,9 @@ class ApiService {
     required String periodId,
     required String employeeId,
   }) async {
-    final response = await http.get(_uri('/payroll-periods/$periodId/slip/$employeeId'));
+    final response = await http.get(
+      _uri('/payroll-periods/$periodId/slip/$employeeId'),
+    );
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
@@ -81,7 +90,8 @@ class ApiService {
     throw Exception(error['detail'] ?? 'Gagal memuat slip payroll');
   }
 
-  static Future<List<Map<String, dynamic>>> fetchExportablePayrollPeriods() async {
+  static Future<List<Map<String, dynamic>>>
+  fetchExportablePayrollPeriods() async {
     final response = await http.get(_uri('/payroll-periods'));
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -94,7 +104,9 @@ class ApiService {
     required String periodId,
     required String employeeId,
   }) async {
-    final response = await http.get(_uri('/payroll-periods/$periodId/slip/$employeeId/pdf'));
+    final response = await http.get(
+      _uri('/payroll-periods/$periodId/slip/$employeeId/pdf'),
+    );
     if (response.statusCode == 200) {
       return response.bodyBytes;
     }
@@ -141,11 +153,13 @@ class ApiService {
     String employeeId,
     Map<String, dynamic> body,
   ) async {
+    debugPrint('UPDATE EMPLOYEE PAYLOAD: ${jsonEncode(body)}');
     final response = await http.put(
       _uri('/employees/$employeeId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
+    debugPrint('UPDATE EMPLOYEE RESPONSE: ${response.body}');
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw Exception(error['detail'] ?? 'Gagal memperbarui crew');
@@ -161,9 +175,7 @@ class ApiService {
   }
 
   static Future<void> deleteEmployeePermanent(String employeeId) async {
-    final response = await http.delete(
-      _uri('/employees/$employeeId/force'),
-    );
+    final response = await http.delete(_uri('/employees/$employeeId/force'));
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw Exception(error['detail'] ?? 'Gagal menghapus permanen crew');
@@ -181,7 +193,9 @@ class ApiService {
     throw Exception(error['detail'] ?? 'Gagal memuat data project');
   }
 
-  static Future<Map<String, dynamic>> fetchProjectDetail(String projectId) async {
+  static Future<Map<String, dynamic>> fetchProjectDetail(
+    String projectId,
+  ) async {
     final response = await http.get(_uri('/projects/$projectId'));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
@@ -190,7 +204,9 @@ class ApiService {
     throw Exception(error['detail'] ?? 'Gagal memuat detail project');
   }
 
-  static Future<Map<String, dynamic>> createProject(Map<String, dynamic> body) async {
+  static Future<Map<String, dynamic>> createProject(
+    Map<String, dynamic> body,
+  ) async {
     final response = await http.post(
       _uri('/projects'),
       headers: {'Content-Type': 'application/json'},
@@ -232,7 +248,9 @@ class ApiService {
     return fetchProjects();
   }
 
-  static Future<Map<String, dynamic>> createProjectOnly(Map<String, dynamic> body) {
+  static Future<Map<String, dynamic>> createProjectOnly(
+    Map<String, dynamic> body,
+  ) {
     return createProject(body);
   }
 
@@ -257,7 +275,9 @@ class ApiService {
     throw Exception('Gagal memuat data stok');
   }
 
-  static Future<List<Map<String, dynamic>>> fetchStocks({bool onlyActive = false}) async {
+  static Future<List<Map<String, dynamic>>> fetchStocks({
+    bool onlyActive = false,
+  }) async {
     final allStock = await fetchStock();
     if (!onlyActive) return allStock;
     return allStock.where((stock) {
@@ -303,13 +323,14 @@ class ApiService {
     required String stockId,
     required String usageCategory,
   }) async {
-    final payload = <String, dynamic>{
-      'usage_category': usageCategory,
-    };
+    final payload = <String, dynamic>{'usage_category': usageCategory};
     await _updateStockRecord(stockId, payload);
   }
 
-  static Future<void> _updateStockRecord(String stockId, Map<String, dynamic> body) async {
+  static Future<void> _updateStockRecord(
+    String stockId,
+    Map<String, dynamic> body,
+  ) async {
     final response = await http.put(
       _uri('/stock/$stockId'),
       headers: {'Content-Type': 'application/json'},
@@ -365,7 +386,10 @@ class ApiService {
     }
   }
 
-  static Future<void> updateCashflow(String id, Map<String, dynamic> body) async {
+  static Future<void> updateCashflow(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
     final response = await http.put(
       _uri('/cashflow/$id'),
       headers: {'Content-Type': 'application/json'},
@@ -444,15 +468,18 @@ class ApiService {
     throw Exception('Gagal memuat pekerjaan printing');
   }
 
-  static Future<Map<String, dynamic>> fetchPrintJobsSummary([String? date]) async {
-    final response = await http.get(_uri('/print-jobs/summary', date != null ? {'date': date} : null));
+  static Future<Map<String, dynamic>> fetchPrintJobsSummary() async {
+    final response = await http.get(_uri('/print-jobs/summary'));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
-    throw Exception('Gagal memuat summary pekerjaan printing');
+    final error = _safeDecode(response.body);
+    throw Exception(error['detail'] ?? 'Gagal memuat summary pekerjaan printing');
   }
 
-  static Future<Map<String, dynamic>> checkStockForMaterial(String material) async {
+  static Future<Map<String, dynamic>> checkStockForMaterial(
+    String material,
+  ) async {
     final response = await http.get(_uri('/print-jobs/check-stock/$material'));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
@@ -461,17 +488,19 @@ class ApiService {
     throw Exception(error['detail'] ?? 'Gagal memeriksa stok bahan');
   }
 
-  static Future<Map<String, dynamic>> createPrintJob(Map<String, dynamic> body) async {
+  static Future<Map<String, dynamic>> createPrintJob(
+    Map<String, dynamic> body,
+  ) async {
     final response = await http.post(
       _uri('/print-jobs'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
-    if (response.statusCode == 200) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
-    final error = jsonDecode(response.body);
-    throw Exception(error['detail'] ?? 'Gagal menambahkan pekerjaan');
+    final error = _safeDecode(response.body);
+    throw Exception(error['detail'] ?? response.body);
   }
 
   static Future<void> deletePrintJob(String id) async {
@@ -508,7 +537,9 @@ class ApiService {
   }
 
   // EMPLOYEE DETAIL ----------------------------------------------------------
-  static Future<Map<String, dynamic>> fetchEmployeeDetail(String employeeId) async {
+  static Future<Map<String, dynamic>> fetchEmployeeDetail(
+    String employeeId,
+  ) async {
     debugPrint('FETCH EMPLOYEE DETAIL CALLED: $employeeId');
 
     final employeeRes = await http.get(_uri('/employees/$employeeId'));
@@ -521,7 +552,9 @@ class ApiService {
     result['employee'] = jsonDecode(employeeRes.body);
 
     try {
-      final attendanceRes = await http.get(_uri('/attendance/employee/$employeeId'));
+      final attendanceRes = await http.get(
+        _uri('/attendance/employee/$employeeId'),
+      );
       debugPrint('ATTENDANCE STATUS: ${attendanceRes.statusCode}');
       if (attendanceRes.statusCode == 200) {
         final attendanceList = jsonDecode(attendanceRes.body) as List<dynamic>;
@@ -536,7 +569,9 @@ class ApiService {
     }
 
     try {
-      final advancesRes = await http.get(_uri('/advances/employee/$employeeId'));
+      final advancesRes = await http.get(
+        _uri('/advances/employee/$employeeId'),
+      );
       debugPrint('ADVANCES STATUS: ${advancesRes.statusCode}');
       if (advancesRes.statusCode == 200) {
         result['advances'] = jsonDecode(advancesRes.body);
@@ -549,30 +584,30 @@ class ApiService {
     }
 
     try {
-      final summaryRes = await http.get(_uri('/attendance/daily-summary/$employeeId'));
+      final summaryRes = await http.get(
+        _uri('/attendance/daily-summary/$employeeId'),
+      );
       debugPrint('SUMMARY STATUS: ${summaryRes.statusCode}');
       if (summaryRes.statusCode == 200) {
         result['summary'] = jsonDecode(summaryRes.body);
       } else {
-        result['summary'] = {
-          'total_salary': 0,
-          'total_days': 0,
-        };
+        result['summary'] = {'total_salary': 0, 'total_days': 0};
       }
     } catch (e) {
       debugPrint('SUMMARY ERROR: $e');
-      result['summary'] = {
-        'total_salary': 0,
-        'total_days': 0,
-      };
+      result['summary'] = {'total_salary': 0, 'total_days': 0};
     }
 
-    debugPrint('EMPLOYEE DETAIL MERGED (SAFE): $result');
+    debugPrint('FETCH EMPLOYEE DETAIL RESPONSE: $result');
     return result;
   }
 
-  static Future<Map<String, dynamic>> fetchDailySalarySummary(String employeeId) async {
-    final response = await http.get(_uri('/attendance/daily-summary/$employeeId'));
+  static Future<Map<String, dynamic>> fetchDailySalarySummary(
+    String employeeId,
+  ) async {
+    final response = await http.get(
+      _uri('/attendance/daily-summary/$employeeId'),
+    );
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
@@ -584,7 +619,10 @@ class ApiService {
     return Uri.parse('$_baseUrl/attendance/$employeeId/export');
   }
 
-  static Future<void> ensureAutoClockOut(String employeeId, List<dynamic> attendances) async {
+  static Future<void> ensureAutoClockOut(
+    String employeeId,
+    List<dynamic> attendances,
+  ) async {
     final now = DateTime.now();
     final targetTime = DateTime(now.year, now.month, now.day, 21);
     if (now.isBefore(targetTime)) return;
@@ -604,9 +642,14 @@ class ApiService {
     }
     if (todayRecord == null) return;
 
-    final hasClockIn = todayRecord['clock_in'] != null && todayRecord['clock_in'].toString().isNotEmpty;
-    final hasClockOut = todayRecord['clock_out'] != null && todayRecord['clock_out'].toString().isNotEmpty;
-    final alreadyAuto = todayRecord['auto_clockout'] == true ||
+    final hasClockIn =
+        todayRecord['clock_in'] != null &&
+        todayRecord['clock_in'].toString().isNotEmpty;
+    final hasClockOut =
+        todayRecord['clock_out'] != null &&
+        todayRecord['clock_out'].toString().isNotEmpty;
+    final alreadyAuto =
+        todayRecord['auto_clockout'] == true ||
         (todayRecord['status']?.toString().toLowerCase() == 'selesai (auto)');
     if (!hasClockIn || hasClockOut || alreadyAuto) return;
 
@@ -641,8 +684,3 @@ class ApiService {
     }
   }
 }
-
-
-
-
-
