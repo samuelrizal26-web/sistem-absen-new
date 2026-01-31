@@ -1621,6 +1621,7 @@ async def create_print_job(request: Request):
         raise HTTPException(status_code=400, detail="No material provided")
     normalized_materials = []
     primary_material_name = None
+    primary_material_doc = None
     for material in materials:
         raw_material_id = material.get("material_id")
         if not raw_material_id:
@@ -1636,6 +1637,8 @@ async def create_print_job(request: Request):
         )
         if not primary_material_name:
             primary_material_name = material_doc["name"]
+        if not primary_material_doc:
+            primary_material_doc = material_doc
     job_data["materials"] = normalized_materials
     if primary_material_name:
         job_data["material"] = primary_material_name
@@ -1669,17 +1672,16 @@ async def create_print_job(request: Request):
         raise HTTPException(status_code=400, detail=f"Invalid data: {str(e)}")
     
     # Check and update stock
-    material_name = job.material.replace('_', ' ').title()  # vinyl -> Vinyl, art_carton -> Art Carton
-    stock_item = await db.stock.find_one({"name": {"$regex": f"^{material_name}", "$options": "i"}})
-    
+    stock_item = primary_material_doc
+
     if stock_item:
         current_stock = stock_item.get('quantity', 0)
         if current_stock < job.quantity:
             raise HTTPException(
-                status_code=400, 
-                detail=f"Stock {material_name} tidak cukup! Tersedia: {current_stock}, Dibutuhkan: {job.quantity}"
+                status_code=400,
+                detail=f"Stock {stock_item['name']} tidak cukup! Tersedia: {current_stock}, Dibutuhkan: {job.quantity}"
             )
-        
+
         # Reduce stock
         new_quantity = current_stock - job.quantity
         await db.stock.update_one(
