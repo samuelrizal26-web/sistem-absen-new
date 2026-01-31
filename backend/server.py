@@ -1621,15 +1621,15 @@ async def create_print_job(request: Request):
         raise HTTPException(status_code=400, detail="No material provided")
     normalized_materials = []
     for material in materials:
-        material_id = material.get("material_id")
-        if isinstance(material_id, str):
-            try:
-                material_id = ObjectId(material_id)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid material_id format")
+        raw_material_id = material.get("material_id")
+        if not raw_material_id:
+            raise HTTPException(status_code=400, detail="Material ID missing")
+        material_doc = await db.stock.find_one({"id": raw_material_id})
+        if not material_doc:
+            raise HTTPException(status_code=400, detail="Material not found")
         normalized_materials.append(
             {
-                "material_id": material_id,
+                "material_id": material_doc["_id"],
                 "quantity": float(material.get("quantity", 1)),
             }
         )
