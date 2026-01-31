@@ -1620,6 +1620,7 @@ async def create_print_job(request: Request):
     if not materials:
         raise HTTPException(status_code=400, detail="No material provided")
     normalized_materials = []
+    primary_material_name = None
     for material in materials:
         raw_material_id = material.get("material_id")
         if not raw_material_id:
@@ -1633,7 +1634,11 @@ async def create_print_job(request: Request):
                 "quantity": float(material.get("quantity", 1)),
             }
         )
+        if not primary_material_name:
+            primary_material_name = material_doc["name"]
     job_data["materials"] = normalized_materials
+    if primary_material_name:
+        job_data["material"] = primary_material_name
     # region agent log
     debug_log(
         "H2",
