@@ -131,142 +131,143 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
                 child: Form(
                   key: formKey,
                   child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text('Catat Cashflow', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      readOnly: true,
-                      onTap: _pickDate,
-                      decoration: InputDecoration(
-                        labelText: 'Tanggal',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: const Icon(Icons.calendar_today),
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('Catat Cashflow', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        readOnly: true,
+                        onTap: _pickDate,
+                        decoration: InputDecoration(
+                          labelText: 'Tanggal',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: const Icon(Icons.calendar_today),
+                        ),
+                        controller: dateController,
                       ),
-                      controller: dateController,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedType,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipe',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'Pemasukan', child: Text('Pemasukan')),
-                        DropdownMenuItem(value: 'Pengeluaran', child: Text('Pengeluaran')),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setModalState(() {
-                          selectedType = value;
-                          if (value == 'Pengeluaran') {
-                            paymentMethod = 'cash';
-                          }
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: amountController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: (value) {
-                        final cleaned = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
-                        final numeric = double.tryParse(cleaned) ?? 0;
-                        if (numeric <= 0) {
-                          return 'Jumlah wajib lebih dari 0';
-                        }
-                        return null;
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Jumlah (Rp)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (selectedType == 'Pemasukan') ...[
+                      const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: paymentMethod,
+                        value: selectedType,
                         decoration: const InputDecoration(
-                          labelText: 'Metode',
+                          labelText: 'Tipe',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                          DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
+                          DropdownMenuItem(value: 'Pemasukan', child: Text('Pemasukan')),
+                          DropdownMenuItem(value: 'Pengeluaran', child: Text('Pengeluaran')),
                         ],
                         onChanged: (value) {
                           if (value == null) return;
-                          setModalState(() => paymentMethod = value);
+                          setModalState(() {
+                            selectedType = value;
+                            if (value == 'Pengeluaran') {
+                              paymentMethod = 'cash';
+                            }
+                          });
                         },
                       ),
                       const SizedBox(height: 12),
-                    ],
-                    TextFormField(
-                      controller: notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Catatan (opsional)',
-                        border: OutlineInputBorder(),
+                      TextFormField(
+                        controller: amountController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        validator: (value) {
+                          final cleaned = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+                          final numeric = double.tryParse(cleaned) ?? 0;
+                          if (numeric <= 0) {
+                            return 'Jumlah wajib lebih dari 0';
+                          }
+                          return null;
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Jumlah (Rp)',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: isSubmitting
-                          ? null
-                          : () async {
-                              if (!formKey.currentState!.validate()) return;
-                              final rawAmount = amountController.text.replaceAll(RegExp(r'[^\d]'), '');
-                              final amount = double.tryParse(rawAmount) ?? 0;
-                              if (amount <= 0) return;
-                              setModalState(() => isSubmitting = true);
-                              final payload = {
-                                'date': DateFormat('yyyy-MM-dd').format(selectedDate),
-                                'category': selectedType == 'Pemasukan' ? 'income' : 'expense',
-                                'amount': amount,
-                                'description': notesController.text.trim().isNotEmpty
-                                    ? notesController.text.trim()
-                                    : selectedType,
-                                'payment_method': selectedType == 'Pemasukan' ? paymentMethod : 'cash',
-                              };
-                              if (notesController.text.trim().isNotEmpty) {
-                                payload['notes'] = notesController.text.trim();
-                              }
-                              try {
-                                await ApiService.createCashflow(payload);
-                                final shouldOpenDrawer = (selectedType == 'Pemasukan' && paymentMethod == 'cash') ||
-                                    selectedType == 'Pengeluaran';
-                                if (shouldOpenDrawer) {
-                                  final opened = await CashDrawerService.open();
-                                  if (!opened) {
-                                    ScaffoldMessenger.of(modalContext).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Gagal membuka laci kasir'),
-                                        backgroundColor: Colors.orange,
-                                      ),
-                                    );
-                                  }
+                      const SizedBox(height: 12),
+                      if (selectedType == 'Pemasukan') ...[
+                        DropdownButtonFormField<String>(
+                          value: paymentMethod,
+                          decoration: const InputDecoration(
+                            labelText: 'Metode',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                            DropdownMenuItem(value: 'transfer', child: Text('Transfer')),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setModalState(() => paymentMethod = value);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      TextFormField(
+                        controller: notesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Catatan (opsional)',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                final rawAmount = amountController.text.replaceAll(RegExp(r'[^\d]'), '');
+                                final amount = double.tryParse(rawAmount) ?? 0;
+                                if (amount <= 0) return;
+                                setModalState(() => isSubmitting = true);
+                                final payload = {
+                                  'date': DateFormat('yyyy-MM-dd').format(selectedDate),
+                                  'category': selectedType == 'Pemasukan' ? 'income' : 'expense',
+                                  'amount': amount,
+                                  'description': notesController.text.trim().isNotEmpty
+                                      ? notesController.text.trim()
+                                      : selectedType,
+                                  'payment_method': selectedType == 'Pemasukan' ? paymentMethod : 'cash',
+                                };
+                                if (notesController.text.trim().isNotEmpty) {
+                                  payload['notes'] = notesController.text.trim();
                                 }
-                                if (!mounted) return;
-                                Navigator.of(modalContext).pop(true);
-                              } catch (e) {
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(modalContext).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Gagal menyimpan cashflow: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              } finally {
-                                if (mounted) setModalState(() => isSubmitting = false);
-                              }
-                            },
-                      child: Text(isSubmitting ? 'Menyimpan...' : 'Simpan Cashflow'),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                                try {
+                                  await ApiService.createCashflow(payload);
+                                  final shouldOpenDrawer = (selectedType == 'Pemasukan' && paymentMethod == 'cash') ||
+                                      selectedType == 'Pengeluaran';
+                                  if (shouldOpenDrawer) {
+                                    final opened = await CashDrawerService.open();
+                                    if (!opened) {
+                                      ScaffoldMessenger.of(modalContext).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Gagal membuka laci kasir'),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                  if (!mounted) return;
+                                  Navigator.of(modalContext).pop(true);
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(modalContext).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Gagal menyimpan cashflow: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                } finally {
+                                  if (mounted) setModalState(() => isSubmitting = false);
+                                }
+                              },
+                        child: Text(isSubmitting ? 'Menyimpan...' : 'Simpan Cashflow'),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
                 ),
               ),
             ),
