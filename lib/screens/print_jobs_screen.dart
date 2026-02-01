@@ -598,21 +598,22 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
             SizedBox(
               height: 240,
               child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: _availablePeriods.length,
-              separatorBuilder: (_, __) => const Divider(height: 0),
-              itemBuilder: (context, index) {
-                final period = _availablePeriods[index];
-                final label = _formatPeriodLabel(period);
-                final isSelected = _selectedPeriod != null &&
-                    _selectedPeriod?.year == period.year &&
-                    _selectedPeriod?.month == period.month;
-                return ListTile(
-                  title: Text(label),
-                  trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
-                  onTap: () => Navigator.of(context).pop(period),
-                );
-              },
+                shrinkWrap: true,
+                itemCount: _availablePeriods.length,
+                separatorBuilder: (_, __) => const Divider(height: 0),
+                itemBuilder: (context, index) {
+                  final period = _availablePeriods[index];
+                  final label = _formatPeriodLabel(period);
+                  final isSelected = _selectedPeriod != null &&
+                      _selectedPeriod?.year == period.year &&
+                      _selectedPeriod?.month == period.month;
+                  return ListTile(
+                    title: Text(label),
+                    trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                    onTap: () => Navigator.of(context).pop(period),
+                  );
+                },
+              ),
             ),
           ],
         ),
