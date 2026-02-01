@@ -36,6 +36,8 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
   bool _isLoadingSummary = true;
   Map<String, dynamic> _summary = {};
   DateTime _activePeriod = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime? _selectedPeriod;
+  List<DateTime> _availablePeriods = [];
   List<Map<String, dynamic>> _stockItems = [];
   Map<String, dynamic>? _selectedStock;
   String? _selectedStockId;
@@ -52,6 +54,11 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
     super.initState();
     debugPrint('🔥 ACTIVE PRINT JOBS SCREEN LOADED 🔥');
     _dateController.text = _selectedDate.toIso8601String().split('T').first;
+    _selectedPeriod = _activePeriod;
+    final base = DateTime(_activePeriod.year, _activePeriod.month);
+    _availablePeriods = List.generate(3, (index) {
+      return DateTime(base.year, base.month - index);
+    });
     _loadSummary();
     _loadStock();
 
@@ -77,7 +84,10 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
   Future<void> _loadSummary() async {
     setState(() => _isLoadingSummary = true);
     try {
-      final summary = await ApiService.fetchPrintJobsSummary();
+      final period = _selectedPeriod ?? _activePeriod;
+      final start = _formatPeriodBoundary(period, isStart: true);
+      final end = _formatPeriodBoundary(period, isStart: false);
+      final summary = await ApiService.fetchPrintJobsSummary(start: start, end: end);
       final byMaterialRaw = (summary['by_material'] as List<dynamic>?) ?? [];
       final byMaterial = byMaterialRaw
           .map((entry) => {
@@ -109,6 +119,14 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
         setState(() => _isLoadingSummary = false);
       }
     }
+  }
+
+  String _formatPeriodBoundary(DateTime period, {required bool isStart}) {
+    if (isStart) {
+      return DateFormat('yyyy-MM-dd').format(DateTime(period.year, period.month, 1));
+    }
+    final lastDay = DateTime(period.year, period.month + 1, 0);
+    return DateFormat('yyyy-MM-dd').format(lastDay);
   }
 
   List<Map<String, dynamic>> _filterJobsByPeriod(
@@ -511,7 +529,8 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
       final allJobs = await ApiService.fetchPrintJobs();
 
       // Filter by material and active period
-      final periodJobs = _filterJobsByPeriod(_activePeriod, allJobs);
+      final periodForDetail = _selectedPeriod ?? _activePeriod;
+      final periodJobs = _filterJobsByPeriod(periodForDetail, allJobs);
       final filteredJobs = periodJobs.where((job) {
         final jobMaterial = job['material']?.toString().toLowerCase();
         if (jobMaterial != material.toLowerCase()) return false;
@@ -519,8 +538,8 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
         // Parse date from job
         final jobDate = _parseJobDate(job);
         if (jobDate == null) return false;
-        return jobDate.year == _activePeriod.year &&
-            jobDate.month == _activePeriod.month;
+        return jobDate.year == periodForDetail.year &&
+            jobDate.month == periodForDetail.month;
       }).toList();
 
       if (!mounted) return;
@@ -542,6 +561,66 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  String _formatPeriodLabel(DateTime period) =>
+      DateFormat('MMMM yyyy', 'id_ID').format(period);
+
+  Widget _buildPeriodSelector() {
+    final current = _selectedPeriod ?? _activePeriod;
+    return GestureDetector(
+      onTap: _showPeriodPicker,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Periode: ${_formatPeriodLabel(current)}',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const Icon(Icons.arrow_drop_down, color: Colors.white70),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPeriodPicker() async {
+    if (_availablePeriods.isEmpty) return;
+    final selected = await showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            const Text('Pilih Periode', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 240,
+              child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: _availablePeriods.length,
+              separatorBuilder: (_, __) => const Divider(height: 0),
+              itemBuilder: (context, index) {
+                final period = _availablePeriods[index];
+                final label = _formatPeriodLabel(period);
+                final isSelected = _selectedPeriod != null &&
+                    _selectedPeriod?.year == period.year &&
+                    _selectedPeriod?.month == period.month;
+                return ListTile(
+                  title: Text(label),
+                  trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                  onTap: () => Navigator.of(context).pop(period),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected != null && (_selectedPeriod?.year != selected.year || _selectedPeriod?.month != selected.month)) {
+      setState(() => _selectedPeriod = selected);
+      await _loadSummary();
     }
   }
 
@@ -631,6 +710,8 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildPeriodSelector(),
+            SizedBox(height: isLandscape ? 8 : 10),
             Text(
               'Total Pendapatan',
               style: TextStyle(

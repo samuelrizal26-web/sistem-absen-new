@@ -468,8 +468,14 @@ class ApiService {
     throw Exception('Gagal memuat pekerjaan printing');
   }
 
-  static Future<Map<String, dynamic>> fetchPrintJobsSummary() async {
-    final response = await http.get(_uri('/print-jobs/summary'));
+  static Future<Map<String, dynamic>> fetchPrintJobsSummary({
+    String? start,
+    String? end,
+  }) async {
+    final query = <String, dynamic>{};
+    if (start != null) query['start'] = start;
+    if (end != null) query['end'] = end;
+    final response = await http.get(query.isEmpty ? _uri('/print-jobs/summary') : _uri('/print-jobs/summary', query));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
