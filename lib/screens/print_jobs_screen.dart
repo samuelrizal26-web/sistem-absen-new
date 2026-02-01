@@ -6,6 +6,14 @@ import 'package:sistem_absen_flutter_v2/core/utils/number_formatter.dart';
 import 'package:sistem_absen_flutter_v2/screens/print_job_summary_screen.dart';
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 
+// =======================================
+// 🔒 FROZEN FILE – DO NOT MODIFY
+// Screen: PrintJobsScreen
+// Status: STABLE & VERIFIED
+// Reason: Avoid regression from other screens
+// Date: 2026-02-01
+// =======================================
+
 class PrintJobsScreen extends StatefulWidget {
   const PrintJobsScreen({super.key});
 
