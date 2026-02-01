@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:sistem_absen_flutter_v2/models/employee.dart';
 import 'package:sistem_absen_flutter_v2/screens/admin/admin_login_choice_screen.dart';
-import 'package:sistem_absen_flutter_v2/screens/cashflow_home_screen.dart';
+import 'package:sistem_absen_flutter_v2/screens/cashflow/cashflow_home_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/crew_dashboard_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/print_jobs_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/project_screen.dart';
