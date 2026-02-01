@@ -14,6 +14,8 @@ import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 // Date: 2026-02-01
 // =======================================
 
+// STABLE MODULE – FORMAT RIBUAN ONLY
+// Jangan ubah logic submit / API / kalkulasi
 class PrintJobsScreen extends StatefulWidget {
   const PrintJobsScreen({super.key});
 
