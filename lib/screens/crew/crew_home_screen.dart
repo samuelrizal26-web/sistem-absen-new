@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import 'package:sistem_absen_flutter_v2/models/employee.dart';
 import 'package:sistem_absen_flutter_v2/screens/crew/kasbon_form_screen.dart';
+import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 
 // ===============================
 // STABLE MODULE – CREW HOME
@@ -36,11 +37,16 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
   String _activePeriodLabel = '';
   double _activeKasbonTotal = 0.0;
+  bool _isPeriodsLoading = true;
+  List<Map<String, dynamic>> _periods = [];
+  Map<String, dynamic>? _activePeriod;
+  Map<String, dynamic>? _selectedPeriod;
 
   @override
   void initState() {
     super.initState();
     _checkClockInStatus();
+    _loadPayrollPeriods();
     _loadKasbonHistory();
     _updateCurrentTime();
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _updateCurrentTime());
@@ -90,16 +96,16 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
         final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
         final active = data.any((entry) => entry['date'] == today && entry['clock_out'] == null);
         if (!mounted) return;
-      setState(() => _isClockedIn = active);
+        setState(() => _isClockedIn = active);
         return;
-      } else if (response.statusCode == 404) {
+      }
+      if (response.statusCode == 404) {
         if (!mounted) return;
         setState(() => _isClockedIn = false);
         return;
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['detail'] ?? 'Gagal memeriksa status absensi');
       }
+      final error = json.decode(response.body);
+      throw Exception(error['detail'] ?? 'Gagal memeriksa status absensi');
     } catch (e) {
       if (!mounted) return;
       setState(() => _isClockedIn = false);
@@ -118,7 +124,7 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
         setState(() {
           _advances = data.cast<Map<String, dynamic>>();
         });
-        _calculateActiveKasbon();
+        _calculatePeriodData();
         return;
       }
       if (response.statusCode == 404) {
@@ -126,7 +132,7 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
         setState(() {
           _advances = [];
         });
-        _calculateActiveKasbon();
+        _calculatePeriodData();
         return;
       }
       final error = json.decode(response.body);
@@ -140,6 +146,118 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
       if (mounted) {
         setState(() => _isHistoryLoading = false);
       }
+    }
+  }
+
+  Future<void> _loadPayrollPeriods() async {
+    setState(() => _isPeriodsLoading = true);
+    try {
+      final periods = await ApiService.fetchPayrollPeriods();
+      periods.sort((a, b) {
+        final aDate = DateTime.tryParse(a['start_date']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = DateTime.tryParse(b['start_date']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+      final active = periods.firstWhere(
+        (period) => (period['status']?.toString().toLowerCase() ?? '') == 'open',
+        orElse: () => periods.isNotEmpty ? periods.first : null,
+      );
+      if (!mounted) return;
+      setState(() {
+        _periods = periods;
+        _activePeriod = active;
+        _selectedPeriod ??= active ?? (periods.isNotEmpty ? periods.first : null);
+      });
+      _calculatePeriodData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat periode kasbon: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isPeriodsLoading = false);
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredAdvances =>
+      _advances.where(_isAdvanceInSelected).toList();
+
+  bool _isAdvanceInSelected(Map<String, dynamic> advance) {
+    final period = _selectedPeriod ?? _activePeriod;
+    if (period != null) {
+      final periodId = period['id']?.toString();
+      if (periodId != null && periodId.isNotEmpty) {
+        return advance['payroll_period_id'] == periodId;
+      }
+      final start = _parseDate(period['start_date']);
+      final end = _parseDate(period['end_date']);
+      final entryDate = _parseDate(advance['date']?.toString());
+      if (start != null && end != null && entryDate != null) {
+        return !entryDate.isBefore(start) && !entryDate.isAfter(end);
+      }
+    }
+    final entryDate = _parseDate(advance['date']?.toString());
+    if (entryDate == null) return false;
+    final now = DateTime.now();
+    return entryDate.year == now.year && entryDate.month == now.month;
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    final raw = value.toString();
+    final cleaned = raw.contains('T') ? raw.split('T').first : raw;
+    return DateTime.tryParse(cleaned);
+  }
+
+  String _formatPeriodLabel(Map<String, dynamic>? period) {
+    if (period == null) {
+      return DateFormat('MMMM yyyy', 'id_ID').format(DateTime.now());
+    }
+    final start = _parseDate(period['start_date']);
+    if (start != null) {
+      return DateFormat('MMMM yyyy', 'id_ID').format(start);
+    }
+    return period['start_date']?.toString() ?? 'Periode';
+  }
+
+  Future<void> _showPeriodSelector() async {
+    if (_periods.isEmpty) return;
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              const Text('Pilih Periode Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _periods.length,
+                  separatorBuilder: (_, __) => const Divider(height: 0),
+                  itemBuilder: (context, index) {
+                    final period = _periods[index];
+                    final label = _formatPeriodLabel(period);
+                    final isSelected = _selectedPeriod != null && _selectedPeriod!['id'] == period['id'];
+                    return ListTile(
+                      title: Text(label),
+                      subtitle: Text((period['status']?.toString() ?? '').toUpperCase()),
+                      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                      onTap: () => Navigator.of(context).pop(period),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected != null) {
+      setState(() => _selectedPeriod = selected);
+      _calculatePeriodData();
     }
   }
 
@@ -193,22 +311,10 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
     }
   }
 
-  void _calculateActiveKasbon() {
-    final now = DateTime.now();
-    final label = DateFormat('MMMM yyyy', 'id_ID').format(now);
-    final total = _advances.fold<double>(0, (sum, entry) {
-      final rawDate = entry['date']?.toString() ?? '';
-      DateTime? date;
-      try {
-        date = DateTime.parse(rawDate);
-      } catch (_) {
-        date = DateTime.tryParse(rawDate.split('T').first);
-      }
-      if (date == null) return sum;
-      if (date.year == now.year && date.month == now.month) {
-        return sum + ((entry['amount'] as num?)?.toDouble() ?? 0);
-      }
-      return sum;
+  void _calculatePeriodData() {
+    final label = _formatPeriodLabel(_selectedPeriod ?? _activePeriod);
+    final total = _filteredAdvances.fold<double>(0, (sum, entry) {
+      return sum + ((entry['amount'] as num?)?.toDouble() ?? 0);
     });
     if (!mounted) return;
     setState(() {
@@ -226,6 +332,11 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('Riwayat Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(
+              'Menampilkan kasbon: ${_formatPeriodLabel(_selectedPeriod ?? _activePeriod)}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             const SizedBox(height: 12),
             Expanded(child: _buildHistoryBody()),
           ],
@@ -238,15 +349,16 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
     if (_isHistoryLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_advances.isEmpty) {
+    final filtered = _filteredAdvances;
+    if (filtered.isEmpty) {
       return const Center(child: Text('Belum ada kasbon'));
     }
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: _advances.length,
+      itemCount: filtered.length,
       separatorBuilder: (_, __) => const Divider(height: 0),
       itemBuilder: (context, index) {
-        final entry = _advances[index];
+        final entry = filtered[index];
         final rawDate = entry['date']?.toString() ?? '';
         DateTime? date;
         try {
@@ -281,7 +393,11 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
   }
 
   Widget _buildTotalKasbonCard() {
-    final label = _activePeriodLabel.isNotEmpty ? _activePeriodLabel : DateFormat('MMMM yyyy', 'id_ID').format(DateTime.now());
+    final label = _activePeriodLabel.isNotEmpty ? _activePeriodLabel : _formatPeriodLabel(_selectedPeriod ?? _activePeriod);
+    final isArchive = _selectedPeriod != null &&
+        _activePeriod != null &&
+        (_selectedPeriod?['id']?.toString() ?? '') != (_activePeriod?['id']?.toString() ?? '');
+    final displayLabel = isArchive ? '$label (arsip)' : label;
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -296,7 +412,16 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
-            Text('Periode: $label', style: const TextStyle(color: Colors.grey)),
+            InkWell(
+              onTap: _periods.isNotEmpty ? _showPeriodSelector : null,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Periode: $displayLabel', style: const TextStyle(color: Colors.grey)),
+                  const Icon(Icons.arrow_drop_down, size: 20, color: Colors.grey),
+                ],
+              ),
+            ),
           ],
         ),
       ),
