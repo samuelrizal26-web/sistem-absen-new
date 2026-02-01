@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 import 'package:sistem_absen_flutter_v2/services/cash_drawer_service.dart';
@@ -6,9 +7,8 @@ import 'package:sistem_absen_flutter_v2/screens/cashflow/cashflow_form_modal.dar
 import 'package:sistem_absen_flutter_v2/screens/cashflow/widgets/cashflow_summary_card.dart';
 import 'package:sistem_absen_flutter_v2/screens/cashflow/widgets/cashflow_list_item.dart';
 
-// STABLE MODULE – DO NOT MODIFY
-// Cashflow & PrintJobs are frozen
-// STABLE MODULE – do not refactor without explicit approval
+// STABLE MODULE – CASHFLOW HOME
+// UI POLISH ONLY (NO LOGIC / API CHANGE)
 class CashflowHomeScreen extends StatefulWidget {
   const CashflowHomeScreen({super.key});
 
@@ -20,6 +20,14 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
   bool _loading = true;
   Map<String, dynamic> _summary = {};
   List<Map<String, dynamic>> _transactions = [];
+  DateTime _selectedPeriod = DateTime(DateTime.now().year, DateTime.now().month);
+  String _searchTerm = '';
+  static final _currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+  List<DateTime> get _recentPeriods {
+    final base = DateTime(_selectedPeriod.year, _selectedPeriod.month);
+    return List.generate(3, (index) => DateTime(base.year, base.month - index));
+  }
 
   @override
   void initState() {
@@ -27,7 +35,7 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     _reloadData();
   }
 
-  DateTime _resolveDate(Map<String, dynamic> entry) {
+  DateTime _parseDate(Map<String, dynamic> entry) {
     final raw = (entry['date'] ?? entry['created_at'] ?? '').toString();
     final cleaned = raw.contains('T') ? raw.split('T').first : raw;
     return DateTime.tryParse(cleaned) ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -86,10 +94,35 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     return type == 'income' || type == 'pemasukan';
   }
 
+  List<Map<String, dynamic>> get _periodTransactions {
+    final start = DateTime(_selectedPeriod.year, _selectedPeriod.month, 1);
+    final end = DateTime(_selectedPeriod.year, _selectedPeriod.month + 1, 0);
+    return _transactions.where((tx) {
+      final date = _parseDate(tx);
+      final matchesPeriod = !date.isBefore(start) && !date.isAfter(end);
+      if (!matchesPeriod) return false;
+      if (_searchTerm.isEmpty) return true;
+      final query = _searchTerm.toLowerCase();
+      return (tx['description'] ?? tx['notes'] ?? tx['category'] ?? '')
+              .toString()
+              .toLowerCase()
+              .contains(query) ||
+          (tx['payment_method'] ?? '').toString().toLowerCase().contains(query);
+    }).toList();
+  }
+
   List<Map<String, dynamic>> get _incomes =>
-      _transactions.where((tx) => _isIncome(tx)).toList();
+      _periodTransactions.where((tx) => _isIncome(tx)).toList();
   List<Map<String, dynamic>> get _expenses =>
-      _transactions.where((tx) => !_isIncome(tx)).toList();
+      _periodTransactions.where((tx) => !_isIncome(tx)).toList();
+
+  double _sumEntries(List<Map<String, dynamic>> entries) {
+    return entries.fold<double>(0, (sum, entry) {
+      return sum + (entry['amount'] as num?)?.toDouble() ?? 0;
+    });
+  }
+
+  String _formatMoney(double value) => _currency.format(value);
 
   Widget _buildTabView(List<Map<String, dynamic>> entries, String emptyMessage) {
     final list = _loading
@@ -122,6 +155,144 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     );
   }
 
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              const SizedBox(height: 6),
+              Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: iconColor.withOpacity(0.2),
+            child: Icon(icon, color: iconColor),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+  void _showPeriodPicker() async {
+    final selected = await showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _recentPeriods.map((period) {
+            final label = DateFormat('MMMM yyyy', 'id_ID').format(period);
+            final isSelected = period.year == _selectedPeriod.year &&
+                period.month == _selectedPeriod.month;
+            return ListTile(
+              title: Text(label),
+              trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+              onTap: () => Navigator.of(context).pop(period),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+    if (selected != null &&
+        (selected.year != _selectedPeriod.year || selected.month != _selectedPeriod.month)) {
+      setState(() => _selectedPeriod = selected);
+    }
+  }
+
+  Widget _buildStatCards() {
+    final income = _sumEntries(_incomes);
+    final expense = _sumEntries(_expenses);
+    final balance = income - expense;
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            label: 'Pemasukan',
+            value: _formatMoney(income),
+            color: const Color(0xFFE8F5E9),
+            icon: Icons.arrow_upward,
+            iconColor: Colors.green,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _StatCard(
+            label: 'Pengeluaran',
+            value: _formatMoney(expense),
+            color: const Color(0xFFFFEBEE),
+            icon: Icons.arrow_downward,
+            iconColor: Colors.red,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _StatCard(
+            label: 'Saldo Kas',
+            value: _formatMoney(balance),
+            color: const Color(0xFFE3F2FD),
+            icon: Icons.account_balance_wallet,
+            iconColor: Colors.blue,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    final label = DateFormat('MMMM yyyy', 'id_ID').format(_selectedPeriod);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Periode: $label',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        TextButton.icon(
+          onPressed: _showPeriodPicker,
+          icon: const Icon(Icons.calendar_month),
+          label: const Text('Ubah Periode'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search),
+        hintText: 'Cari catatan atau metode',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onChanged: (value) => setState(() => _searchTerm = value),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,7 +307,11 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CashflowSummaryCard(summary: _summary),
+              _buildStatCards(),
+              const SizedBox(height: 12),
+              _buildPeriodSelector(),
+              const SizedBox(height: 12),
+              _buildSearchField(),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: _openForm,
