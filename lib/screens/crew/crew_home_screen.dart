@@ -158,10 +158,13 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
         final bDate = DateTime.tryParse(b['start_date']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
         return bDate.compareTo(aDate);
       });
-      final active = periods.firstWhere(
-        (period) => (period['status']?.toString().toLowerCase() ?? '') == 'open',
-        orElse: () => periods.isNotEmpty ? periods.first : null,
-      );
+      Map<String, dynamic>? active;
+      if (periods.isNotEmpty) {
+        active = periods.firstWhere(
+          (period) => (period['status']?.toString().toLowerCase() ?? '') == 'open',
+          orElse: () => periods.first,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _periods = periods;
