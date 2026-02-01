@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 import 'package:sistem_absen_flutter_v2/services/cash_drawer_service.dart';
 import 'package:sistem_absen_flutter_v2/screens/cashflow/cashflow_form_modal.dart';
-import 'package:sistem_absen_flutter_v2/screens/cashflow/widgets/cashflow_summary_card.dart';
 import 'package:sistem_absen_flutter_v2/screens/cashflow/widgets/cashflow_list_item.dart';
 
 // STABLE MODULE – CASHFLOW HOME
@@ -117,9 +116,16 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
       _periodTransactions.where((tx) => !_isIncome(tx)).toList();
 
   double _sumEntries(List<Map<String, dynamic>> entries) {
-    return entries.fold<double>(0, (sum, entry) {
-      return sum + (entry['amount'] as num?)?.toDouble() ?? 0;
+    return entries.fold<double>(0.0, (sum, entry) {
+      final amount = (entry['amount'] as num?)?.toDouble() ?? 0.0;
+      return sum + amount;
     });
+  }
+
+  DateTime _resolveDate(Map<String, dynamic> entry) {
+    final raw = (entry['date'] ?? entry['created_at'] ?? '').toString();
+    final cleaned = raw.contains('T') ? raw.split('T').first : raw;
+    return DateTime.tryParse(cleaned) ?? DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   String _formatMoney(double value) => _currency.format(value);
@@ -154,51 +160,6 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
       child: list,
     );
   }
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-  final Color iconColor;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-              const SizedBox(height: 6),
-              Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: iconColor.withOpacity(0.2),
-            child: Icon(icon, color: iconColor),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
   void _showPeriodPicker() async {
     final selected = await showModalBottomSheet<DateTime>(
@@ -342,6 +303,55 @@ class _StatCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// =========================
+// UI WIDGETS (TOP LEVEL)
+// =========================
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+
+  const _StatCard({
+    Key? key,
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+    required this.iconColor,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              const SizedBox(height: 6),
+              Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: iconColor.withOpacity(0.2),
+            child: Icon(icon, color: iconColor),
+          ),
+        ],
       ),
     );
   }
