@@ -134,7 +134,7 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     );
   }
 
-  Widget _buildingTransactionItem(Map<String, dynamic> tx) {
+  Widget _buildTransactionItem(Map<String, dynamic> tx) {
     final date = _parseDate(tx['date'] ?? tx['created_at']);
     final dateLabel = date != null ? DateFormat('dd MMM yyyy · HH:mm').format(date) : '-';
     final isIncome = _isIncome(tx);
@@ -180,7 +180,7 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
           child: Text('Belum ada pemasukan'),
         )
       else
-        ..._incomes.map(_buildingTransactionItem),
+        ..._incomes.map(_buildTransactionItem),
       const SizedBox(height: 16),
       _sectionTitle('Pengeluaran'),
       if (_expenses.isEmpty)
@@ -189,7 +189,7 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
           child: Text('Belum ada pengeluaran'),
         )
       else
-        ..._expenses.map(_buildingTransactionItem),
+        ..._expenses.map(_buildTransactionItem),
       const SizedBox(height: 16),
     ];
 
