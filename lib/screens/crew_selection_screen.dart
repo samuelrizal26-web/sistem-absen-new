@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:sistem_absen_flutter_v2/models/employee.dart';
 import 'package:sistem_absen_flutter_v2/screens/admin/admin_login_choice_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/cashflow/cashflow_home_screen.dart';
-import 'package:sistem_absen_flutter_v2/screens/crew_dashboard_screen.dart';
+import 'package:sistem_absen_flutter_v2/screens/crew/crew_home_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/print_jobs_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/project_screen.dart';
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
@@ -65,7 +65,7 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
     await Future<void>.delayed(Duration.zero);
     if (!mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => CrewDashboardScreen(employee: loggedInEmployee)),
+      MaterialPageRoute(builder: (context) => CrewHomeScreen(employee: loggedInEmployee)),
     );
   }
 

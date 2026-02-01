@@ -138,7 +138,8 @@ class AttendanceResponse(BaseModel):
     deduction_amount: Optional[float] = None
 
 class AdvanceCreate(BaseModel):
-    employee_id: str
+    employee_id: Optional[str] = None
+    crew_id: Optional[str] = None
     amount: float
     note: Optional[str] = Field(default=None, alias="notes")
 
@@ -151,6 +152,7 @@ class Advance(BaseModel):
     amount: float
     note: Optional[str] = None
     date: str
+    payroll_period_id: Optional[str] = None
 
 class AdvanceResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -158,6 +160,7 @@ class AdvanceResponse(BaseModel):
     employee_id: str
     amount: float
     note: Optional[str] = None
+    payroll_period_id: Optional[str] = None
     date: str
 
 class PayrollPeriodCreate(BaseModel):
@@ -1100,18 +1103,22 @@ async def mark_locked_attendance_records():
 # Advance Routes
 @api_router.post("/advances", response_model=AdvanceResponse)
 async def create_advance(advance: AdvanceCreate):
-    employee = await db.employees.find_one({"id": advance.employee_id})
+    employee_id = advance.employee_id or advance.crew_id
+    if not employee_id:
+        raise HTTPException(status_code=400, detail="Employee ID is required")
+    employee = await db.employees.find_one({"id": employee_id})
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
     
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    await _ensure_period_open_for_date(today)
+    period = await _get_open_period_for_date(today)
     
     advance_obj = Advance(
-        employee_id=advance.employee_id,
+        employee_id=employee["id"],
         amount=advance.amount,
         note=advance.note,
-        date=today
+        date=today,
+        payroll_period_id=period["id"] if period else None,
     )
     
     doc = advance_obj.model_dump()

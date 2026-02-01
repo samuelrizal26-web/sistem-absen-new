@@ -6,6 +6,9 @@ import 'package:sistem_absen_flutter_v2/screens/cashflow/cashflow_form_modal.dar
 import 'package:sistem_absen_flutter_v2/screens/cashflow/widgets/cashflow_summary_card.dart';
 import 'package:sistem_absen_flutter_v2/screens/cashflow/widgets/cashflow_list_item.dart';
 
+// STABLE MODULE – DO NOT MODIFY
+// Cashflow & PrintJobs are frozen
+// STABLE MODULE – do not refactor without explicit approval
 class CashflowHomeScreen extends StatefulWidget {
   const CashflowHomeScreen({super.key});
 
@@ -24,21 +27,21 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     _reloadData();
   }
 
+  DateTime _resolveDate(Map<String, dynamic> entry) {
+    final raw = (entry['date'] ?? entry['created_at'] ?? '').toString();
+    final cleaned = raw.contains('T') ? raw.split('T').first : raw;
+    return DateTime.tryParse(cleaned) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   Future<void> _reloadData() async {
     setState(() => _loading = true);
     try {
       final summary = await ApiService.fetchCashflowSummary();
       final transactions = await ApiService.fetchCashflow();
+      transactions.sort(
+        (a, b) => _resolveDate(b).compareTo(_resolveDate(a)),
+      );
       if (!mounted) return;
-      transactions.sort((a, b) {
-        final aDate = DateTime.tryParse(
-                (a['date'] ?? a['created_at'] ?? '').toString()?.split('T').first ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = DateTime.tryParse(
-                (b['date'] ?? b['created_at'] ?? '').toString()?.split('T').first ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
       setState(() {
         _summary = summary;
         _transactions = transactions;
@@ -63,10 +66,12 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
   }
 
   Future<void> _openForm() async {
-    final result = await showModalBottomSheet<Map<String, String>>(
+    final result = await showDialog<Map<String, String>>(
       context: context,
-      isScrollControlled: true,
-      builder: (_) => const CashflowFormModal(),
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+        child: const CashflowFormModal(),
+      ),
     );
     if (result == null) return;
     final type = result['type'] ?? 'income';
@@ -86,22 +91,34 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
   List<Map<String, dynamic>> get _expenses =>
       _transactions.where((tx) => !_isIncome(tx)).toList();
 
-  Widget _buildSection(String title, List<Map<String, dynamic>> entries) {
-    if (entries.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Text('Belum ada $title'.replaceFirst(title[0], title[0].toLowerCase())),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 16, top: 16, bottom: 8),
-          child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        ),
-        ...entries.map((tx) => CashflowListItem(transaction: tx)),
-      ],
+  Widget _buildTabView(List<Map<String, dynamic>> entries, String emptyMessage) {
+    final list = _loading
+        ? ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              SizedBox(height: 200),
+              Center(child: CircularProgressIndicator()),
+            ],
+          )
+        : entries.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 80),
+                  Center(child: Text('Belum ada $emptyMessage')),
+                ],
+              )
+            : ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: entries.length,
+                separatorBuilder: (_, __) => const Divider(height: 0),
+                itemBuilder: (_, index) => CashflowListItem(transaction: entries[index]),
+              );
+
+    return RefreshIndicator(
+      onRefresh: _reloadData,
+      child: list,
     );
   }
 
@@ -112,30 +129,43 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
         title: const Text('Cashflow'),
         backgroundColor: const Color(0xFF0A4D68),
       ),
-      body: RefreshIndicator(
-        onRefresh: _reloadData,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            CashflowSummaryCard(summary: _summary),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _openForm,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0A4D68),
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+      body: DefaultTabController(
+        length: 2,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CashflowSummaryCard(summary: _summary),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _openForm,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0A4D68),
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                child: const Text('Tambah Cashflow'),
               ),
-              child: const Text('Tambah Cashflow'),
-            ),
-            if (_loading) ...[
-              const SizedBox(height: 32),
-              const Center(child: CircularProgressIndicator()),
-            ] else ...[
-              _buildSection('Pemasukan', _incomes),
-              _buildSection('Pengeluaran', _expenses),
+              const SizedBox(height: 12),
+              const TabBar(
+                labelColor: Colors.black87,
+                indicatorColor: Color(0xFF0A4D68),
+                tabs: [
+                  Tab(text: 'Pemasukan'),
+                  Tab(text: 'Pengeluaran'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _buildTabView(_incomes, 'pemasukan'),
+                    _buildTabView(_expenses, 'pengeluaran'),
+                  ],
+                ),
+              ),
             ],
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );

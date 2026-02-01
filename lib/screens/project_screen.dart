@@ -1492,6 +1492,7 @@ class _ProjectFormDialogState extends State<_ProjectFormDialog> {
     // Hanya kirim field yang ada di schema, tidak ada field tambahan
     // Tanggal transaksi ditentukan backend (server time)
       final body = <String, dynamic>{
+        'date': _selectedDate.toIso8601String(),
         'project_name': projectName,
         'customer_name': _customerController.text.trim(),
         'quantity': quantity,

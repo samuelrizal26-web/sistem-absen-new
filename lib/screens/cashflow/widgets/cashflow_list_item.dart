@@ -19,7 +19,8 @@ class CashflowListItem extends StatelessWidget {
     final method = (transaction['payment_method'] ?? 'cash').toString().toUpperCase();
     final description =
         transaction['description']?.toString() ?? (isIncome ? 'Pemasukan' : 'Pengeluaran');
-    final notes = transaction['notes']?.toString();
+    final rawNote = transaction['notes'] ?? transaction['note'];
+    final notes = rawNote?.toString();
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
