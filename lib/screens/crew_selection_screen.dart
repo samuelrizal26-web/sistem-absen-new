@@ -384,11 +384,16 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
   }
 
   Widget _buildCrewGrid(List<Employee> employees) {
-    final crossAxisCount = MediaQuery.of(context).size.width > 1000
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth > 1000
         ? 4
-        : MediaQuery.of(context).size.width > 700
+        : screenWidth > 700
             ? 3
             : 2;
+    
+    // Aspect ratio adjusted for content height
+    final aspectRatio = screenWidth > 1000 ? 0.95 : 0.85;
+    
     return GridView.builder(
       padding: const EdgeInsets.all(20),
       itemCount: employees.length,
@@ -396,7 +401,7 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: 20,
         crossAxisSpacing: 20,
-        childAspectRatio: 1,
+        childAspectRatio: aspectRatio,
       ),
       itemBuilder: (context, index) {
         final employee = employees[index];
@@ -525,49 +530,57 @@ class _CrewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: const [
             BoxShadow(
               color: Color(0x14000000),
-              blurRadius: 18,
-              offset: Offset(0, 10),
+              blurRadius: 16,
+              offset: Offset(0, 8),
             ),
           ],
         ),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 color: const Color(0xFFEAFBFF),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(Icons.person_outline, color: Color(0xFF0A4D68), size: 32),
+              child: const Icon(Icons.person_outline, color: Color(0xFF0A4D68), size: 28),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               employee.name,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               employee.position ?? '—',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.black54),
+              style: const TextStyle(
+                color: Colors.black54,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
