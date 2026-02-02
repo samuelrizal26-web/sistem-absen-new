@@ -1,8 +1,9 @@
 // ============================================
 // ADMIN CREW DASHBOARD - STABLE MODULE
 // FINAL UI:
-// - Portrait: vertical scrollable layout
+// - Portrait: vertical scrollable, 3 cards horizontal
 // - Landscape: 2-panel (LEFT: info 40%, RIGHT: tabs 60%)
+//   LEFT: unified financial summary (1 panel, not 3 cards)
 // - NO overflow, independent scroll
 // - NO logic/API changes
 // ============================================
@@ -278,32 +279,95 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
   }
 
   Widget _buildSummaryCards(num? salary, num? kasbon, num? net, bool isLandscape) {
+    if (isLandscape) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 10, offset: Offset(0, 4))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Ringkasan Finansial',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0A4D68),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildSummaryRow('Gaji', _formatCurrencyMaybe(salary), false),
+            const SizedBox(height: 12),
+            _buildSummaryRow('Kasbon', _formatCurrencyMaybe(kasbon), false),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            _buildSummaryRow('Gaji Bersih', _formatCurrencyMaybe(net), true),
+          ],
+        ),
+      );
+    }
+    
+    // Portrait - keep original 3 cards
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isLandscape ? 0 : 24),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
         children: [
-          _StatsCard(
-            label: 'Gaji',
-            value: _formatCurrencyMaybe(salary),
-            color: const Color(0xFF4CAF50),
-            isLandscape: isLandscape,
+          Expanded(
+            child: _StatsCard(
+              label: 'Gaji',
+              value: _formatCurrencyMaybe(salary),
+              color: const Color(0xFF4CAF50),
+              isLandscape: false,
+            ),
           ),
-          const SizedBox(height: 10),
-          _StatsCard(
-            label: 'Kasbon',
-            value: _formatCurrencyMaybe(kasbon),
-            color: const Color(0xFFFF7043),
-            isLandscape: isLandscape,
+          const SizedBox(width: 12),
+          Expanded(
+            child: _StatsCard(
+              label: 'Kasbon',
+              value: _formatCurrencyMaybe(kasbon),
+              color: const Color(0xFFFF7043),
+              isLandscape: false,
+            ),
           ),
-          const SizedBox(height: 10),
-          _StatsCard(
-            label: 'Gaji Bersih',
-            value: _formatCurrencyMaybe(net),
-            color: const Color(0xFF1E88E5),
-            isLandscape: isLandscape,
+          const SizedBox(width: 12),
+          Expanded(
+            child: _StatsCard(
+              label: 'Gaji Bersih',
+              value: _formatCurrencyMaybe(net),
+              color: const Color(0xFF1E88E5),
+              isLandscape: false,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value, bool isTotal) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isTotal ? 14 : 13,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            color: isTotal ? const Color(0xFF0A4D68) : Colors.black87,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isTotal ? 15 : 14,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+            color: isTotal ? const Color(0xFF0A4D68) : Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 
