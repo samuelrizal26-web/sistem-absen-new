@@ -1,4 +1,12 @@
-﻿import 'dart:convert';
+// ============================================
+// ADMIN STOCK SCREEN
+// LANDSCAPE FIX:
+// - Portrait: keep existing vertical layout
+// - Landscape: LEFT (info static) + RIGHT (list scrollable)
+// - Updated color palette: teal soft & consistent
+// - NO logic/API changes
+// ============================================
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -234,13 +242,249 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
     }
   }
 
+  Widget _buildInfoSection(int totalItems, int lowStockCount) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Data stok bahan LB.ADV',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Pantau jumlah bahan, nilai persediaan, dan stock menipis.',
+            style: TextStyle(color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF4DB6AC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Total Item', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const SizedBox(height: 6),
+                Text(
+                  '$totalItems',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFB74D),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Stock Menipis', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const SizedBox(height: 6),
+                Text(
+                  '$lowStockCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _handleAddStock,
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Barang'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2EC4B6),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStockListItem(Map<String, dynamic> stock) {
+    final quantity = _stockQuantity(stock);
+    final threshold = _stockThreshold(stock);
+    final lowStock = _isLowStock(stock);
+    final unit = _stockUnit(stock);
+    final price = _parseNumeric(stock['price'] ?? stock['hpp'] ?? stock['price_per_unit']);
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: lowStock ? const Color(0xFFFFB74D) : const Color(0xFF4DB6AC),
+                    child: Text(
+                      _stockName(stock).isEmpty ? '-' : _stockName(stock)[0].toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      _stockName(stock),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _handleEditStock(stock);
+                      } else if (value == 'delete') {
+                        _showDeleteStockDialog(stock);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${_formatNumber(quantity)} ${unit.isNotEmpty ? unit : ''}',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'HPP: Rp ${_formatNumber(price)}',
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Penggunaan: ${_stockUsageCategory(stock)}',
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Min stok: ${threshold > 0 ? _formatNumber(threshold) : '-'}',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              if (lowStock) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Stok rendah',
+                  style: TextStyle(color: Colors.orange.shade700, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPortraitLayout(List<Map<String, dynamic>> stocks) {
+    final totalItems = stocks.length;
+    final lowStockCount = stocks.where(_isLowStock).length;
+    
+    return RefreshIndicator(
+      onRefresh: _refreshStocks,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: stocks.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFF4DB6AC).withOpacity(0.3), width: 2),
+                ),
+                child: _buildInfoSection(totalItems, lowStockCount),
+              ),
+            );
+          }
+          return _buildStockListItem(stocks[index - 1]);
+        },
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout(List<Map<String, dynamic>> stocks) {
+    final totalItems = stocks.length;
+    final lowStockCount = stocks.where(_isLowStock).length;
+    
+    return Row(
+      children: [
+        SizedBox(
+          width: 420,
+          child: Container(
+            color: Colors.white,
+            child: _buildInfoSection(totalItems, lowStockCount),
+          ),
+        ),
+        const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _refreshStocks,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: stocks.length,
+              itemBuilder: (context, index) => _buildStockListItem(stocks[index]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Stock'),
+        backgroundColor: const Color(0xFF2EC4B6),
       ),
-      backgroundColor: const Color(0xFFD8EBFF),
+      backgroundColor: const Color(0xFFEAF7FA),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _stocksFuture,
         builder: (context, snapshot) {
@@ -265,214 +509,9 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
               ),
             );
           }
-          final totalItems = stocks.length;
-          final lowStockCount = stocks.where(_isLowStock).length;
-          return RefreshIndicator(
-            onRefresh: _refreshStocks,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: stocks.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFBFEFFF),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Data stok bahan LB.ADV',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Pantau jumlah bahan, nilai persediaan, dan stock menipis.',
-                              style: TextStyle(color: Colors.black54),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF6C57E8), Color(0xFF9675FF)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.all(12),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text('Total Item', style: TextStyle(color: Colors.white70)),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          '$totalItems',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFFFF905A), Color(0xFFFFC08F)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.all(12),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text('Stock Menipis', style: TextStyle(color: Colors.white70)),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          '$lowStockCount',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: _handleAddStock,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Tambah Barang'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0E95C9),
-                                minimumSize: const Size.fromHeight(48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }
-                final stock = stocks[index - 1];
-                final quantity = _stockQuantity(stock);
-                final threshold = _stockThreshold(stock);
-                final lowStock = _isLowStock(stock);
-                final unit = _stockUnit(stock);
-                final price = _parseNumeric(stock['price'] ?? stock['hpp'] ?? stock['price_per_unit']);
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 22,
-                                backgroundColor: lowStock ? Colors.red.shade300 : Colors.blue.shade300,
-                                child: Text(
-                                  _stockName(stock).isEmpty ? '-' : _stockName(stock)[0].toUpperCase(),
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Text(
-                                  _stockName(stock),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert),
-                                onSelected: (value) {
-                                if (value == 'edit') {
-                                  _handleEditStock(stock);
-                                  } else if (value == 'delete') {
-                                    _showDeleteStockDialog(stock);
-                                  }
-                                },
-                                itemBuilder: (context) => const [
-                                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                  PopupMenuItem(value: 'delete', child: Text('Hapus')),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '${_formatNumber(quantity)} ${unit.isNotEmpty ? unit : ''}',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'HPP: Rp ${_formatNumber(price)}',
-                            style: TextStyle(color: Colors.grey.shade700),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Penggunaan: ${_stockUsageCategory(stock)}',
-                            style: TextStyle(color: Colors.grey.shade700),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Min stok: ${threshold > 0 ? _formatNumber(threshold) : '-'}',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                          if (lowStock) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              'Stok rendah',
-                              style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
+          return isLandscape
+              ? _buildLandscapeLayout(stocks)
+              : _buildPortraitLayout(stocks);
         },
       ),
     );
