@@ -11,7 +11,11 @@ import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 
 // ===============================
 // STABLE MODULE – CREW HOME
-// DO NOT MODIFY WITHOUT APPROVAL
+// LANDSCAPE FIX:
+// - Portrait: vertical scrollable
+// - Landscape: 2-panel (LEFT: info, RIGHT: history)
+// Both panels independently scrollable
+// NO overflow allowed
 // ===============================
 
 class CrewHomeScreen extends StatefulWidget {
@@ -433,9 +437,8 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final timeLabel = DateFormat('dd MMM yyyy · HH:mm').format(_currentTime);
-    final statusColor = (_isClockedIn ?? false) ? Colors.green : Colors.red;
-    final statusText = (_isClockedIn ?? false) ? 'Clock In Active' : 'Clock In Inactive';
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
     return Scaffold(
       backgroundColor: const Color(0xFFEAFBFF),
       appBar: AppBar(
@@ -445,95 +448,229 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFEAFBFF),
-                    child: Icon(Icons.person, color: Color(0xFF0A4D68)),
-                  ),
-                  title: Text(widget.employee.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(widget.employee.position ?? 'Crew'),
-                  trailing: Chip(
-                    backgroundColor: statusColor.withOpacity(0.15),
-                    label: Text(
-                      statusText,
-                      style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 12),
-                    ),
-                  ),
+        child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+      ),
+    );
+  }
+
+  Widget _buildPortraitLayout() {
+    final timeLabel = DateFormat('dd MMM yyyy · HH:mm').format(_currentTime);
+    final statusColor = (_isClockedIn ?? false) ? Colors.green : Colors.red;
+    final statusText = (_isClockedIn ?? false) ? 'Clock In Active' : 'Clock In Inactive';
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFEAFBFF),
+                child: Icon(Icons.person, color: Color(0xFF0A4D68)),
+              ),
+              title: Text(widget.employee.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(widget.employee.position ?? 'Crew'),
+              trailing: Chip(
+                backgroundColor: statusColor.withOpacity(0.15),
+                label: Text(
+                  statusText,
+                  style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 12),
                 ),
               ),
-              const SizedBox(height: 16),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Status Clock In', style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text(timeLabel, style: const TextStyle(color: Colors.grey)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _clockMessage,
-                        style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
-                      ),
+                      const Text('Status Clock In', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(timeLabel, style: const TextStyle(color: Colors.grey, fontSize: 11)),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildTotalKasbonCard(),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _openKasbonForm,
-                icon: const Icon(Icons.attach_money),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0A4D68),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                label: const Text('Ajukan Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 16),
-              Expanded(child: _buildHistoryCard()),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (_isClockedIn == null || _isProcessingClockAction)
-                      ? null
-                      : () => _handleClockAction(!(_isClockedIn ?? false)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B5E20),
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  const SizedBox(height: 12),
+                  Text(
+                    _clockMessage,
+                    style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
                   ),
-                  child: _isProcessingClockAction
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : Text(
-                          (_isClockedIn ?? false) ? 'Clock Out' : 'Clock In',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
+          const SizedBox(height: 16),
+          _buildTotalKasbonCard(),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _openKasbonForm,
+            icon: const Icon(Icons.attach_money),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0A4D68),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            label: const Text('Ajukan Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 16),
+          Expanded(child: _buildHistoryCard()),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: (_isClockedIn == null || _isProcessingClockAction)
+                  ? null
+                  : () => _handleClockAction(!(_isClockedIn ?? false)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1B5E20),
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: _isProcessingClockAction
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : Text(
+                      (_isClockedIn ?? false) ? 'Clock Out' : 'Clock In',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 5,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildProfileCard(),
+                const SizedBox(height: 12),
+                _buildClockStatusCard(),
+                const SizedBox(height: 12),
+                _buildTotalKasbonCard(),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _openKasbonForm,
+                  icon: const Icon(Icons.attach_money),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0A4D68),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  label: const Text('Ajukan Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (_isClockedIn == null || _isProcessingClockAction)
+                        ? null
+                        : () => _handleClockAction(!(_isClockedIn ?? false)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B5E20),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: _isProcessingClockAction
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(
+                            (_isClockedIn ?? false) ? 'Clock Out' : 'Clock In',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const VerticalDivider(width: 1, thickness: 1),
+        Expanded(
+          flex: 5,
+          child: _buildHistoryCard(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileCard() {
+    final statusColor = (_isClockedIn ?? false) ? Colors.green : Colors.red;
+    final statusText = (_isClockedIn ?? false) ? 'Clock In Active' : 'Clock In Inactive';
+    
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        leading: const CircleAvatar(
+          backgroundColor: Color(0xFFEAFBFF),
+          child: Icon(Icons.person, color: Color(0xFF0A4D68), size: 22),
+        ),
+        title: Text(
+          widget.employee.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          widget.employee.position ?? 'Crew',
+          style: const TextStyle(fontSize: 12),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Chip(
+          backgroundColor: statusColor.withOpacity(0.15),
+          label: Text(
+            statusText,
+            style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 11),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClockStatusCard() {
+    final timeLabel = DateFormat('dd MMM yyyy · HH:mm').format(_currentTime);
+    
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Status Clock In', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(timeLabel, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _clockMessage,
+              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ],
         ),
       ),
     );
