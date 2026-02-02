@@ -1,3 +1,11 @@
+// ============================================
+// STABLE MODULE – CASHFLOW HOME
+// RULES:
+// - DO NOT ADD NEW CONTAINERS
+// - DO NOT DUPLICATE `decoration`
+// - EDIT VALUES ONLY (color, radius, padding)
+// - UI POLISH ONLY, NO LOGIC CHANGE
+// ============================================
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -5,9 +13,6 @@ import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 import 'package:sistem_absen_flutter_v2/services/cash_drawer_service.dart';
 import 'package:sistem_absen_flutter_v2/screens/cashflow/cashflow_form_modal.dart';
 import 'package:sistem_absen_flutter_v2/screens/cashflow/widgets/cashflow_list_item.dart';
-
-// STABLE MODULE – CASHFLOW HOME
-// UI POLISH ONLY (NO LOGIC / API CHANGE)
 class CashflowHomeScreen extends StatefulWidget {
   const CashflowHomeScreen({super.key});
 
@@ -352,10 +357,6 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color,
