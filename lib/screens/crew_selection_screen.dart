@@ -1,11 +1,14 @@
 // ============================================
 // HOME SCREEN (CREW SELECTION) - STABLE MODULE
+// MODERN UI REFRESH:
+// - Clean color palette (teal #2EC4B6, soft background)
+// - Reduced shadows & softer contrast
 // LANDSCAPE LAYOUT:
-// - LEFT (40%): Logo + navigation buttons (SCROLLABLE)
-// - RIGHT (60%): Crew list (scrollable)
+// - LEFT (40%): Logo + nav buttons (SCROLLABLE)
+// - RIGHT (60%): Crew grid (scrollable)
 // Both panels independently scrollable
-// PORTRAIT: unchanged (vertical stack)
-// NO logic/API changes
+// PORTRAIT: vertical stack (updated colors)
+// NO logic/API changes, UI ONLY
 // ============================================
 import 'dart:convert';
 
@@ -105,7 +108,7 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAFBFF),
+      backgroundColor: const Color(0xFFEAF7FA),
       body: SafeArea(
         child: OrientationBuilder(
           builder: (context, orientation) {
@@ -174,83 +177,79 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
   Widget _buildLeftPanel() {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1A7BD0), Color(0xFF0A4D68)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        color: Color(0xFF0A4D68),
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Image.asset(
               'assets/app_icon.png',
-              height: 64,
+              height: 56,
               errorBuilder: (context, error, stackTrace) => const Text(
                 'LB.ADV',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             const Text(
               'One_Stop Cutting Sticker',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              style: TextStyle(color: Colors.white60, fontSize: 12),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             const Text(
               'Sistem Absensi Crew',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text(
               'Pilih nama Anda untuk absensi',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+              style: TextStyle(color: Colors.white60, fontSize: 12),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 36),
             _HeaderButton(
               onPressed: _onPrintTapped,
               icon: Icons.print,
               label: 'Print',
-              color: const Color(0xFFF57C00),
+              color: const Color(0xFF2EC4B6),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _HeaderButton(
               onPressed: _onCashflowTapped,
               icon: Icons.attach_money,
               label: 'Cashflow',
-              color: const Color(0xFF00ACC1),
+              color: const Color(0xFF2EC4B6),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _HeaderButton(
               onPressed: _onProjectTapped,
               icon: Icons.work_outline,
               label: 'Project',
-              color: const Color(0xFF1976D2),
+              color: const Color(0xFF2EC4B6),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _HeaderButton(
               onPressed: _onAdminTapped,
               icon: Icons.admin_panel_settings,
               label: 'Admin',
-              color: const Color(0xFF6C4CEB),
+              color: const Color(0xFFFFB74D),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -260,16 +259,12 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
   Widget _buildHeader(bool isLandscape) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1A7BD0), Color(0xFF0A4D68)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        color: Color(0xFF0A4D68),
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
       ),
       child: Column(
@@ -277,11 +272,11 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
         children: [
           Image.asset(
             'assets/app_icon.png',
-            height: 72,
+            height: 64,
             errorBuilder: (context, error, stackTrace) => const Text(
               'LB.ADV',
               style: TextStyle(
-                fontSize: 36,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
@@ -290,13 +285,13 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
           const SizedBox(height: 8),
           const Text(
             'One_Stop Cutting Sticker',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: Colors.white60, fontSize: 12),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           const Text(
             'Sistem Absensi Crew',
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
@@ -305,36 +300,37 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
           const SizedBox(height: 6),
           const Text(
             'Pilih nama Anda untuk absensi',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: Colors.white60, fontSize: 12),
           ),
           const SizedBox(height: 24),
           Wrap(
-            spacing: 16,
+            spacing: 14,
             runSpacing: 12,
+            alignment: WrapAlignment.center,
             children: [
               _HeaderButton(
                 onPressed: _onPrintTapped,
                 icon: Icons.print,
                 label: 'Print',
-                color: const Color(0xFFF57C00),
+                color: const Color(0xFF2EC4B6),
               ),
               _HeaderButton(
                 onPressed: _onCashflowTapped,
                 icon: Icons.attach_money,
                 label: 'Cashflow',
-                color: const Color(0xFF00ACC1),
+                color: const Color(0xFF2EC4B6),
               ),
               _HeaderButton(
                 onPressed: _onProjectTapped,
                 icon: Icons.work_outline,
                 label: 'Project',
-                color: const Color(0xFF1976D2),
+                color: const Color(0xFF2EC4B6),
               ),
               _HeaderButton(
                 onPressed: _onAdminTapped,
                 icon: Icons.admin_panel_settings,
                 label: 'Admin',
-                color: const Color(0xFF6C4CEB),
+                color: const Color(0xFFFFB74D),
               ),
             ],
           ),
@@ -570,17 +566,17 @@ class _CrewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 16,
-              offset: Offset(0, 8),
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -591,33 +587,33 @@ class _CrewCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAFBFF),
-                borderRadius: BorderRadius.circular(16),
+                color: const Color(0xFF2EC4B6).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.person_outline, color: Color(0xFF0A4D68), size: 28),
+              child: const Icon(Icons.person_outline, color: Color(0xFF0A4D68), size: 26),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               employee.name,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               employee.position ?? '—',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.black54,
-                fontSize: 13,
+                color: Colors.black45,
+                fontSize: 12,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
