@@ -478,45 +478,85 @@ class _PinVerificationDialogState extends State<_PinVerificationDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       contentPadding: const EdgeInsets.all(24),
       title: const Center(child: Text('Verifikasi Identitas')),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        const CircleAvatar(radius: 30, backgroundColor: Color(0xFFEAFBFF), child: Icon(Icons.person_outline, size: 30, color: Color(0xFF0A4D68))),
-        const SizedBox(height: 16),
-        Text(widget.employee.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(widget.employee.position ?? '', style: const TextStyle(color: Colors.grey)),
-        const SizedBox(height: 24),
-        const Align(alignment: Alignment.centerLeft, child: Text('PIN', style: TextStyle(fontWeight: FontWeight.bold))),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _pinController,
-          maxLength: 6,
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          autofocus: true,
-          style: const TextStyle(fontSize: 18, letterSpacing: 8),
-          decoration: const InputDecoration(hintText: 'Masukkan PIN', border: OutlineInputBorder(), counterText: ''),
-        ),
-        const SizedBox(height: 8),
-        const Text('Masukkan PIN 6 digit', style: TextStyle(color: Colors.grey, fontSize: 12)),
-        const SizedBox(height: 24),
-        _isLoggingIn
-            ? const CircularProgressIndicator()
-            : ElevatedButton.icon(
-                onPressed: _verifyPin,
-                icon: const Icon(Icons.lock_open, color: Colors.white),
-                label: const Text('Masuk dengan PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25A18E), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircleAvatar(
+              radius: 30,
+              backgroundColor: Color(0xFFEAFBFF),
+              child: Icon(Icons.person_outline, size: 30, color: Color(0xFF0A4D68)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.employee.name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.employee.position ?? '',
+              style: const TextStyle(color: Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _pinController,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              autofocus: true,
+              style: const TextStyle(fontSize: 18, letterSpacing: 8),
+              decoration: const InputDecoration(
+                hintText: 'Masukkan PIN',
+                border: OutlineInputBorder(),
+                counterText: '',
               ),
-        if (_errorMessage != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            _errorMessage!,
-            style: const TextStyle(color: Colors.red, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ]),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Masukkan PIN 6 digit',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 24),
+            _isLoggingIn
+                ? const CircularProgressIndicator()
+                : ElevatedButton.icon(
+                    onPressed: _verifyPin,
+                    icon: const Icon(Icons.lock_open, color: Colors.white),
+                    label: const Text(
+                      'Masuk dengan PIN',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25A18E),
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
