@@ -189,36 +189,38 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     final income = _sumEntries(_incomes);
     final expense = _sumEntries(_expenses);
     final balance = income - expense;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: [
-          _StatCard(
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
             label: 'Pemasukan',
             value: _formatMoney(income),
             color: const Color(0xFFE8F5E9),
             icon: Icons.arrow_upward,
             iconColor: Colors.green,
           ),
-          const SizedBox(width: 12),
-          _StatCard(
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
             label: 'Pengeluaran',
             value: _formatMoney(expense),
             color: const Color(0xFFFFEBEE),
             icon: Icons.arrow_downward,
             iconColor: Colors.red,
           ),
-          const SizedBox(width: 12),
-          _StatCard(
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
             label: 'Saldo Kas',
             value: _formatMoney(balance),
             color: const Color(0xFFE3F2FD),
             icon: Icons.account_balance_wallet,
             iconColor: Colors.blue,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -331,45 +333,46 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 160,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: Icon(icon, color: iconColor, size: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(
+        minHeight: 78,
+        maxHeight: 90,
+      ),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.black54),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
