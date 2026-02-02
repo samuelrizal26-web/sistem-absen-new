@@ -1,3 +1,10 @@
+// ============================================
+// ADMIN PIN LOGIN SCREEN
+// LANDSCAPE FIX:
+// - Portrait: keep existing layout
+// - Landscape: centered + constrained width (440px)
+// - NO logic/auth changes
+// ============================================
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -69,108 +76,122 @@ class _AdminPinLoginScreenState extends State<AdminPinLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final verticalPadding = isLandscape ? 12.0 : 24.0;
+    final cardPadding = isLandscape ? 20.0 : 24.0;
+    final cardRadius = isLandscape ? 18.0 : 24.0;
+    final titleSpacing = isLandscape ? 16.0 : 32.0;
+    
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 24),
-                const Text(
-                  'Masuk dengan PIN',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0A4D68),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: verticalPadding,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(height: verticalPadding),
+                  const Text(
+                    'Masuk dengan PIN',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0A4D68),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Gunakan PIN 6 digit Anda',
-                  style: TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(height: 32),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x14000000),
-                        blurRadius: 24,
-                        offset: Offset(0, 12),
-                      ),
-                    ],
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Gunakan PIN 6 digit Anda',
+                    style: TextStyle(color: Colors.black54),
                   ),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _pinController,
-                        autofocus: true,
-                        maxLength: 6,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          counterText: '',
-                          hintText: 'Masukkan PIN',
-                          filled: true,
-                          fillColor: const Color(0xFFF4F6FB),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
+                  SizedBox(height: titleSpacing),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(cardPadding),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(cardRadius),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 24,
+                          offset: Offset(0, 12),
                         ),
-                        style: const TextStyle(
-                          fontSize: 24,
-                          letterSpacing: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'PIN default: 123456',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1BC0C7),
-                            minimumSize: const Size(double.infinity, 56),
-                            shape: RoundedRectangleBorder(
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: _pinController,
+                          autofocus: true,
+                          maxLength: 6,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            counterText: '',
+                            hintText: 'Masukkan PIN',
+                            filled: true,
+                            fillColor: const Color(0xFFF4F6FB),
+                            border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
                             ),
                           ),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    valueColor:
-                                        AlwaysStoppedAnimation(Colors.white),
-                                  ),
-                                )
-                              : const Text(
-                                  'Masuk',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            letterSpacing: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        const Text(
+                          'PIN default: 123456',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        SizedBox(height: isLandscape ? 16 : 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isSubmitting ? null : _login,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1BC0C7),
+                              minimumSize: const Size(double.infinity, 56),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      valueColor:
+                                          AlwaysStoppedAnimation(Colors.white),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Masuk',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
