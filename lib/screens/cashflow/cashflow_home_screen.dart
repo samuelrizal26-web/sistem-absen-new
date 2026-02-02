@@ -167,40 +167,15 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
   }
 
   void _showPeriodPicker() async {
-    final selected = await showModalBottomSheet<DateTime>(
+    final selected = await showDialog<DateTime>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const Text('Pilih Periode', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: _recentPeriods.length,
-                  separatorBuilder: (_, __) => const Divider(height: 0),
-                  itemBuilder: (context, index) {
-                    final period = _recentPeriods[index];
-                    final label = DateFormat('MMMM yyyy', 'id_ID').format(period);
-                    final isSelected = period.year == _selectedPeriod.year &&
-                        period.month == _selectedPeriod.month;
-                    return ListTile(
-                      title: Text(label),
-                      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
-                      onTap: () => Navigator.of(context).pop(period),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: _MonthPickerDialog(
+          initialDate: _selectedPeriod,
+          minDate: DateTime(_selectedPeriod.year, _selectedPeriod.month - 2),
+          maxDate: DateTime(_selectedPeriod.year, _selectedPeriod.month + 1),
         ),
       ),
     );
@@ -384,6 +359,103 @@ class _StatCard extends StatelessWidget {
             radius: 20,
             backgroundColor: iconColor.withOpacity(0.2),
             child: Icon(icon, color: iconColor),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthPickerDialog extends StatefulWidget {
+  final DateTime initialDate;
+  final DateTime minDate;
+  final DateTime maxDate;
+
+  const _MonthPickerDialog({
+    Key? key,
+    required this.initialDate,
+    required this.minDate,
+    required this.maxDate,
+  }) : super(key: key);
+
+  @override
+  State<_MonthPickerDialog> createState() => _MonthPickerDialogState();
+}
+
+class _MonthPickerDialogState extends State<_MonthPickerDialog> {
+  late DateTime _focusMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusMonth = widget.initialDate;
+  }
+
+  List<DateTime> get _visibleMonths {
+    final start = DateTime(_focusMonth.year, _focusMonth.month - 2);
+    return List.generate(6, (index) => DateTime(start.year, start.month + index));
+  }
+
+  bool get _canGoBack {
+    final earliest = DateTime(_focusMonth.year, _focusMonth.month - 3);
+    return !earliest.isBefore(widget.minDate);
+  }
+
+  bool get _canGoForward {
+    final latest = DateTime(_focusMonth.year, _focusMonth.month + 3);
+    return !latest.isAfter(widget.maxDate);
+  }
+
+  void _shiftMonth(int delta) {
+    setState(() {
+      _focusMonth = DateTime(_focusMonth.year, _focusMonth.month + delta);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 360,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _canGoBack ? () => _shiftMonth(-1) : null,
+                ),
+                Text(
+                  DateFormat('MMMM yyyy', 'id_ID').format(_focusMonth),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _canGoForward ? () => _shiftMonth(1) : null,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView.separated(
+              itemBuilder: (context, index) {
+                final period = _visibleMonths[index];
+                final label = DateFormat('MMMM yyyy', 'id_ID').format(period);
+                final isSelected = period.year == widget.initialDate.year &&
+                    period.month == widget.initialDate.month;
+                return ListTile(
+                  title: Text(label),
+                  trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                  onTap: () => Navigator.of(context).pop(period),
+                );
+              },
+              separatorBuilder: (_, __) => const Divider(height: 0),
+              itemCount: _visibleMonths.length,
+            ),
           ),
         ],
       ),
