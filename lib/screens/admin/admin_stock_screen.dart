@@ -1,10 +1,12 @@
 // ============================================
-// ADMIN STOCK SCREEN
-// LANDSCAPE FIX:
-// - Portrait: keep existing vertical layout
+// ADMIN STOCK SCREEN - STABLE MODULE
+// FINAL UI:
+// - Portrait: vertical layout
 // - Landscape: LEFT (info static) + RIGHT (list scrollable)
-// - Updated color palette: teal soft & consistent
-// - NO logic/API changes
+// - Color palette: teal soft & consistent
+// - "Min Stok" REMOVED (feature not ready)
+// - Form dialog: scrollable
+// - NO overflow, NO logic/API changes
 // ============================================
 import 'dart:convert';
 
@@ -399,11 +401,6 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
                 'Penggunaan: ${_stockUsageCategory(stock)}',
                 style: TextStyle(color: Colors.grey.shade700),
               ),
-              const SizedBox(height: 3),
-              Text(
-                'Min stok: ${threshold > 0 ? _formatNumber(threshold) : '-'}',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
               if (lowStock) ...[
                 const SizedBox(height: 6),
                 Text(
@@ -595,73 +592,81 @@ class _StockFormDialogState extends State<_StockFormDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Nama'),
-          ),
-          TextField(
-            controller: _quantityController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Jumlah'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedUnit,
-            decoration: const InputDecoration(labelText: 'Satuan'),
-            items: _stockUnitOptions
-                .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _selectedUnit = value);
-            },
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _priceController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Harga per Unit (Opsional)'),
-          ),
-          TextField(
-            controller: _notesController,
-            decoration: const InputDecoration(labelText: 'Catatan (Opsional)'),
-          ),
-          const SizedBox(height: 12),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text('Kategori Penggunaan', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          Row(
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Radio<String>(
-                value: 'UMUM',
-                groupValue: _usageCategory,
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'Nama'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _quantityController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Jumlah'),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedUnit,
+                decoration: const InputDecoration(labelText: 'Satuan'),
+                items: _stockUnitOptions
+                    .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
+                    .toList(),
                 onChanged: (value) {
                   if (value == null) return;
-                  setState(() => _usageCategory = value);
+                  setState(() => _selectedUnit = value);
                 },
               ),
-              const Text('UMUM'),
-              Radio<String>(
-                value: 'PRINT',
-                groupValue: _usageCategory,
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _usageCategory = value);
-                },
+              const SizedBox(height: 12),
+              TextField(
+                controller: _priceController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Harga per Unit (Opsional)'),
               ),
-              const Text('PRINT'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _notesController,
+                decoration: const InputDecoration(labelText: 'Catatan (Opsional)'),
+              ),
+              const SizedBox(height: 16),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Kategori Penggunaan', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              Row(
+                children: [
+                  Radio<String>(
+                    value: 'UMUM',
+                    groupValue: _usageCategory,
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _usageCategory = value);
+                    },
+                  ),
+                  const Text('UMUM'),
+                  Radio<String>(
+                    value: 'PRINT',
+                    groupValue: _usageCategory,
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _usageCategory = value);
+                    },
+                  ),
+                  const Text('PRINT'),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Batal')),
         ElevatedButton(
           onPressed: _handleSave,
-        child: const Text('Simpan'),
+          child: const Text('Simpan'),
         ),
       ],
     );
