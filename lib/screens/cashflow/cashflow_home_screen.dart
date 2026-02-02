@@ -189,36 +189,36 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     final income = _sumEntries(_incomes);
     final expense = _sumEntries(_expenses);
     final balance = income - expense;
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.3,
-      children: [
-        _StatCard(
-          label: 'Pemasukan',
-          value: _formatMoney(income),
-          color: const Color(0xFFE8F5E9),
-          icon: Icons.arrow_upward,
-          iconColor: Colors.green,
-        ),
-        _StatCard(
-          label: 'Pengeluaran',
-          value: _formatMoney(expense),
-          color: const Color(0xFFFFEBEE),
-          icon: Icons.arrow_downward,
-          iconColor: Colors.red,
-        ),
-        _StatCard(
-          label: 'Saldo Kas',
-          value: _formatMoney(balance),
-          color: const Color(0xFFE3F2FD),
-          icon: Icons.account_balance_wallet,
-          iconColor: Colors.blue,
-        ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _StatCard(
+            label: 'Pemasukan',
+            value: _formatMoney(income),
+            color: const Color(0xFFE8F5E9),
+            icon: Icons.arrow_upward,
+            iconColor: Colors.green,
+          ),
+          const SizedBox(width: 12),
+          _StatCard(
+            label: 'Pengeluaran',
+            value: _formatMoney(expense),
+            color: const Color(0xFFFFEBEE),
+            icon: Icons.arrow_downward,
+            iconColor: Colors.red,
+          ),
+          const SizedBox(width: 12),
+          _StatCard(
+            label: 'Saldo Kas',
+            value: _formatMoney(balance),
+            color: const Color(0xFFE3F2FD),
+            icon: Icons.account_balance_wallet,
+            iconColor: Colors.blue,
+          ),
+        ],
+      ),
     );
   }
 
@@ -331,36 +331,45 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-              const SizedBox(height: 6),
-              Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: iconColor.withOpacity(0.2),
-            child: Icon(icon, color: iconColor),
-          ),
-        ],
+    return SizedBox(
+      width: 160,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: Icon(icon, color: iconColor, size: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
