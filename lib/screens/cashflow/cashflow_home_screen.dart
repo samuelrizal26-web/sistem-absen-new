@@ -334,14 +334,10 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      constraints: const BoxConstraints(
-        minHeight: 78,
-        maxHeight: 90,
-      ),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -351,24 +347,30 @@ class _StatCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 32,
-            height: 32,
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(height: 6),
+          Icon(icon, color: iconColor, size: 18),
+          const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.black54),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.black54,
+              height: 1.1,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              height: 1.1,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
