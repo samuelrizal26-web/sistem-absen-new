@@ -1,10 +1,9 @@
 // ============================================
 // STABLE MODULE – CASHFLOW HOME
-// RULES:
-// - DO NOT ADD NEW CONTAINERS
-// - DO NOT DUPLICATE `decoration`
-// - EDIT VALUES ONLY (color, radius, padding)
-// - UI POLISH ONLY, NO LOGIC CHANGE
+// LANDSCAPE LAYOUT FIX:
+// - Portrait: vertical single column
+// - Landscape: LEFT (controls) + RIGHT (list)
+// - NO LOGIC/API/STATE CHANGES
 // ============================================
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -253,40 +252,84 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cashflow'),
-        backgroundColor: const Color(0xFF0A4D68),
+  Widget _buildAddButton() {
+    return ElevatedButton(
+      onPressed: _openForm,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF2EC4B6),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
       ),
-      body: DefaultTabController(
-        length: 2,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: const Text('Tambah Cashflow'),
+    );
+  }
+
+  Widget _buildPortraitLayout() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 12),
+        _buildStatCards(),
+        const SizedBox(height: 12),
+        _buildPeriodSelector(),
+        const SizedBox(height: 12),
+        _buildSearchField(),
+        const SizedBox(height: 12),
+        _buildAddButton(),
+        const SizedBox(height: 12),
+        const TabBar(
+          labelColor: Colors.black87,
+          indicatorColor: Color(0xFF0A4D68),
+          tabs: [
+            Tab(text: 'Pemasukan'),
+            Tab(text: 'Pengeluaran'),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: TabBarView(
+            children: [
+              _buildTabView(_incomes, 'pemasukan'),
+              _buildTabView(_expenses, 'pengeluaran'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLandscapeLayout() {
+    return Row(
+      children: [
+        SizedBox(
+          width: 360,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(right: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 12),
+                _buildStatCards(),
+                const SizedBox(height: 12),
+                _buildPeriodSelector(),
+                const SizedBox(height: 12),
+                _buildSearchField(),
+                const SizedBox(height: 12),
+                _buildAddButton(),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        ),
+        const VerticalDivider(width: 1, thickness: 1),
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 12),
-              _buildStatCards(),
-              const SizedBox(height: 12),
-              _buildPeriodSelector(),
-              const SizedBox(height: 12),
-              _buildSearchField(),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _openForm,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2EC4B6),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                ),
-                child: const Text('Tambah Cashflow'),
-              ),
-              const SizedBox(height: 12),
               const TabBar(
                 labelColor: Colors.black87,
                 indicatorColor: Color(0xFF0A4D68),
@@ -295,7 +338,6 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
                   Tab(text: 'Pengeluaran'),
                 ],
               ),
-              const SizedBox(height: 8),
               Expanded(
                 child: TabBarView(
                   children: [
@@ -306,6 +348,25 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
               ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cashflow'),
+        backgroundColor: const Color(0xFF0A4D68),
+      ),
+      body: DefaultTabController(
+        length: 2,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
         ),
       ),
     );
