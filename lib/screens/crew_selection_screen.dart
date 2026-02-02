@@ -1,8 +1,9 @@
 // ============================================
 // HOME SCREEN (CREW SELECTION) - STABLE MODULE
 // LANDSCAPE LAYOUT:
-// - LEFT (40%): Logo + navigation buttons (fixed, no scroll)
+// - LEFT (40%): Logo + navigation buttons (SCROLLABLE)
 // - RIGHT (60%): Crew list (scrollable)
+// Both panels independently scrollable
 // PORTRAIT: unchanged (vertical stack)
 // NO logic/API changes
 // ============================================
@@ -179,75 +180,79 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
           end: Alignment.bottomCenter,
         ),
       ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Image.asset(
-            'assets/app_icon.png',
-            height: 64,
-            errorBuilder: (context, error, stackTrace) => const Text(
-              'LB.ADV',
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 20),
+            Image.asset(
+              'assets/app_icon.png',
+              height: 64,
+              errorBuilder: (context, error, stackTrace) => const Text(
+                'LB.ADV',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'One_Stop Cutting Sticker',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Sistem Absensi Crew',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 32,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'One_Stop Cutting Sticker',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Sistem Absensi Crew',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+            const SizedBox(height: 8),
+            const Text(
+              'Pilih nama Anda untuk absensi',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Pilih nama Anda untuk absensi',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          const SizedBox(height: 32),
-          _HeaderButton(
-            onPressed: _onPrintTapped,
-            icon: Icons.print,
-            label: 'Print',
-            color: const Color(0xFFF57C00),
-          ),
-          const SizedBox(height: 12),
-          _HeaderButton(
-            onPressed: _onCashflowTapped,
-            icon: Icons.attach_money,
-            label: 'Cashflow',
-            color: const Color(0xFF00ACC1),
-          ),
-          const SizedBox(height: 12),
-          _HeaderButton(
-            onPressed: _onProjectTapped,
-            icon: Icons.work_outline,
-            label: 'Project',
-            color: const Color(0xFF1976D2),
-          ),
-          const SizedBox(height: 12),
-          _HeaderButton(
-            onPressed: _onAdminTapped,
-            icon: Icons.admin_panel_settings,
-            label: 'Admin',
-            color: const Color(0xFF6C4CEB),
-          ),
-        ],
+            const SizedBox(height: 32),
+            _HeaderButton(
+              onPressed: _onPrintTapped,
+              icon: Icons.print,
+              label: 'Print',
+              color: const Color(0xFFF57C00),
+            ),
+            const SizedBox(height: 12),
+            _HeaderButton(
+              onPressed: _onCashflowTapped,
+              icon: Icons.attach_money,
+              label: 'Cashflow',
+              color: const Color(0xFF00ACC1),
+            ),
+            const SizedBox(height: 12),
+            _HeaderButton(
+              onPressed: _onProjectTapped,
+              icon: Icons.work_outline,
+              label: 'Project',
+              color: const Color(0xFF1976D2),
+            ),
+            const SizedBox(height: 12),
+            _HeaderButton(
+              onPressed: _onAdminTapped,
+              icon: Icons.admin_panel_settings,
+              label: 'Admin',
+              color: const Color(0xFF6C4CEB),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
