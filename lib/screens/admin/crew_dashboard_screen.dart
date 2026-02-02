@@ -1,8 +1,16 @@
+// ============================================
+// ADMIN CREW DASHBOARD - STABLE MODULE
+// FINAL UI:
+// - Scrollable in portrait & landscape
+// - NO overflow allowed
+// - NO logic/API changes
+// ============================================
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:sistem_absen_flutter_v2/core/utils/pdf_export_wrapper.dart';
+import 'package:sistem_absen_flutter_v2/features/salary/utils/salary_slip_pdf.dart';
 import 'package:sistem_absen_flutter_v2/models/employee.dart';
-import 'package:sistem_absen_flutter_v2/screens/admin/export_payroll_slip_screen.dart';
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 
 class AdminCrewDashboardScreen extends StatefulWidget {
@@ -18,11 +26,13 @@ class _CrewDashboardData {
   final Map<String, dynamic> summary;
   final List<dynamic> advances;
   final Map<String, dynamic> dailySummary;
+  final Employee employeeDetail;
 
   _CrewDashboardData({
     required this.summary,
     required this.advances,
     required this.dailySummary,
+    required this.employeeDetail,
   });
 }
 
@@ -39,28 +49,15 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
     _currentStatus = (widget.employee.status ?? 'inactive').toLowerCase();
   }
 
-  void _onExportPressed() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ExportPayrollSlipScreen(
-          employees: [
-            {
-              'id': widget.employee.employeeId,
-              'name': widget.employee.name,
-            },
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<_CrewDashboardData> _loadDashboard() async {
     final detail = await ApiService.fetchEmployeeDetail(widget.employee.employeeId);
     final dailySummary = await ApiService.fetchDailySalarySummary(widget.employee.employeeId);
+    final employeeDetail = Employee.fromJson((detail['employee'] as Map<String, dynamic>?) ?? {});
     return _CrewDashboardData(
       summary: detail['summary'] as Map<String, dynamic>,
       advances: detail['advances'] as List<dynamic>,
       dailySummary: dailySummary,
+      employeeDetail: employeeDetail,
     );
   }
 
@@ -106,15 +103,24 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
           final totalNet = summary['net_salary'] as num?;
           final dailyRecords = (dailySummary['daily'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
           final outstandingKasbon = _calculateOutstandingKasbon(advances);
+          final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
           return SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildHeader(),
-                const SizedBox(height: 16),
-                _buildSummaryCards(totalSalary, outstandingKasbon, totalNet),
-                const SizedBox(height: 16),
+                SingleChildScrollView(
+                  padding: EdgeInsets.only(top: isLandscape ? 8 : 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHeader(payload, isLandscape),
+                      SizedBox(height: isLandscape ? 12 : 16),
+                      _buildSummaryCards(totalSalary, outstandingKasbon, totalNet, isLandscape),
+                      SizedBox(height: isLandscape ? 12 : 16),
+                    ],
+                  ),
+                ),
                 Expanded(child: _buildTabs(dailyRecords, advances)),
               ],
             ),
@@ -124,94 +130,108 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(_CrewDashboardData payload, bool isLandscape) {
     final employee = widget.employee;
     final isActive = _currentStatus == 'active';
     final isWorkFinished = !isActive;
+    final horizontalPadding = isLandscape ? 16.0 : 24.0;
+    final cardPadding = isLandscape ? 12.0 : 16.0;
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(cardPadding),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 12, offset: Offset(0, 6))],
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 30,
+              radius: isLandscape ? 24 : 30,
               backgroundColor: const Color(0xFFE3F2FD),
-              child: const Icon(Icons.person, color: Color(0xFF0A4D68), size: 30),
+              child: Icon(Icons.person, color: const Color(0xFF0A4D68), size: isLandscape ? 24 : 30),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: isLandscape ? 12 : 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     employee.name,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: isLandscape ? 16 : 20, fontWeight: FontWeight.bold),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     employee.position ?? '-',
-                    style: const TextStyle(color: Colors.black54),
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    employee.statusCrew ?? '-',
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  if (!isLandscape) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      employee.statusCrew ?? '-',
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: isLandscape ? 8 : 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(isActive ? Icons.check_circle : Icons.cancel,
-                        color: isActive ? Colors.green : Colors.redAccent, size: 16),
-                    const SizedBox(width: 6),
+                        color: isActive ? Colors.green : Colors.redAccent, size: 14),
+                    const SizedBox(width: 4),
                     Text(
                       isActive ? 'Active' : 'Inactive',
-                      style: TextStyle(color: isActive ? Colors.green : Colors.redAccent),
+                      style: TextStyle(
+                        color: isActive ? Colors.green : Colors.redAccent,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  isWorkFinished ? 'Kerja selesai • export tersedia' : 'Kerja berjalan • export setelah selesai',
-                  style: const TextStyle(fontSize: 12, color: Colors.black45),
-                ),
-                const SizedBox(height: 8),
+                if (!isLandscape) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    isWorkFinished ? 'Kerja selesai • export tersedia' : 'Kerja berjalan • export setelah selesai',
+                    style: const TextStyle(fontSize: 11, color: Colors.black45),
+                  ),
+                ],
+                SizedBox(height: isLandscape ? 6 : 8),
                 ElevatedButton(
                   onPressed: _isUpdatingStatus ? null : _toggleWorkState,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isActive ? Colors.red : Colors.green,
-                    minimumSize: const Size(140, 40),
+                    minimumSize: Size(isLandscape ? 120 : 140, isLandscape ? 36 : 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                   child: Text(
-                    isActive ? 'OFF – Selesaikan Kerja' : 'ON – Mulai Kerja',
-                    style: const TextStyle(color: Colors.white),
+                    isActive ? 'OFF – Selesai' : 'ON – Mulai',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: isLandscape ? 6 : 8),
                 ElevatedButton.icon(
-                  onPressed: isWorkFinished ? _onExportPressed : null,
-                  icon: const Icon(Icons.picture_as_pdf, size: 18),
-                  label: const Text('Export PDF'),
+                  onPressed: isWorkFinished ? () => _handleExportPressed(payload) : null,
+                  icon: const Icon(Icons.picture_as_pdf, size: 16),
+                  label: const Text('Export PDF', style: TextStyle(fontSize: 12)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0A4D68),
-                    minimumSize: const Size(140, 40),
+                    minimumSize: Size(isLandscape ? 120 : 140, isLandscape ? 36 : 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                 ),
               ],
@@ -222,9 +242,11 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
     );
   }
 
-  Widget _buildSummaryCards(num? salary, num? kasbon, num? net) {
+  Widget _buildSummaryCards(num? salary, num? kasbon, num? net, bool isLandscape) {
+    final horizontalPadding = isLandscape ? 16.0 : 24.0;
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: Row(
         children: [
           Expanded(
@@ -232,6 +254,7 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
               label: 'Gaji',
               value: _formatCurrencyMaybe(salary),
               color: const Color(0xFF4CAF50),
+              isLandscape: isLandscape,
             ),
           ),
           const SizedBox(width: 12),
@@ -240,6 +263,7 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
               label: 'Kasbon',
               value: _formatCurrencyMaybe(kasbon),
               color: const Color(0xFFFF7043),
+              isLandscape: isLandscape,
             ),
           ),
           const SizedBox(width: 12),
@@ -248,6 +272,7 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
               label: 'Gaji Bersih',
               value: _formatCurrencyMaybe(net),
               color: const Color(0xFF1E88E5),
+              isLandscape: isLandscape,
             ),
           ),
         ],
@@ -354,6 +379,163 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
     });
   }
 
+  void _handleExportPressed(_CrewDashboardData payload) {
+    if (_currentStatus == 'active') return;
+    _exportSlipPdf(payload);
+  }
+
+  Future<void> _exportSlipPdf(_CrewDashboardData payload) async {
+    final employeeDetail = payload.employeeDetail;
+    // IMPORTANT: PDF export must use the freshest employee detail returned from the dashboard API,
+    // not widget.employee which may contain stale allowance rates.
+    final summary = payload.summary;
+    final dailySummary = payload.dailySummary;
+    final dailyRecords = (dailySummary['daily'] as List<dynamic>?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+
+    final clockInCount = dailyRecords.where(_didWorkDay).length;
+    final kasbonCut = _calculateApprovedKasbon(payload.advances).toInt();
+    final netSalary = (summary['net_salary'] as num?)?.toInt() ?? 0;
+    final latePenalty = (summary['late_penalty'] as num?)?.toInt() ?? 0;
+    final absencePenalty = (summary['absence_penalty'] as num?)?.toInt() ?? 0;
+    final overtime = (summary['overtime'] as num?)?.toInt() ?? 0;
+    final periodLabel = _resolvePeriodLabel(dailySummary);
+    final periodDate = _resolvePeriodDate(dailySummary);
+    final rekapNumber = _buildSimpleRekapCode(employeeDetail.name, periodDate);
+    final mealAllowancePerDay = (employeeDetail.allowanceMeal ?? 0).toInt();
+    final transportAllowancePerDay = (employeeDetail.allowanceTransport ?? 0).toInt();
+    debugPrint('PDF EXPORT allowanceMeal: ${employeeDetail.allowanceMeal}');
+    debugPrint('PDF EXPORT allowanceTransport: ${employeeDetail.allowanceTransport}');
+
+    try {
+      final bytes = await generateSalarySlipPdf(
+        rekapNumber: rekapNumber,
+        period: periodLabel,
+        employeeName: employeeDetail.name,
+        monthlySalary: (employeeDetail.monthlySalary ?? 0).toInt(),
+        workHoursPerDay: employeeDetail.workHoursPerDay ?? 0,
+        overtime: overtime,
+        latePenalty: latePenalty,
+        absencePenalty: absencePenalty,
+        kasbonCut: kasbonCut,
+        netSalary: netSalary,
+        mealAllowancePerDay: mealAllowancePerDay,
+        transportAllowancePerDay: transportAllowancePerDay,
+        clockInCount: clockInCount,
+      );
+
+      final sanitizedName = employeeDetail.name.replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '_');
+      final sanitizedPeriod =
+          periodLabel.replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '_');
+      final filename = 'Slip_Gaji_${sanitizedName}_$sanitizedPeriod.pdf';
+
+      await PdfExportWrapper.sharePdf(
+        bytes: bytes,
+        filename: filename,
+        context: context,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal export slip gaji: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  bool _didWorkDay(Map<String, dynamic> entry) {
+    final minutes = (entry['worked_minutes'] as num?) ??
+        (entry['work_minutes'] as num?) ??
+        (entry['work_minutes_normal'] as num?) ??
+        (entry['duration_minutes'] as num?) ??
+        (entry['total_minutes'] as num?) ??
+        0;
+    return (minutes.toDouble()) > 0;
+  }
+
+  double _calculateApprovedKasbon(List<dynamic> advances) {
+    const skippedStatuses = {'pending', 'rejected', 'cancelled', 'draft'};
+    return advances.fold<double>(0.0, (sum, advance) {
+      if (advance is! Map<String, dynamic>) return sum;
+      final status = (advance['status'] as String?)?.toLowerCase();
+      if (status != null && skippedStatuses.contains(status)) return sum;
+      final amount = (advance['amount'] as num?)?.toDouble() ?? 0;
+      return sum + amount;
+    });
+  }
+
+  String _resolvePeriodLabel(Map<String, dynamic> dailySummary) {
+    final periodLabel = (dailySummary['period_label'] as String?) ??
+        (dailySummary['label'] as String?) ??
+        (dailySummary['period'] is Map<String, dynamic>
+            ? (dailySummary['period']['label'] as String?)
+            : null);
+    if (periodLabel != null && periodLabel.isNotEmpty) {
+      return periodLabel;
+    }
+    final start = (dailySummary['start'] ?? dailySummary['start_date']) as String?;
+    if (start != null) {
+      final parsed = DateTime.tryParse(start);
+      if (parsed != null) {
+        return DateFormat('MMMM yyyy', 'id_ID').format(parsed);
+      }
+    }
+    final month = (dailySummary['month'] as int?) ?? (dailySummary['period_month'] as int?);
+    final year = (dailySummary['year'] as int?) ?? (dailySummary['period_year'] as int?);
+    if (month != null && year != null) {
+      return DateFormat('MMMM yyyy', 'id_ID').format(DateTime(year, month));
+    }
+    return DateFormat('MMMM yyyy', 'id_ID').format(DateTime.now());
+  }
+
+  DateTime _resolvePeriodDate(Map<String, dynamic> dailySummary) {
+    final start = (dailySummary['start'] ?? dailySummary['start_date']) as String?;
+    if (start != null) {
+      final parsed = DateTime.tryParse(start);
+      if (parsed != null) return parsed;
+    }
+    final month = (dailySummary['month'] as int?) ??
+        (dailySummary['period_month'] as int?) ??
+        (dailySummary['period'] is Map<String, dynamic>
+            ? (dailySummary['period']['month'] as int?)
+            : null);
+    final year = (dailySummary['year'] as int?) ??
+        (dailySummary['period_year'] as int?) ??
+        (dailySummary['period'] is Map<String, dynamic>
+            ? (dailySummary['period']['year'] as int?)
+            : null);
+    if (month != null && year != null) {
+      return DateTime(year, month);
+    }
+    return DateTime.now();
+  }
+
+  String _buildSimpleRekapCode(String name, DateTime monthYear) {
+    final initials = _crewInitials(name);
+    final month = monthYear.month.toString().padLeft(2, '0');
+    final year = monthYear.year.toString();
+    return 'RG-$initials-$month$year';
+  }
+
+  String _crewInitials(String name) {
+    final parts = name
+        .split(RegExp(r'\s+'))
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'XX';
+    if (parts.length == 1) {
+      final part = parts.first;
+      return part.length >= 2
+          ? part.substring(0, 2).toUpperCase()
+          : part.padRight(2, 'X').toUpperCase();
+    }
+    final first = parts.first[0];
+    final second = parts[1][0];
+    return '$first$second'.toUpperCase();
+  }
+
   Future<void> _toggleWorkState() async {
     final target = _currentStatus == 'active' ? 'inactive' : 'active';
     setState(() => _isUpdatingStatus = true);
@@ -432,28 +614,46 @@ class _StatsCard extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final bool isLandscape;
 
   const _StatsCard({
     required this.label,
     required this.value,
     required this.color,
+    this.isLandscape = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isLandscape ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 6))],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: isLandscape ? 12 : 14,
+            ),
+          ),
+          SizedBox(height: isLandscape ? 6 : 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isLandscape ? 14 : 16,
+              fontWeight: FontWeight.bold,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
