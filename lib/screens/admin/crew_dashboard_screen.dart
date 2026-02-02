@@ -1,8 +1,9 @@
 // ============================================
 // ADMIN CREW DASHBOARD - STABLE MODULE
 // FINAL UI:
-// - Scrollable in portrait & landscape
-// - NO overflow allowed
+// - Portrait: vertical scrollable layout
+// - Landscape: 2-panel (LEFT: info 40%, RIGHT: tabs 60%)
+// - NO overflow, independent scroll
 // - NO logic/API changes
 // ============================================
 import 'package:flutter/material.dart';
@@ -106,27 +107,74 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
           final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
           return SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SingleChildScrollView(
-                  padding: EdgeInsets.only(top: isLandscape ? 8 : 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeader(payload, isLandscape),
-                      SizedBox(height: isLandscape ? 12 : 16),
-                      _buildSummaryCards(totalSalary, outstandingKasbon, totalNet, isLandscape),
-                      SizedBox(height: isLandscape ? 12 : 16),
-                    ],
-                  ),
-                ),
-                Expanded(child: _buildTabs(dailyRecords, advances)),
-              ],
-            ),
+            child: isLandscape
+                ? _buildLandscapeLayout(payload, totalSalary, outstandingKasbon, totalNet, dailyRecords, advances)
+                : _buildPortraitLayout(payload, totalSalary, outstandingKasbon, totalNet, dailyRecords, advances),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildPortraitLayout(
+    _CrewDashboardData payload,
+    num? totalSalary,
+    num? outstandingKasbon,
+    num? totalNet,
+    List<Map<String, dynamic>> dailyRecords,
+    List<dynamic> advances,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(payload, false),
+              const SizedBox(height: 16),
+              _buildSummaryCards(totalSalary, outstandingKasbon, totalNet, false),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+        Expanded(child: _buildTabs(dailyRecords, advances)),
+      ],
+    );
+  }
+
+  Widget _buildLandscapeLayout(
+    _CrewDashboardData payload,
+    num? totalSalary,
+    num? outstandingKasbon,
+    num? totalNet,
+    List<Map<String, dynamic>> dailyRecords,
+    List<dynamic> advances,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 4,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(payload, true),
+                const SizedBox(height: 12),
+                _buildSummaryCards(totalSalary, outstandingKasbon, totalNet, true),
+              ],
+            ),
+          ),
+        ),
+        const VerticalDivider(width: 1, thickness: 1),
+        Expanded(
+          flex: 6,
+          child: _buildTabs(dailyRecords, advances),
+        ),
+      ],
     );
   }
 
@@ -134,146 +182,125 @@ class _AdminCrewDashboardScreenState extends State<AdminCrewDashboardScreen> {
     final employee = widget.employee;
     final isActive = _currentStatus == 'active';
     final isWorkFinished = !isActive;
-    final horizontalPadding = isLandscape ? 16.0 : 24.0;
-    final cardPadding = isLandscape ? 12.0 : 16.0;
     
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: Container(
-        padding: EdgeInsets.all(cardPadding),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 12, offset: Offset(0, 6))],
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: isLandscape ? 24 : 30,
-              backgroundColor: const Color(0xFFE3F2FD),
-              child: Icon(Icons.person, color: const Color(0xFF0A4D68), size: isLandscape ? 24 : 30),
-            ),
-            SizedBox(width: isLandscape ? 12 : 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    employee.name,
-                    style: TextStyle(fontSize: isLandscape ? 16 : 20, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    employee.position ?? '-',
-                    style: const TextStyle(color: Colors.black54, fontSize: 13),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (!isLandscape) ...[
-                    const SizedBox(height: 6),
+    return Container(
+      padding: EdgeInsets.all(isLandscape ? 12 : 16),
+      margin: EdgeInsets.symmetric(horizontal: isLandscape ? 0 : 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 10, offset: Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: isLandscape ? 22 : 30,
+                backgroundColor: const Color(0xFFE3F2FD),
+                child: Icon(Icons.person, color: const Color(0xFF0A4D68), size: isLandscape ? 22 : 30),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      employee.statusCrew ?? '-',
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      employee.name,
+                      style: TextStyle(fontSize: isLandscape ? 15 : 20, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      employee.position ?? '-',
+                      style: const TextStyle(color: Colors.black54, fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ],
-              ),
-            ),
-            SizedBox(width: isLandscape ? 8 : 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(isActive ? Icons.check_circle : Icons.cancel,
-                        color: isActive ? Colors.green : Colors.redAccent, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      isActive ? 'Active' : 'Inactive',
-                      style: TextStyle(
-                        color: isActive ? Colors.green : Colors.redAccent,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
                 ),
-                if (!isLandscape) ...[
-                  const SizedBox(height: 4),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(isActive ? Icons.check_circle : Icons.cancel,
+                      color: isActive ? Colors.green : Colors.redAccent, size: 14),
+                  const SizedBox(width: 4),
                   Text(
-                    isWorkFinished ? 'Kerja selesai • export tersedia' : 'Kerja berjalan • export setelah selesai',
-                    style: const TextStyle(fontSize: 11, color: Colors.black45),
+                    isActive ? 'Active' : 'Inactive',
+                    style: TextStyle(
+                      color: isActive ? Colors.green : Colors.redAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
-                SizedBox(height: isLandscape ? 6 : 8),
-                ElevatedButton(
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
                   onPressed: _isUpdatingStatus ? null : _toggleWorkState,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isActive ? Colors.red : Colors.green,
-                    minimumSize: Size(isLandscape ? 120 : 140, isLandscape ? 36 : 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   child: Text(
                     isActive ? 'OFF – Selesai' : 'ON – Mulai',
                     style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
-                SizedBox(height: isLandscape ? 6 : 8),
-                ElevatedButton.icon(
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
                   onPressed: isWorkFinished ? () => _handleExportPressed(payload) : null,
-                  icon: const Icon(Icons.picture_as_pdf, size: 16),
-                  label: const Text('Export PDF', style: TextStyle(fontSize: 12)),
+                  icon: const Icon(Icons.picture_as_pdf, size: 14),
+                  label: const Text('Export', style: TextStyle(fontSize: 12)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0A4D68),
-                    minimumSize: Size(isLandscape ? 120 : 140, isLandscape ? 36 : 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSummaryCards(num? salary, num? kasbon, num? net, bool isLandscape) {
-    final horizontalPadding = isLandscape ? 16.0 : 24.0;
-    
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: Row(
+      padding: EdgeInsets.symmetric(horizontal: isLandscape ? 0 : 24),
+      child: Column(
         children: [
-          Expanded(
-            child: _StatsCard(
-              label: 'Gaji',
-              value: _formatCurrencyMaybe(salary),
-              color: const Color(0xFF4CAF50),
-              isLandscape: isLandscape,
-            ),
+          _StatsCard(
+            label: 'Gaji',
+            value: _formatCurrencyMaybe(salary),
+            color: const Color(0xFF4CAF50),
+            isLandscape: isLandscape,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatsCard(
-              label: 'Kasbon',
-              value: _formatCurrencyMaybe(kasbon),
-              color: const Color(0xFFFF7043),
-              isLandscape: isLandscape,
-            ),
+          const SizedBox(height: 10),
+          _StatsCard(
+            label: 'Kasbon',
+            value: _formatCurrencyMaybe(kasbon),
+            color: const Color(0xFFFF7043),
+            isLandscape: isLandscape,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatsCard(
-              label: 'Gaji Bersih',
-              value: _formatCurrencyMaybe(net),
-              color: const Color(0xFF1E88E5),
-              isLandscape: isLandscape,
-            ),
+          const SizedBox(height: 10),
+          _StatsCard(
+            label: 'Gaji Bersih',
+            value: _formatCurrencyMaybe(net),
+            color: const Color(0xFF1E88E5),
+            isLandscape: isLandscape,
           ),
         ],
       ),
