@@ -1,3 +1,11 @@
+// ============================================
+// HOME SCREEN (CREW SELECTION) - STABLE MODULE
+// LANDSCAPE LAYOUT:
+// - LEFT (40%): Logo + navigation buttons (fixed, no scroll)
+// - RIGHT (60%): Crew list (scrollable)
+// PORTRAIT: unchanged (vertical stack)
+// NO logic/API changes
+// ============================================
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -98,38 +106,153 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFEAFBFF),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: FutureBuilder<List<Employee>>(
-                future: _employeesFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return _buildError(snapshot.error.toString());
-                  }
-                final employees =
-                    snapshot.data?.where((employee) => employee.status == null || employee.status == 'active').toList() ?? [];
-                if (employees.isEmpty) {
-                    return _buildEmptyState();
-                  }
-                  return RefreshIndicator(
-                    onRefresh: _handleRefresh,
-                  child: _buildCrewGrid(employees),
-                  );
-                },
-              ),
-            ),
-          ],
+        child: OrientationBuilder(
+          builder: (context, orientation) {
+            return FutureBuilder<List<Employee>>(
+              future: _employeesFuture,
+              builder: (context, snapshot) {
+                final employees = snapshot.data?.where((employee) => employee.status == null || employee.status == 'active').toList() ?? [];
+                
+                if (orientation == Orientation.landscape) {
+                  return _buildLandscapeLayout(snapshot, employees);
+                } else {
+                  return _buildPortraitLayout(snapshot, employees);
+                }
+              },
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildPortraitLayout(AsyncSnapshot<List<Employee>> snapshot, List<Employee> employees) {
+    return Column(
+      children: [
+        _buildHeader(false),
+        Expanded(
+          child: _buildContent(snapshot, employees),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLandscapeLayout(AsyncSnapshot<List<Employee>> snapshot, List<Employee> employees) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 4,
+          child: _buildLeftPanel(),
+        ),
+        const VerticalDivider(width: 1, thickness: 1),
+        Expanded(
+          flex: 6,
+          child: _buildContent(snapshot, employees),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(AsyncSnapshot<List<Employee>> snapshot, List<Employee> employees) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (snapshot.hasError) {
+      return _buildError(snapshot.error.toString());
+    }
+    if (employees.isEmpty) {
+      return _buildEmptyState();
+    }
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: _buildCrewGrid(employees),
+    );
+  }
+
+  Widget _buildLeftPanel() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1A7BD0), Color(0xFF0A4D68)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Image.asset(
+            'assets/app_icon.png',
+            height: 64,
+            errorBuilder: (context, error, stackTrace) => const Text(
+              'LB.ADV',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'One_Stop Cutting Sticker',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Sistem Absensi Crew',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pilih nama Anda untuk absensi',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 32),
+          _HeaderButton(
+            onPressed: _onPrintTapped,
+            icon: Icons.print,
+            label: 'Print',
+            color: const Color(0xFFF57C00),
+          ),
+          const SizedBox(height: 12),
+          _HeaderButton(
+            onPressed: _onCashflowTapped,
+            icon: Icons.attach_money,
+            label: 'Cashflow',
+            color: const Color(0xFF00ACC1),
+          ),
+          const SizedBox(height: 12),
+          _HeaderButton(
+            onPressed: _onProjectTapped,
+            icon: Icons.work_outline,
+            label: 'Project',
+            color: const Color(0xFF1976D2),
+          ),
+          const SizedBox(height: 12),
+          _HeaderButton(
+            onPressed: _onAdminTapped,
+            icon: Icons.admin_panel_settings,
+            label: 'Admin',
+            color: const Color(0xFF6C4CEB),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(bool isLandscape) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
@@ -463,23 +586,26 @@ class _HeaderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
     return SizedBox(
-      width: 160,
+      width: isLandscape ? double.infinity : 160,
       child: ElevatedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, color: Colors.white),
+        icon: Icon(icon, color: Colors.white, size: isLandscape ? 20 : 24),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: EdgeInsets.symmetric(vertical: isLandscape ? 16 : 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(isLandscape ? 12 : 20),
           ),
         ),
         label: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontSize: isLandscape ? 15 : 14,
           ),
         ),
       ),
