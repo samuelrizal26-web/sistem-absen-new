@@ -164,19 +164,38 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
   void _showPeriodPicker() async {
     final selected = await showModalBottomSheet<DateTime>(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _recentPeriods.map((period) {
-            final label = DateFormat('MMMM yyyy', 'id_ID').format(period);
-            final isSelected = period.year == _selectedPeriod.year &&
-                period.month == _selectedPeriod.month;
-            return ListTile(
-              title: Text(label),
-              trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
-              onTap: () => Navigator.of(context).pop(period),
-            );
-          }).toList(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              const Text('Pilih Periode', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: _recentPeriods.length,
+                  separatorBuilder: (_, __) => const Divider(height: 0),
+                  itemBuilder: (context, index) {
+                    final period = _recentPeriods[index];
+                    final label = DateFormat('MMMM yyyy', 'id_ID').format(period);
+                    final isSelected = period.year == _selectedPeriod.year &&
+                        period.month == _selectedPeriod.month;
+                    return ListTile(
+                      title: Text(label),
+                      trailing: isSelected ? const Icon(Icons.check, color: Colors.green) : null,
+                      onTap: () => Navigator.of(context).pop(period),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -190,36 +209,34 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     final income = _sumEntries(_incomes);
     final expense = _sumEntries(_expenses);
     final balance = income - expense;
-    return Row(
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.3,
       children: [
-        Expanded(
-          child: _StatCard(
-            label: 'Pemasukan',
-            value: _formatMoney(income),
-            color: const Color(0xFFE8F5E9),
-            icon: Icons.arrow_upward,
-            iconColor: Colors.green,
-          ),
+        _StatCard(
+          label: 'Pemasukan',
+          value: _formatMoney(income),
+          color: const Color(0xFFE8F5E9),
+          icon: Icons.arrow_upward,
+          iconColor: Colors.green,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatCard(
-            label: 'Pengeluaran',
-            value: _formatMoney(expense),
-            color: const Color(0xFFFFEBEE),
-            icon: Icons.arrow_downward,
-            iconColor: Colors.red,
-          ),
+        _StatCard(
+          label: 'Pengeluaran',
+          value: _formatMoney(expense),
+          color: const Color(0xFFFFEBEE),
+          icon: Icons.arrow_downward,
+          iconColor: Colors.red,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatCard(
-            label: 'Saldo Kas',
-            value: _formatMoney(balance),
-            color: const Color(0xFFE3F2FD),
-            icon: Icons.account_balance_wallet,
-            iconColor: Colors.blue,
-          ),
+        _StatCard(
+          label: 'Saldo Kas',
+          value: _formatMoney(balance),
+          color: const Color(0xFFE3F2FD),
+          icon: Icons.account_balance_wallet,
+          iconColor: Colors.blue,
         ),
       ],
     );
@@ -268,6 +285,7 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const SizedBox(height: 12),
               _buildStatCards(),
               const SizedBox(height: 12),
               _buildPeriodSelector(),
@@ -277,8 +295,12 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
               ElevatedButton(
                 onPressed: _openForm,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0A4D68),
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                  backgroundColor: const Color(0xFF2EC4B6),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                 ),
                 child: const Text('Tambah Cashflow'),
               ),
@@ -335,6 +357,17 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
