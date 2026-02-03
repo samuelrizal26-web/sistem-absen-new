@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
@@ -827,8 +828,12 @@ class BluetoothPrinterService {
         print('⚠️ Buka laci result: failed (tetap anggap berhasil)');
         // Tetap anggap berhasil karena command sudah dikirim
       }
-    } catch (e) {
-      print('❌ Error membuka laci: $e');
+    } catch (e, s) {
+      log(
+        'openCashdrawer failed',
+        error: e,
+        stackTrace: s,
+      );
       rethrow;
     }
   }

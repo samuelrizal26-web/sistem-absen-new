@@ -474,20 +474,12 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Stock'),
         backgroundColor: const Color(0xFF2EC4B6),
       ),
       backgroundColor: const Color(0xFFEAF7FA),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _handleAddStock,
-        backgroundColor: const Color(0xFF2EC4B6),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah Barang'),
-      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _stocksFuture,
         builder: (context, snapshot) {
@@ -500,21 +492,66 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
             );
           }
           final stocks = snapshot.data ?? [];
-          if (stocks.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: _refreshStocks,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: const [
-                  SizedBox(height: 120),
-                  Center(child: Text('Belum ada data stock')),
-                ],
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _handleAddStock,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tambah Barang'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2EC4B6),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            );
-          }
-          return isLandscape
-              ? _buildLandscapeLayout(stocks)
-              : _buildPortraitLayout(stocks);
+              Expanded(
+                child: stocks.isEmpty
+                    ? const Center(child: Text('Belum ada data stock'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: stocks.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            final totalItems = stocks.length;
+                            final lowStockCount =
+                                stocks.where(_isLowStock).length;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: const Color(0xFF4DB6AC)
+                                        .withOpacity(0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: _buildInfoSection(
+                                  totalItems,
+                                  lowStockCount,
+                                ),
+                              ),
+                            );
+                          }
+                          return _buildStockListItem(stocks[index - 1]);
+                        },
+                      ),
+              ),
+            ],
+          );
         },
       ),
     );

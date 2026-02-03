@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sistem_absen_flutter_v2/services/printer/bluetooth_printer_service.dart';
+import 'package:sistem_absen_flutter_v2/services/printer/print_and_cash_drawer_usecase.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class PrintJobSummaryScreen extends StatefulWidget {
@@ -126,13 +127,18 @@ class _PrintJobSummaryScreenState extends State<PrintJobSummaryScreen> {
         }
       }
 
-      // Print struk (service akan auto-connect jika belum connected)
-      await BluetoothPrinterService.instance.printStruk(
+      final paymentMethod =
+          _printJobData!['payment_method']?.toString().toLowerCase() ?? 'cash';
+      final shouldOpenDrawer = paymentMethod == 'cash';
+
+      final result = await handlePrintAndCashDrawer(
+        printerService: BluetoothPrinterService.instance,
         printJobData: _printJobData!,
         formatDate: _formatDate(_printJobData!['date']),
         formatDateTime: _formatDateTime(),
         formatMaterial: _formatMaterial(_printJobData!['material']),
         totalPekerjaan: _totalPekerjaan,
+        openDrawer: shouldOpenDrawer,
       );
 
       if (!mounted) return;
@@ -146,22 +152,9 @@ class _PrintJobSummaryScreenState extends State<PrintJobSummaryScreen> {
         ),
       );
 
-      // Buka laci kasir hanya untuk metode Cash
-      // Tambahkan delay untuk memastikan print lock benar-benar selesai
-      final paymentMethod = _printJobData!['payment_method']?.toString().toLowerCase() ?? 'cash';
-      if (paymentMethod == 'cash') {
-        // Delay tambahan untuk memastikan printer siap menerima command baru
-        // Print lock di printStruk() di-release setelah 500ms delay
-        // Jadi kita perlu menunggu minimal 500ms + sedikit buffer
-        await Future.delayed(const Duration(milliseconds: 800));
-        
+      if (result.drawerAttempted) {
         if (!mounted) return;
-        
-        try {
-          // Gunakan await (sama seperti cashflow_screen yang berfungsi)
-          await BluetoothPrinterService.instance.openCashdrawer();
-          if (!mounted) return;
-          // Tampilkan feedback bahwa laci berhasil dibuka
+        if (result.drawerOpened) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Laci kasir berhasil dibuka.'),
@@ -169,14 +162,13 @@ class _PrintJobSummaryScreenState extends State<PrintJobSummaryScreen> {
               duration: Duration(seconds: 2),
             ),
           );
-        } catch (e) {
-          // Jika gagal buka laci, tidak perlu tampilkan error (struk sudah ter-print)
-          print('⚠️ Gagal membuka laci kasir setelah print: $e');
-          // Opsional: bisa tampilkan warning jika diperlukan
-          if (!mounted) return;
+        } else {
+          final msg = (result.drawerError ?? 'Unknown error')
+              .toString()
+              .replaceAll('Exception: ', '');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Struk ter-print, tapi laci gagal dibuka: ${e.toString().replaceAll('Exception: ', '')}'),
+              content: Text('Struk ter-print, tapi laci gagal dibuka: $msg'),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 3),
             ),

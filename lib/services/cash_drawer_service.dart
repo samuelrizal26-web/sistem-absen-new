@@ -1,4 +1,5 @@
 import 'package:sistem_absen_flutter_v2/services/printer/bluetooth_printer_service.dart';
+import 'dart:developer';
 
 class CashDrawerService {
   /// Open the physical cash drawer if connected.
@@ -7,8 +8,12 @@ class CashDrawerService {
     try {
       await BluetoothPrinterService.instance.openCashdrawer();
       return true;
-    } catch (e) {
-      print('⚠️ Cash drawer open failed: $e');
+    } catch (e, s) {
+      log(
+        'Cash drawer open failed',
+        error: e,
+        stackTrace: s,
+      );
       return false;
     }
   }
