@@ -475,13 +475,19 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
   @override
   Widget build(BuildContext context) {
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Stock'),
         backgroundColor: const Color(0xFF2EC4B6),
       ),
       backgroundColor: const Color(0xFFEAF7FA),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _handleAddStock,
+        backgroundColor: const Color(0xFF2EC4B6),
+        icon: const Icon(Icons.add),
+        label: const Text('Tambah Barang'),
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _stocksFuture,
         builder: (context, snapshot) {
