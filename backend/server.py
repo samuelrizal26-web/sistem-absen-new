@@ -276,20 +276,28 @@ class PrintJob(BaseModel):
     notes: Optional[str] = ""
 
 class PrintJobResponse(BaseModel):
+    model_config = ConfigDict(extra='allow')
     id: str
     date: str
     material: str
-    price: float
-    quantity: float
-    customer_name: str
-    notes: str
-    created_at: str
+    price: Optional[float] = 0
+    price_per_unit: Optional[float] = 0
+    total_price: Optional[float] = 0
+    quantity: Optional[float] = 1
+    customer_name: Optional[str] = ""
+    notes: Optional[str] = ""
+    created_at: Optional[str] = ""
+    payment_method: Optional[str] = "cash"
     project_name: Optional[str] = None
     materials: Optional[List[Dict[str, Any]]] = None
     hpp: Optional[float] = 0
     material_name: Optional[str] = None
     stock_synced: Optional[bool] = False
     is_project: Optional[bool] = False
+    harga_normal: Optional[float] = 0
+    harga_diskon: Optional[float] = None
+    diskon_nominal: Optional[float] = 0
+    dapat_diskon: Optional[bool] = False
 
 
 class ProjectMaterial(BaseModel):
