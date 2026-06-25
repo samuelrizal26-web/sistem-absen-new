@@ -32,6 +32,15 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.get("/")
 async def root_health_check():
     return {"status": "ok", "service": "backend absensi"}
@@ -744,6 +753,39 @@ async def change_admin_pin(data: AdminPINUpdate):
     )
     
     return {"message": "PIN changed successfully"}
+
+@api_router.post("/auth/identify-by-pin")
+async def identify_by_pin(data: dict):
+    pin = data.get('pin')
+    if not pin:
+        raise HTTPException(status_code=400, detail="PIN is required")
+    employees = await db.employees.find({"status": "active"}, {"_id": 0}).to_list(1000)
+    for emp in employees:
+        if emp.get('pin_hash') and verify_pin(pin, emp['pin_hash']):
+            emp.pop('pin_hash', None)
+            return {"employee": emp, "message": "Identified"}
+    raise HTTPException(status_code=401, detail="PIN tidak dikenali")
+
+@api_router.post("/auth/reset-pin-by-birthdate")
+async def reset_pin_by_birthdate(data: dict):
+    employee_id = data.get('employee_id')
+    birthdate = data.get('birthdate')
+    new_pin = data.get('new_pin')
+    if not employee_id or not birthdate or not new_pin:
+        raise HTTPException(status_code=400, detail="employee_id, birthdate, and new_pin are required")
+    if len(new_pin) < 6:
+        raise HTTPException(status_code=400, detail="PIN must be at least 6 digits")
+    employee = await db.employees.find_one({"id": employee_id})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Karyawan tidak ditemukan")
+    if employee.get('birthdate') != birthdate:
+        raise HTTPException(status_code=401, detail="Tanggal lahir tidak cocok")
+    new_hash = hash_pin(new_pin)
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {"pin_hash": new_hash, "pin": new_pin}}
+    )
+    return {"message": "PIN berhasil direset"}
 
 # Attendance Routes
 @api_router.post("/attendance/clock-in")
@@ -1595,6 +1637,47 @@ async def delete_stock(stock_id: str):
     return {"message": "Stock item deleted successfully"}
 
 # Print Jobs Routes
+@api_router.get("/print-jobs/summary")
+async def get_print_jobs_summary():
+    jobs = await db.print_jobs.find({}, {"total_price": 1, "price_per_unit": 1, "quantity": 1, "material": 1, "payment_method": 1}).to_list(length=None)
+
+    total_revenue = 0.0
+    cash_revenue = 0.0
+    transfer_revenue = 0.0
+    total_jobs = len(jobs)
+    by_material: Dict[str, Dict[str, float]] = {}
+
+    for job in jobs:
+        # Gunakan total_price langsung, fallback ke price_per_unit * quantity
+        amount = float(job.get('total_price') or 0)
+        if amount == 0:
+            price = float(job.get('price_per_unit') or job.get('price') or 0)
+            quantity = float(job.get('quantity') or 1)
+            amount = price * quantity
+        total_revenue += amount
+        method = str(job.get('payment_method') or 'cash').strip().lower()
+        if method == 'transfer':
+            transfer_revenue += amount
+        else:
+            cash_revenue += amount
+
+        material_key = str(job.get('material') or 'unknown').strip() or 'unknown'
+        entry = by_material.setdefault(material_key, {"total_qty": 0.0, "total_revenue": 0.0})
+        entry["total_qty"] += float(job.get('quantity') or 0)
+        entry["total_revenue"] += amount
+
+    return {
+        "total_revenue": total_revenue,
+        "cash_revenue": cash_revenue,
+        "transfer_revenue": transfer_revenue,
+        "total_jobs": total_jobs,
+        "by_material": [
+            {"material": m, "total_qty": e["total_qty"], "total_revenue": e["total_revenue"]}
+            for m, e in by_material.items()
+        ],
+    }
+
+
 @api_router.get("/print-jobs", response_model=List[PrintJobResponse])
 async def get_print_jobs(only_project: bool = False):
     query = {}
@@ -1872,48 +1955,6 @@ async def check_material_stock(material: str):
         "message": f"Stock tersedia: {quantity} {stock_item.get('unit', 'pcs')}"
     }
 
-@api_router.get("/print-jobs/summary")
-async def get_print_jobs_summary():
-    jobs = await db.print_jobs.find({}, {"price": 1, "quantity": 1, "material": 1, "payment_method": 1}).to_list(length=None)
-
-    total_revenue = 0.0
-    cash_revenue = 0.0
-    transfer_revenue = 0.0
-    total_jobs = len(jobs)
-    by_material: Dict[str, Dict[str, float]] = {}
-
-    for job in jobs:
-        price = float(job.get('price') or 0)
-        quantity = float(job.get('quantity') or job.get('amount') or 1)
-        amount = price * max(quantity, 0)
-        total_revenue += amount
-        method = str(job.get('payment_method') or 'cash').strip().lower()
-        if method == 'transfer':
-            transfer_revenue += amount
-        else:
-            cash_revenue += amount
-
-        material_key = str(job.get('material') or 'unknown').strip()
-        if not material_key:
-            material_key = 'unknown'
-        entry = by_material.setdefault(material_key, {"total_qty": 0.0, "total_revenue": 0.0})
-        entry["total_qty"] += max(quantity, 0)
-        entry["total_revenue"] += amount
-
-    return {
-        "total_revenue": total_revenue,
-        "cash_revenue": cash_revenue,
-        "transfer_revenue": transfer_revenue,
-        "total_jobs": total_jobs,
-        "by_material": [
-            {
-                "material": material,
-                "total_qty": entry["total_qty"],
-                "total_revenue": entry["total_revenue"],
-            }
-            for material, entry in by_material.items()
-        ],
-    }
 
 
 # PROJECT ROUTES -------------------------------------------------------------
@@ -2112,14 +2153,6 @@ async def delete_project(project_id: str):
 
 
 app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 logging.basicConfig(
     level=logging.INFO,
