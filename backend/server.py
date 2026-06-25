@@ -287,7 +287,26 @@ async def get_print_jobs_summary():
 @api.get('/print-jobs')
 async def get_print_jobs(month: Optional[str] = None):
     query = {'date': {'$regex': f'^{month}'}} if month else {}
-    return await db.print_jobs.find(query, {'_id': 0}).sort('date', -1).to_list(None)
+    docs = await db.print_jobs.find(query, {'_id': 0}).sort('date', -1).to_list(None)
+    result = []
+    for d in docs:
+        result.append({
+            'id': str(d.get('id') or ''),
+            'date': str(d.get('date') or ''),
+            'material': str(d.get('material') or ''),
+            'payment_method': str(d.get('payment_method') or 'cash'),
+            'quantity': float(d.get('quantity') or 0),
+            'harga_normal': float(d.get('harga_normal') or d.get('price') or d.get('price_per_unit') or 0),
+            'harga_diskon': d.get('harga_diskon'),
+            'dapat_diskon': bool(d.get('dapat_diskon') or False),
+            'diskon_nominal': float(d.get('diskon_nominal') or 0),
+            'price_per_unit': float(d.get('price_per_unit') or d.get('price') or 0),
+            'total_price': float(d.get('total_price') or d.get('price') or 0),
+            'customer_name': str(d.get('customer_name') or ''),
+            'notes': str(d.get('notes') or ''),
+            'created_at': str(d.get('created_at') or ''),
+        })
+    return result
 
 @api.get('/print-jobs/{job_id}')
 async def get_print_job(job_id: str):
