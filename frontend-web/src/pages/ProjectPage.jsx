@@ -1,0 +1,524 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { getProjects, createProject, deleteProject, getStock, verifyAdminPin, verifyAdminPassword } from '../services/api'
+import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
+
+const STEP = { PIN: 'pin', DASHBOARD: 'dashboard', FORM: 'form' }
+
+export default function ProjectPage() {
+  const navigate = useNavigate()
+  const { toast, showToast, clearToast } = useToast()
+
+  const [step, setStep] = useState(STEP.PIN)
+  const [pin, setPin] = useState('')
+  const [pinError, setPinError] = useState('')
+  const [pinLoading, setPinLoading] = useState(false)
+
+  const [projects, setProjects] = useState([])
+  const [stocks, setStocks] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [searchMonth, setSearchMonth] = useState('')
+  const [detailProject, setDetailProject] = useState(null)
+
+  // Form state
+  const [form, setForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    project_name: '',
+    customer_name: '',
+    payment_method: 'transfer',
+    selling_price_raw: '',
+    notes: '',
+  })
+  const [materials, setMaterials] = useState([]) // [{name, quantity, unit, price, stock_id, is_custom}]
+  const [showStockPicker, setShowStockPicker] = useState(false)
+  const [showCustomMaterial, setShowCustomMaterial] = useState(false)
+  const [customMat, setCustomMat] = useState({ name: '', quantity: '', unit: 'pcs', price_raw: '' })
+  const [pickerQty, setPickerQty] = useState('')
+  const [pickerStock, setPickerStock] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const hpp = materials.reduce((s, m) => s + (parseFloat(m.price || 0) * parseFloat(m.quantity || 0)), 0)
+  const sellingPrice = parseRupiahInput(form.selling_price_raw)
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const [p, s] = await Promise.all([
+        getProjects(searchMonth ? `?month=${searchMonth}` : ''),
+        getStock(),
+      ])
+      setProjects(Array.isArray(p) ? p : [])
+      setStocks(Array.isArray(s) ? s : [])
+    } catch {
+      showToast('Gagal memuat data', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (step === STEP.DASHBOARD) loadData()
+  }, [step, searchMonth])
+
+  const handlePinSubmit = async () => {
+    if (!pin) return
+    setPinLoading(true)
+    setPinError('')
+    try {
+      await verifyAdminPin(pin)
+      setStep(STEP.DASHBOARD)
+    } catch {
+      try {
+        await verifyAdminPassword('admin', pin)
+        setStep(STEP.DASHBOARD)
+      } catch {
+        setPinError('PIN Admin salah')
+        setPin('')
+      }
+    } finally {
+      setPinLoading(false)
+    }
+  }
+
+  const resetForm = () => {
+    setForm({ date: new Date().toISOString().split('T')[0], project_name: '', customer_name: '', payment_method: 'transfer', selling_price_raw: '', notes: '' })
+    setMaterials([])
+  }
+
+  const handleSaveProject = async () => {
+    if (!form.project_name || !form.customer_name || !form.selling_price_raw) {
+      showToast('Lengkapi semua field wajib', 'error'); return
+    }
+    setSaving(true)
+    try {
+      await createProject({
+        date: form.date,
+        project_name: form.project_name,
+        customer_name: form.customer_name,
+        payment_method: form.payment_method,
+        selling_price: sellingPrice,
+        notes: form.notes || '',
+        materials: materials.map(m => ({
+          name: m.name,
+          quantity: parseFloat(m.quantity || 0),
+          unit: m.unit || 'pcs',
+          price: parseFloat(m.price || 0),
+          stock_id: m.stock_id || null,
+          is_custom: m.is_custom || false,
+        })),
+      })
+      showToast('Pekerjaan berhasil disimpan!', 'success')
+      setStep(STEP.DASHBOARD)
+      resetForm()
+      await loadData()
+    } catch (e) {
+      showToast(e.message || 'Gagal menyimpan', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const totalPemasukan = projects.reduce((s, p) => s + (p.selling_price || p.total_project_value || 0), 0)
+  const totalBahan = projects.reduce((s, p) => s + (p.hpp || p.total_material_cost || 0), 0)
+  const totalDispen = projects.length
+
+  const grouped = projects.reduce((acc, p) => {
+    const key = p.date?.slice(0, 7) || 'unknown'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(p)
+    return acc
+  }, {})
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 pt-12 pb-5"
+        style={{ background: 'linear-gradient(160deg, #3b82f6 0%, #1d4ed8 100%)', borderBottomLeftRadius: '1.5rem', borderBottomRightRadius: '1.5rem' }}>
+        <button onClick={() => step === STEP.DASHBOARD ? navigate('/home') : step === STEP.FORM ? setStep(STEP.DASHBOARD) : navigate('/home')}
+          className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white shrink-0">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="text-white text-lg font-bold">
+          {step === STEP.PIN ? 'Verifikasi Admin' : step === STEP.FORM ? 'Tambah Pekerjaan' : 'Project'}
+        </h1>
+      </div>
+
+      {/* ── PIN STEP ── */}
+      {step === STEP.PIN && (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="bg-white rounded-3xl shadow-lg p-7 w-full max-w-sm">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h2 className="font-bold text-gray-800">Masuk Admin</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Masukkan PIN Admin untuk lanjut</p>
+            </div>
+            <div className="flex justify-center gap-3 mb-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={`w-3.5 h-3.5 rounded-full transition-all ${i < pin.length ? 'bg-blue-600 scale-110' : 'bg-gray-300'}`} />
+              ))}
+            </div>
+            {pinError && <p className="text-red-500 text-center text-sm mb-3">{pinError}</p>}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) => {
+                if (d === '') return <div key={i} />
+                const isBack = d === '⌫'
+                return (
+                  <button key={i}
+                    onClick={() => isBack ? setPin(p => p.slice(0, -1)) : pin.length < 6 && setPin(p => p + d)}
+                    className={`h-13 py-3.5 rounded-2xl text-xl font-semibold transition-all active:scale-95 ${isBack ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-800 hover:bg-blue-50 hover:text-blue-600'}`}>
+                    {d}
+                  </button>
+                )
+              })}
+            </div>
+            <button onClick={handlePinSubmit} disabled={pin.length === 0 || pinLoading}
+              className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-40 transition-all">
+              {pinLoading ? 'Verifikasi...' : 'Masuk'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── DASHBOARD ── */}
+      {step === STEP.DASHBOARD && (
+        <div className="flex-1 p-4 space-y-4">
+          {/* Summary */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-green-500 rounded-2xl p-3 text-white shadow">
+              <p className="text-xs opacity-80">Pemasukan</p>
+              <p className="text-sm font-bold mt-0.5">{formatRupiah(totalPemasukan)}</p>
+            </div>
+            <div className="bg-red-500 rounded-2xl p-3 text-white shadow">
+              <p className="text-xs opacity-80">Total Bahan</p>
+              <p className="text-sm font-bold mt-0.5">{formatRupiah(totalBahan)}</p>
+            </div>
+            <div className="bg-blue-500 rounded-2xl p-3 text-white shadow">
+              <p className="text-xs opacity-80">Dispen</p>
+              <p className="text-sm font-bold mt-0.5">{totalDispen} job</p>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="flex gap-2">
+            <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
+              className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            {searchMonth && <button onClick={() => setSearchMonth('')} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm">Reset</button>}
+          </div>
+
+          <button onClick={() => setStep(STEP.FORM)}
+            className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-blue-700 active:scale-95 transition-all">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Tambah Pekerjaan
+          </button>
+
+          {/* List */}
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <svg className="w-7 h-7 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            </div>
+          ) : projects.length === 0 ? (
+            <p className="text-center text-gray-400 py-8 text-sm">Belum ada data project</p>
+          ) : (
+            Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, items]) => (
+              <div key={month}>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </p>
+                <div className="space-y-2">
+                  {items.map(p => (
+                    <button key={p.id} onClick={() => setDetailProject(p)}
+                      className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 hover:shadow-md active:scale-95 transition-all text-left">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-800 text-sm truncate">{p.project_name}</p>
+                        <p className="text-xs text-gray-400">{formatDate(p.date)} · {p.customer_name}</p>
+                        <p className="text-xs text-gray-400">{p.material || '-'} · Qty: {p.quantity || '-'}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold text-gray-800 text-sm">{formatRupiah(p.total_project_value)}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.payment_method === 'cash' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'}`}>
+                          {p.payment_method === 'cash' ? 'Cash' : 'Transfer'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── FORM ── */}
+      {step === STEP.FORM && (
+        <div className="flex-1 p-4 space-y-3 pb-8">
+          {/* Tanggal */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal *</label>
+            <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+              className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+          {/* Nama Project */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Project *</label>
+            <input type="text" value={form.project_name} onChange={e => setForm(f => ({ ...f, project_name: e.target.value }))} placeholder="Nama pekerjaan..."
+              className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+          {/* Nama Customer */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Customer *</label>
+            <input type="text" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="Nama customer..."
+              className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+          {/* Metode */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Metode Pembayaran</label>
+            <div className="grid grid-cols-2 gap-3">
+              {['cash', 'transfer'].map(m => (
+                <button key={m} onClick={() => setForm(f => ({ ...f, payment_method: m }))}
+                  className={`py-2.5 rounded-2xl border-2 font-semibold text-sm transition-all ${form.payment_method === m ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
+                  {m === 'cash' ? '💵 Cash' : '🏦 Transfer'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Daftar Bahan ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Bahan Digunakan</label>
+              <div className="flex gap-2">
+                <button onClick={() => { setPickerStock(null); setPickerQty(''); setShowStockPicker(true) }}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-blue-600 text-white font-semibold">
+                  + Dari Stok
+                </button>
+                <button onClick={() => { setCustomMat({ name: '', quantity: '', unit: 'pcs', price_raw: '' }); setShowCustomMaterial(true) }}
+                  className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 font-semibold">
+                  + Bahan Lain
+                </button>
+              </div>
+            </div>
+
+            {materials.length === 0 ? (
+              <div className="text-center text-gray-400 text-sm py-4 border border-dashed border-gray-200 rounded-2xl">
+                Belum ada bahan — tambahkan dari stok atau bahan lain
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {materials.map((m, i) => (
+                  <div key={i} className="bg-gray-50 rounded-2xl px-4 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm">{m.name}</p>
+                      <p className="text-xs text-gray-500">{m.quantity} {m.unit} × {formatRupiah(m.price)} = <span className="font-semibold text-gray-700">{formatRupiah(m.price * m.quantity)}</span></p>
+                    </div>
+                    <button onClick={() => setMaterials(ms => ms.filter((_, j) => j !== i))}
+                      className="w-7 h-7 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-sm shrink-0">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* HPP & Nilai Project */}
+          {materials.length > 0 && (
+            <div className="bg-blue-50 rounded-2xl px-4 py-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Total HPP Bahan</span>
+                <span className="font-bold text-blue-700">{formatRupiah(hpp)}</span>
+              </div>
+              {sellingPrice > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Estimasi Profit</span>
+                  <span className={`font-bold ${sellingPrice - hpp >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatRupiah(sellingPrice - hpp)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Nilai Project */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nilai Project (Harga Jual) *</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rp</span>
+              <input type="text" inputMode="numeric" value={form.selling_price_raw}
+                onChange={e => setForm(f => ({ ...f, selling_price_raw: formatRupiahInput(e.target.value) }))}
+                placeholder="0"
+                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-lg font-semibold" />
+            </div>
+          </div>
+          {/* Catatan */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+            <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Catatan tambahan..."
+              className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          </div>
+          <button onClick={handleSaveProject} disabled={saving}
+            className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 disabled:opacity-40 active:scale-95 transition-all">
+            {saving ? 'Menyimpan...' : 'Simpan Pekerjaan'}
+          </button>
+        </div>
+      )}
+
+      {/* Stock Picker Modal */}
+      {showStockPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-5 pb-6 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-bold text-gray-800">Pilih Bahan dari Stok</p>
+              <button onClick={() => setShowStockPicker(false)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+            </div>
+            {pickerStock ? (
+              <div className="space-y-3">
+                <div className="bg-blue-50 rounded-2xl p-3">
+                  <p className="font-semibold text-blue-800">{pickerStock.name}</p>
+                  <p className="text-xs text-blue-600">Stok: {pickerStock.quantity} {pickerStock.unit} · HPP: {formatRupiah(pickerStock.price)}/unit</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Jumlah *</label>
+                    <input type="number" value={pickerQty} onChange={e => setPickerQty(e.target.value)} placeholder="0"
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Satuan</label>
+                    <input type="text" value={pickerStock.unit} disabled
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-gray-500" />
+                  </div>
+                </div>
+                {pickerQty > 0 && (
+                  <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm flex justify-between">
+                    <span className="text-gray-500">Total HPP</span>
+                    <span className="font-bold">{formatRupiah(pickerStock.price * parseFloat(pickerQty))}</span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => setPickerStock(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm">← Kembali</button>
+                  <button onClick={() => {
+                    if (!pickerQty || parseFloat(pickerQty) <= 0) { showToast('Masukkan jumlah', 'error'); return }
+                    setMaterials(ms => [...ms, { name: pickerStock.name, quantity: parseFloat(pickerQty), unit: pickerStock.unit, price: pickerStock.price, stock_id: pickerStock.id, is_custom: false }])
+                    setPickerStock(null); setPickerQty(''); setShowStockPicker(false)
+                  }} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm">Tambahkan</button>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-y-auto space-y-2">
+                {stocks.map(s => (
+                  <button key={s.id} onClick={() => setPickerStock(s)}
+                    className="w-full text-left p-3 rounded-2xl border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${s.usage_category === 'PRINT' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                        {s.usage_category}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">Stok: {s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/unit' : '-'}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Material Modal */}
+      {showCustomMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-bold text-gray-800">Bahan Lain</p>
+              <button onClick={() => setShowCustomMaterial(false)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+            </div>
+            <div className="space-y-3">
+              <input type="text" value={customMat.name} onChange={e => setCustomMat(m => ({ ...m, name: e.target.value }))} placeholder="Nama Bahan *"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="number" value={customMat.quantity} onChange={e => setCustomMat(m => ({ ...m, quantity: e.target.value }))} placeholder="Jumlah *"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                <input type="text" value={customMat.unit} onChange={e => setCustomMat(m => ({ ...m, unit: e.target.value }))} placeholder="Satuan (pcs, m, dll)"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                <input type="text" inputMode="numeric" value={customMat.price_raw}
+                  onChange={e => setCustomMat(m => ({ ...m, price_raw: formatRupiahInput(e.target.value) }))}
+                  placeholder="Harga per unit *"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              {customMat.quantity && customMat.price_raw && (
+                <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm flex justify-between">
+                  <span className="text-gray-500">Total</span>
+                  <span className="font-bold">{formatRupiah(parseRupiahInput(customMat.price_raw) * parseFloat(customMat.quantity || 0))}</span>
+                </div>
+              )}
+              <button onClick={() => {
+                if (!customMat.name || !customMat.quantity || !customMat.price_raw) { showToast('Lengkapi semua field bahan', 'error'); return }
+                setMaterials(ms => [...ms, { name: customMat.name, quantity: parseFloat(customMat.quantity), unit: customMat.unit || 'pcs', price: parseRupiahInput(customMat.price_raw), stock_id: null, is_custom: true }])
+                setShowCustomMaterial(false)
+              }} className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700">
+                Tambahkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Project */}
+      {detailProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-5 pb-8">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-bold text-gray-800">Detail Project</p>
+              <button onClick={() => setDetailProject(null)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                ['Tanggal', formatDate(detailProject.date)],
+                ['Nama Project', detailProject.project_name],
+                ['Customer', detailProject.customer_name],
+                ['Metode', detailProject.payment_method === 'cash' ? 'Cash' : 'Transfer'],
+                ['HPP Bahan', formatRupiah(detailProject.hpp || detailProject.total_material_cost || 0)],
+                ['Nilai Project', formatRupiah(detailProject.selling_price || detailProject.total_project_value || 0)],
+                ['Catatan', detailProject.notes || '-'],
+              ].map(([l, v]) => (
+                <div key={l} className="flex justify-between text-sm border-b border-gray-50 pb-2">
+                  <span className="text-gray-500">{l}</span>
+                  <span className="font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
+                </div>
+              ))}
+              {Array.isArray(detailProject.materials) && detailProject.materials.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Bahan Digunakan</p>
+                  {detailProject.materials.map((m, i) => (
+                    <div key={i} className="flex justify-between text-sm py-1">
+                      <span className="text-gray-600">{m.name} ({m.quantity} {m.unit})</span>
+                      <span className="font-medium">{formatRupiah(m.price * m.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}
+    </div>
+  )
+}
