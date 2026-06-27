@@ -17,6 +17,29 @@ import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 // Both panels independently scrollable
 // NO overflow allowed
 // ===============================
+// CREW HOME UI – SAFE PALETTE (no dark bg, AA contrast)
+const _colorCardBgStart = Color(0xFFF8FCFF);
+const _colorCardBgEnd = Color(0xFFEEF7FB);
+const _colorKasbonCardStart = Color(0xFFE8F4FF);
+const _colorKasbonCardEnd = Color(0xFFD9ECFF);
+const _colorKasbonText = Color(0xFF0B3C5D);
+const _colorClockCardStart = Color(0xFFFFF6E5);
+const _colorClockCardEnd = Color(0xFFFFE8C2);
+const _colorClockCardText = Color(0xFF6A4B00);
+const _colorBtnKasbonStart = Color(0xFF4CC9B0);
+const _colorBtnKasbonEnd = Color(0xFF2FB7A1);
+const _colorBtnClockStart = Color(0xFF7ED957);
+const _colorBtnClockEnd = Color(0xFF4CAF50);
+const _colorBtnDisabled = Color(0xFFE0E0E0);
+const _colorBtnDisabledText = Color(0xFF9E9E9E);
+const _colorScaffoldBg = Color(0xFFF8FCFF);
+const _colorAppBarBg = Color(0xFFE8F4FF);
+const _colorAppBarTitle = Color(0xFF0B3C5D);
+const _colorChipActive = Color(0xFF4CAF50);
+const _colorChipInactive = Color(0xFF6A4B00);
+const _colorAvatarBg = Color(0xFFE8F4FF);
+const _colorAvatarIcon = Color(0xFF0B3C5D);
+const _colorSecondaryText = Color(0xFF5A5A5A);
 
 class CrewHomeScreen extends StatefulWidget {
   final Employee employee;
@@ -331,18 +354,32 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
   }
 
   Widget _buildHistoryCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_colorCardBgStart, _colorCardBgEnd],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Riwayat Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Riwayat Kasbon', style: TextStyle(fontWeight: FontWeight.w600, color: _colorKasbonText)),
             const SizedBox(height: 6),
             Text(
               'Menampilkan kasbon: ${_formatPeriodLabel(_selectedPeriod ?? _activePeriod)}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: const TextStyle(fontSize: 12, color: _colorSecondaryText),
             ),
             const SizedBox(height: 12),
             Expanded(child: _buildHistoryBody()),
@@ -358,7 +395,7 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
     }
     final filtered = _filteredAdvances;
     if (filtered.isEmpty) {
-      return const Center(child: Text('Belum ada kasbon'));
+      return const Center(child: Text('Belum ada kasbon', style: TextStyle(color: _colorSecondaryText)));
     }
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -380,18 +417,21 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
         final note = entry['note']?.toString() ?? '-';
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(DateFormat('dd MMM yyyy').format(date)),
-          subtitle: Text('$method • $note'),
+          title: Text(
+            DateFormat('dd MMM yyyy').format(date),
+            style: const TextStyle(fontWeight: FontWeight.w500, color: _colorKasbonText),
+          ),
+          subtitle: Text('$method • $note', style: const TextStyle(color: _colorSecondaryText)),
           trailing: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 _currencyFormatter.format(amount),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: _colorKasbonText),
               ),
               const SizedBox(height: 4),
-              Text(status, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(status, style: const TextStyle(fontSize: 12, color: _colorSecondaryText)),
             ],
           ),
         );
@@ -405,18 +445,32 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
         _activePeriod != null &&
         (_selectedPeriod?['id']?.toString() ?? '') != (_activePeriod?['id']?.toString() ?? '');
     final displayLabel = isArchive ? '$label (arsip)' : label;
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_colorKasbonCardStart, _colorKasbonCardEnd],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Total Kasbon Periode Aktif', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Total Kasbon Periode Aktif', style: TextStyle(fontWeight: FontWeight.w600, color: _colorKasbonText)),
             const SizedBox(height: 8),
             Text(
               _currencyFormatter.format(_activeKasbonTotal),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _colorKasbonText),
             ),
             const SizedBox(height: 6),
             InkWell(
@@ -424,8 +478,8 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Periode: $displayLabel', style: const TextStyle(color: Colors.grey)),
-                  const Icon(Icons.arrow_drop_down, size: 20, color: Colors.grey),
+                  Text('Periode: $displayLabel', style: const TextStyle(color: _colorSecondaryText)),
+                  const Icon(Icons.arrow_drop_down, size: 20, color: _colorSecondaryText),
                 ],
               ),
             ),
@@ -440,12 +494,14 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     
     return Scaffold(
-      backgroundColor: const Color(0xFFEAFBFF),
+      backgroundColor: _colorScaffoldBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A4D68),
-        title: const Text('Crew Home'),
+        backgroundColor: _colorAppBarBg,
+        foregroundColor: _colorAppBarTitle,
+        title: const Text('Crew Home', style: TextStyle(color: _colorAppBarTitle, fontWeight: FontWeight.w600)),
         centerTitle: true,
         automaticallyImplyLeading: false,
+        elevation: 0,
       ),
       body: SafeArea(
         child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
@@ -454,97 +510,22 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
   }
 
   Widget _buildPortraitLayout() {
-    final timeLabel = DateFormat('dd MMM yyyy · HH:mm').format(_currentTime);
-    final statusColor = (_isClockedIn ?? false) ? Colors.green : Colors.red;
-    final statusText = (_isClockedIn ?? false) ? 'Clock In Active' : 'Clock In Inactive';
-    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFEAFBFF),
-                child: Icon(Icons.person, color: Color(0xFF0A4D68)),
-              ),
-              title: Text(widget.employee.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(widget.employee.position ?? 'Crew'),
-              trailing: Chip(
-                backgroundColor: statusColor.withOpacity(0.15),
-                label: Text(
-                  statusText,
-                  style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 12),
-                ),
-              ),
-            ),
-          ),
+          _buildProfileCard(),
           const SizedBox(height: 16),
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Status Clock In', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(timeLabel, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _clockMessage,
-                    style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildClockStatusCard(),
           const SizedBox(height: 16),
           _buildTotalKasbonCard(),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _openKasbonForm,
-            icon: const Icon(Icons.attach_money),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0A4D68),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            label: const Text('Ajukan Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
+          _buildAjukanKasbonButton(paddingVertical: 16, radius: 16),
           const SizedBox(height: 16),
           Expanded(child: _buildHistoryCard()),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: (_isClockedIn == null || _isProcessingClockAction)
-                  ? null
-                  : () => _handleClockAction(!(_isClockedIn ?? false)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B5E20),
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-              child: _isProcessingClockAction
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : Text(
-                      (_isClockedIn ?? false) ? 'Clock Out' : 'Clock In',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-            ),
-          ),
+          _buildClockInOutButton(paddingVertical: 18, radius: 20, fontSize: 16, indicatorSize: 24),
         ],
       ),
     );
@@ -566,40 +547,9 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
                 const SizedBox(height: 12),
                 _buildTotalKasbonCard(),
                 const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _openKasbonForm,
-                  icon: const Icon(Icons.attach_money),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0A4D68),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  label: const Text('Ajukan Kasbon', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                _buildAjukanKasbonButton(paddingVertical: 14, radius: 12),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_isClockedIn == null || _isProcessingClockAction)
-                        ? null
-                        : () => _handleClockAction(!(_isClockedIn ?? false)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B5E20),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: _isProcessingClockAction
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : Text(
-                            (_isClockedIn ?? false) ? 'Clock Out' : 'Clock In',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                          ),
-                  ),
-                ),
+                _buildClockInOutButton(paddingVertical: 16, radius: 16, fontSize: 15, indicatorSize: 20),
               ],
             ),
           ),
@@ -614,31 +564,45 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
   }
 
   Widget _buildProfileCard() {
-    final statusColor = (_isClockedIn ?? false) ? Colors.green : Colors.red;
+    final statusColor = (_isClockedIn ?? false) ? _colorChipActive : _colorChipInactive;
     final statusText = (_isClockedIn ?? false) ? 'Clock In Active' : 'Clock In Inactive';
-    
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_colorCardBgStart, _colorCardBgEnd],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
         leading: const CircleAvatar(
-          backgroundColor: Color(0xFFEAFBFF),
-          child: Icon(Icons.person, color: Color(0xFF0A4D68), size: 22),
+          backgroundColor: _colorAvatarBg,
+          child: Icon(Icons.person, color: _colorAvatarIcon, size: 22),
         ),
         title: Text(
           widget.employee.name,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: _colorKasbonText),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
           widget.employee.position ?? 'Crew',
-          style: const TextStyle(fontSize: 12),
+          style: const TextStyle(fontSize: 12, color: _colorSecondaryText),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: Chip(
-          backgroundColor: statusColor.withOpacity(0.15),
+          backgroundColor: statusColor.withOpacity(0.2),
           label: Text(
             statusText,
             style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 11),
@@ -650,9 +614,23 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
 
   Widget _buildClockStatusCard() {
     final timeLabel = DateFormat('dd MMM yyyy · HH:mm').format(_currentTime);
-    
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_colorClockCardStart, _colorClockCardEnd],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -661,17 +639,125 @@ class _CrewHomeScreenState extends State<CrewHomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Status Clock In', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text(timeLabel, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                const Text('Status Clock In', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: _colorClockCardText)),
+                Text(timeLabel, style: const TextStyle(color: _colorSecondaryText, fontSize: 10)),
               ],
             ),
             const SizedBox(height: 10),
             Text(
               _clockMessage,
-              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 13),
+              style: const TextStyle(color: _colorClockCardText, fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAjukanKasbonButton({required double paddingVertical, required double radius}) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_colorBtnKasbonStart, _colorBtnKasbonEnd],
+        ),
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _openKasbonForm,
+        icon: const Icon(Icons.attach_money, color: Colors.white, size: 20),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          padding: EdgeInsets.symmetric(vertical: paddingVertical),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+        ),
+        label: const Text('Ajukan Kasbon', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _buildClockInOutButton({
+    required double paddingVertical,
+    required double radius,
+    double fontSize = 16,
+    double indicatorSize = 24,
+  }) {
+    final canTap = _isClockedIn != null && !_isProcessingClockAction;
+    final showActiveStyle = _isClockedIn != null;
+    final label = (_isClockedIn ?? false) ? 'Clock Out' : 'Clock In';
+    final child = _isProcessingClockAction
+        ? SizedBox(
+            height: indicatorSize,
+            width: indicatorSize,
+            child: CircularProgressIndicator(
+              color: showActiveStyle ? Colors.white : _colorBtnDisabledText,
+              strokeWidth: 2,
+            ),
+          )
+        : Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: fontSize,
+              color: showActiveStyle ? Colors.white : _colorBtnDisabledText,
+            ),
+          );
+
+    if (showActiveStyle) {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_colorBtnClockStart, _colorBtnClockEnd],
+          ),
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          onPressed: canTap ? () => _handleClockAction(!(_isClockedIn ?? false)) : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shadowColor: Colors.transparent,
+            padding: EdgeInsets.symmetric(vertical: paddingVertical),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+          ),
+          child: child,
+        ),
+      );
+    }
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _colorBtnDisabled,
+          foregroundColor: _colorBtnDisabledText,
+          disabledBackgroundColor: _colorBtnDisabled,
+          disabledForegroundColor: _colorBtnDisabledText,
+          padding: EdgeInsets.symmetric(vertical: paddingVertical),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+          elevation: 0,
+        ),
+        child: child,
       ),
     );
   }

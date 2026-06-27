@@ -490,6 +490,13 @@ async def create_kasbon(body: KasbonCreate):
     await db.kasbon.insert_one(doc)
     return clean(doc)
 
+@api.put('/kasbon/{kasbon_id}')
+async def update_kasbon(kasbon_id: str, body: dict):
+    result = await db.kasbon.update_one({'id': kasbon_id}, {'$set': body})
+    if result.matched_count == 0: raise HTTPException(status_code=404, detail='Kasbon tidak ditemukan')
+    doc = await db.kasbon.find_one({'id': kasbon_id}, {'_id': 0})
+    return clean(doc)
+
 @api.delete('/kasbon/{kasbon_id}')
 async def delete_kasbon(kasbon_id: str):
     result = await db.kasbon.delete_one({'id': kasbon_id})
@@ -508,6 +515,14 @@ async def get_advances_by_employee(emp_id: str):
 @api.get('/advances/all')
 async def get_all_advances():
     return await get_all_kasbon()
+
+@api.delete('/advances/{advance_id}')
+async def delete_advance(advance_id: str):
+    return await delete_kasbon(advance_id)
+
+@api.put('/advances/{advance_id}')
+async def update_advance(advance_id: str, body: dict):
+    return await update_kasbon(advance_id, body)
 
 app.include_router(api)
 

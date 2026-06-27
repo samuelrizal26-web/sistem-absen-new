@@ -1,0 +1,9 @@
+# Launcher icons (Android) – foreground khusus, background gelap, logo lega
+# app_icon_fg.png: 1024×1024, logo ±65–70% di tengah, sisa transparan
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "assets/app_icon_fg.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0E4C5A"
+  adaptive_icon_foreground: "assets/app_icon_fg.png"

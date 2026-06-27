@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:sistem_absen_flutter_v2/core/utils/error_handler.dart';
 import 'package:sistem_absen_flutter_v2/core/constants/app_constants.dart';
-import 'package:sistem_absen_flutter_v2/screens/employee_dashboard_screen.dart';
+import 'package:sistem_absen_flutter_v2/features/employee/employee_dashboard_screen.dart';
 import 'package:sistem_absen_flutter_v2/screens/project_screen.dart';
 
 class LoginScreen extends StatefulWidget {

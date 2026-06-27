@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:sistem_absen_flutter_v2/screens/employee_dashboard_screen.dart';
+import 'package:sistem_absen_flutter_v2/features/employee/employee_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

@@ -53,6 +53,10 @@ export const createAdvance = (data) =>
 export const getAdvancesByEmployee = (employeeId) =>
   request(`/advances/employee/${employeeId}`)
 export const getAllAdvances = () => request('/advances/all')
+export const deleteAdvance = (id) =>
+  request(`/advances/${id}`, { method: 'DELETE' })
+export const updateAdvance = (id, data) =>
+  request(`/advances/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 
 // ─── Cashflow ─────────────────────────────────────────────────
 export const getCashflow = (params = '') => request(`/cashflow${params}`)

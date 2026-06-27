@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getProjects, createProject, deleteProject, getStock, verifyAdminPin, verifyAdminPassword } from '../services/api'
+import { getProjects, createProject, updateProject, deleteProject, getStock, verifyAdminPin, verifyAdminPassword } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
-const STEP = { PIN: 'pin', DASHBOARD: 'dashboard', FORM: 'form' }
+const STEP = { PIN: 'pin', DASHBOARD: 'dashboard', FORM: 'form', EDIT: 'edit' }
 
 export default function ProjectPage() {
   const navigate = useNavigate()
@@ -38,6 +38,8 @@ export default function ProjectPage() {
   const [pickerQty, setPickerQty] = useState('')
   const [pickerStock, setPickerStock] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   const hpp = materials.reduce((s, m) => s + (parseFloat(m.price || 0) * parseFloat(m.quantity || 0)), 0)
   const sellingPrice = parseRupiahInput(form.selling_price_raw)
@@ -85,6 +87,34 @@ export default function ProjectPage() {
   const resetForm = () => {
     setForm({ date: new Date().toISOString().split('T')[0], project_name: '', customer_name: '', payment_method: 'transfer', selling_price_raw: '', notes: '' })
     setMaterials([])
+    setEditingId(null)
+  }
+
+  const handleEditProject = (p) => {
+    setDetailProject(null)
+    setEditingId(p.id)
+    setForm({
+      date: p.date || new Date().toISOString().split('T')[0],
+      project_name: p.project_name || '',
+      customer_name: p.customer_name || '',
+      payment_method: p.payment_method || 'transfer',
+      selling_price_raw: formatRupiahInput(String(p.selling_price || p.total_project_value || '')),
+      notes: p.notes || '',
+    })
+    setMaterials(Array.isArray(p.materials) ? p.materials.map(m => ({ ...m })) : [])
+    setStep(STEP.FORM)
+  }
+
+  const handleDeleteProject = async (id) => {
+    try {
+      await deleteProject(id)
+      showToast('Project dihapus', 'success')
+      setConfirmDelete(null)
+      setDetailProject(null)
+      await loadData()
+    } catch (e) {
+      showToast(e.message || 'Gagal menghapus', 'error')
+    }
   }
 
   const handleSaveProject = async () => {
@@ -93,7 +123,7 @@ export default function ProjectPage() {
     }
     setSaving(true)
     try {
-      await createProject({
+      const payload = {
         date: form.date,
         project_name: form.project_name,
         customer_name: form.customer_name,
@@ -108,8 +138,14 @@ export default function ProjectPage() {
           stock_id: m.stock_id || null,
           is_custom: m.is_custom || false,
         })),
-      })
-      showToast('Pekerjaan berhasil disimpan!', 'success')
+      }
+      if (editingId) {
+        await updateProject(editingId, payload)
+        showToast('Pekerjaan berhasil diupdate!', 'success')
+      } else {
+        await createProject(payload)
+        showToast('Pekerjaan berhasil disimpan!', 'success')
+      }
       setStep(STEP.DASHBOARD)
       resetForm()
       await loadData()
@@ -143,7 +179,7 @@ export default function ProjectPage() {
           </svg>
         </button>
         <h1 className="text-white text-lg font-bold">
-          {step === STEP.PIN ? 'Verifikasi Admin' : step === STEP.FORM ? 'Tambah Pekerjaan' : 'Project'}
+          {step === STEP.PIN ? 'Verifikasi Admin' : step === STEP.FORM ? (editingId ? 'Edit Pekerjaan' : 'Tambah Pekerjaan') : 'Project'}
         </h1>
       </div>
 
@@ -239,25 +275,26 @@ export default function ProjectPage() {
                 </p>
                 <div className="space-y-2">
                   {items.map(p => (
-                    <button key={p.id} onClick={() => setDetailProject(p)}
-                      className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100 hover:shadow-md active:scale-95 transition-all text-left">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div key={p.id} className="bg-white rounded-xl px-3 py-2.5 flex items-center gap-2.5 shadow-sm border border-gray-100">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
                         </svg>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 text-sm truncate">{p.project_name}</p>
-                        <p className="text-xs text-gray-400">{formatDate(p.date)} · {p.customer_name}</p>
-                        <p className="text-xs text-gray-400">{p.material || '-'} · Qty: {p.quantity || '-'}</p>
+                      <div className="flex-1 min-w-0" onClick={() => setDetailProject(p)}>
+                        <p className="font-semibold text-gray-800 text-xs truncate">{p.project_name} · {p.customer_name}</p>
+                        <p className="text-[10px] text-gray-400">{formatDate(p.date)} · {p.payment_method === 'cash' ? 'Cash' : 'Transfer'}</p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-bold text-gray-800 text-sm">{formatRupiah(p.total_project_value)}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.payment_method === 'cash' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'}`}>
-                          {p.payment_method === 'cash' ? 'Cash' : 'Transfer'}
-                        </span>
+                      <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(p.selling_price || p.total_project_value || 0)}</p>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => handleEditProject(p)} className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 active:scale-95">
+                          <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        <button onClick={() => setConfirmDelete(p)} className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 active:scale-95">
+                          <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -487,6 +524,16 @@ export default function ProjectPage() {
               <p className="font-bold text-gray-800">Detail Project</p>
               <button onClick={() => setDetailProject(null)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
             </div>
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => handleEditProject(detailProject)}
+                className="flex-1 py-2 rounded-xl bg-blue-50 text-blue-600 font-semibold text-sm border border-blue-200 hover:bg-blue-100 transition-all">
+                ✏️ Edit
+              </button>
+              <button onClick={() => setConfirmDelete(detailProject)}
+                className="flex-1 py-2 rounded-xl bg-red-50 text-red-500 font-semibold text-sm border border-red-200 hover:bg-red-100 transition-all">
+                🗑️ Hapus
+              </button>
+            </div>
             <div className="space-y-2.5">
               {[
                 ['Tanggal', formatDate(detailProject.date)],
@@ -513,6 +560,20 @@ export default function ProjectPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
+            <p className="font-bold text-gray-800 mb-2">Hapus Project?</p>
+            <p className="text-sm text-gray-500 mb-5">"<span className="font-semibold">{confirmDelete.project_name}</span>" akan dihapus permanen.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold">Batal</button>
+              <button onClick={() => handleDeleteProject(confirmDelete.id)} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold">Hapus</button>
             </div>
           </div>
         </div>

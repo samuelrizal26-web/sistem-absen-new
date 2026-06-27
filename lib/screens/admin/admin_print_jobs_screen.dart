@@ -38,7 +38,10 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
   double get _totalRevenue {
     return _jobs.fold<double>(
       0,
-      (sum, item) => sum + ((item['quantity'] as num?)?.toDouble() ?? 0) * ((item['price'] as num?)?.toDouble() ?? 0),
+      (sum, item) =>
+          sum +
+          ((item['quantity'] as num?)?.toDouble() ?? 0) *
+              ((item['price'] as num?)?.toDouble() ?? 0),
     );
   }
 
@@ -46,7 +49,9 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
     final Map<String, double> summary = {};
     for (final item in _jobs) {
       final material = item['material_name'] ?? 'Lainnya';
-      final price = ((item['quantity'] as num?)?.toDouble() ?? 0) * ((item['price'] as num?)?.toDouble() ?? 0);
+      final price =
+          ((item['quantity'] as num?)?.toDouble() ?? 0) *
+          ((item['price'] as num?)?.toDouble() ?? 0);
       summary.update(material, (value) => value + price, ifAbsent: () => price);
     }
     return summary;
@@ -73,7 +78,10 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
         await ApiService.deletePrintJob(job['job_id'] ?? job['id']);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pekerjaan dihapus'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Pekerjaan dihapus'),
+            backgroundColor: Colors.green,
+          ),
         );
         _loadJobs();
       } catch (e) {
@@ -86,7 +94,12 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
   }
 
   String _formatNumber(num value) {
-    return value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match.group(1)}.');
+    return value
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (match) => '${match.group(1)}.',
+        );
   }
 
   @override
@@ -127,10 +140,7 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Total Pendapatan',
-          style: TextStyle(color: Colors.black54),
-        ),
+        Text('Total Pendapatan', style: TextStyle(color: Colors.black54)),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -145,7 +155,11 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
               const Text('Rp', style: TextStyle(color: Colors.white70)),
               Text(
                 _formatNumber(_totalRevenue),
-                style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -153,7 +167,10 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
                 runSpacing: 12,
                 children: _materialSummary.entries.map((entry) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(16),
@@ -161,10 +178,16 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(entry.key, style: const TextStyle(color: Colors.white70)),
+                        Text(
+                          entry.key,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
                         Text(
                           'Rp ${_formatNumber(entry.value)}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -183,7 +206,13 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 24, offset: Offset(0, 12))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -192,18 +221,27 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: const BoxDecoration(
               color: Color(0xFF424242),
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
             ),
             child: const Text(
               'Daftar Pekerjaan',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
               columnSpacing: 24,
-              headingRowColor: MaterialStateProperty.all(const Color(0xFFF5F5F5)),
+              headingRowColor: MaterialStateProperty.all(
+                const Color(0xFFF5F5F5),
+              ),
               columns: const [
                 DataColumn(label: Text('Tanggal')),
                 DataColumn(label: Text('Bahan')),
@@ -220,8 +258,14 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
                 final total = qty * price;
                 return DataRow(
                   cells: [
-                    DataCell(Text(job['created_at']?.toString().split('T').first ?? '-')),
-                    DataCell(_buildMaterialBadge(job['material_name'] ?? 'Bahan')),
+                    DataCell(
+                      Text(
+                        job['created_at']?.toString().split('T').first ?? '-',
+                      ),
+                    ),
+                    DataCell(
+                      _buildMaterialBadge(job['material_name'] ?? 'Bahan'),
+                    ),
                     DataCell(Text(qty.toStringAsFixed(0))),
                     DataCell(Text('Rp ${_formatNumber(price)}')),
                     DataCell(Text('Rp ${_formatNumber(total)}')),
@@ -232,11 +276,17 @@ class _AdminPrintJobsScreenState extends State<AdminPrintJobsScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.edit_outlined, color: Color(0xFF2E7D32)),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: Color(0xFF2E7D32),
+                            ),
                             onPressed: () => _openJobForm(job: job),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Color(0xFFD32F2F)),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Color(0xFFD32F2F),
+                            ),
                             onPressed: () => _confirmDelete(job),
                           ),
                         ],
@@ -286,7 +336,11 @@ class _DeletePrintJobDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 48),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 48,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Hapus pekerjaan ini?',
@@ -301,9 +355,22 @@ class _DeletePrintJobDialog extends StatelessWidget {
             const SizedBox(height: 24),
             Row(
               children: [
-                Expanded(child: OutlinedButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Batal'))),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Batal'),
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: ElevatedButton(onPressed: () => Navigator.of(context).pop(true), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F)), child: const Text('Ya, Hapus'))),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD32F2F),
+                    ),
+                    child: const Text('Ya, Hapus'),
+                  ),
+                ),
               ],
             ),
           ],
@@ -323,6 +390,8 @@ class _PrintJobFormDialog extends StatefulWidget {
 }
 
 class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
+  static const String _emptyMaterialValue = '__EMPTY_MATERIAL__';
+
   final _formKey = GlobalKey<FormState>();
   final _dateController = TextEditingController();
   final _quantityController = TextEditingController();
@@ -330,7 +399,9 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
   final _customerController = TextEditingController();
   final _notesController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
-  String? _material;
+  String? _selectedMaterialId;
+  String? _pendingMaterialName;
+  String? _pendingMaterialId;
   bool _isSubmitting = false;
   List<Map<String, dynamic>> _materials = [];
 
@@ -340,13 +411,16 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
     _loadMaterials();
     final job = widget.job;
     if (job != null) {
-      _selectedDate = DateTime.tryParse(job['created_at'] ?? '') ?? DateTime.now();
+      _selectedDate =
+          DateTime.tryParse(job['created_at'] ?? '') ?? DateTime.now();
       _dateController.text = _selectedDate.toIso8601String().split('T').first;
       _quantityController.text = (job['quantity'] as num?)?.toString() ?? '';
       _priceController.text = (job['price'] as num?)?.toString() ?? '';
       _customerController.text = job['customer_name'] ?? '';
       _notesController.text = job['notes'] ?? '';
-      _material = job['material_name'];
+      _pendingMaterialName = job['material_name']?.toString();
+      _pendingMaterialId = job['material_id']?.toString();
+      _selectedMaterialId = _pendingMaterialId;
     } else {
       _dateController.text = _selectedDate.toIso8601String().split('T').first;
     }
@@ -356,7 +430,11 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
     try {
       final data = await ApiService.fetchStock();
       if (!mounted) return;
-      setState(() => _materials = data);
+      final resolvedId = _resolveMaterialSelection(data);
+      setState(() {
+        _materials = data;
+        _selectedMaterialId = resolvedId;
+      });
     } catch (_) {
       // ignore
     }
@@ -390,8 +468,15 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
+    final selectedMaterial = _findMaterialById(_selectedMaterialId);
+    final materialName =
+        selectedMaterial?['name']?.toString() ??
+        selectedMaterial?['material_name']?.toString() ??
+        _pendingMaterialName ??
+        'Bahan';
+
     final body = {
-      'material_name': _material,
+      'material_name': materialName,
       'quantity': double.tryParse(_quantityController.text) ?? 0,
       'price': double.tryParse(_priceController.text) ?? 0,
       'customer_name': _customerController.text,
@@ -404,7 +489,11 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.job == null ? 'Pekerjaan ditambahkan' : 'Pekerjaan diperbarui'),
+          content: Text(
+            widget.job == null
+                ? 'Pekerjaan ditambahkan'
+                : 'Pekerjaan diperbarui',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -416,6 +505,79 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  List<DropdownMenuItem<String>> _materialDropdownItems() {
+    if (_materials.isEmpty) {
+      return const [
+        DropdownMenuItem<String>(
+          value: _emptyMaterialValue,
+          child: Text('Belum ada bahan PRINT (tambahkan di Stock)'),
+        ),
+      ];
+    }
+
+    return _materials.map((material) {
+      final materialId = _getMaterialId(material);
+      final label = material['name']?.toString() ?? '-';
+      return DropdownMenuItem<String>(value: materialId, child: Text(label));
+    }).toList();
+  }
+
+  String? _resolveMaterialSelection(List<Map<String, dynamic>> materials) {
+    if (materials.isEmpty) return _emptyMaterialValue;
+    final currentId = _selectedMaterialId;
+    if (currentId != null &&
+        currentId != _emptyMaterialValue &&
+        materials.any((material) => _getMaterialId(material) == currentId)) {
+      return currentId;
+    }
+
+    if (_pendingMaterialId != null &&
+        _pendingMaterialId != _emptyMaterialValue &&
+        materials.any(
+          (material) => _getMaterialId(material) == _pendingMaterialId,
+        )) {
+      return _pendingMaterialId;
+    }
+
+    final byName = _resolveMaterialIdByName(materials, _pendingMaterialName);
+    if (byName != null) return byName;
+
+    return _getMaterialId(materials.first);
+  }
+
+  String? _resolveMaterialIdByName(
+    List<Map<String, dynamic>> materials,
+    String? name,
+  ) {
+    if (name == null || name.isEmpty) return null;
+    final normalized = name.toLowerCase();
+    for (final material in materials) {
+      final label = (material['name'] ?? material['material_name'] ?? '')
+          .toString()
+          .toLowerCase();
+      if (label == normalized) {
+        return _getMaterialId(material);
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _findMaterialById(String? id) {
+    if (id == null) return null;
+    for (final material in _materials) {
+      if (_getMaterialId(material) == id) return material;
+    }
+    return null;
+  }
+
+  String _getMaterialId(Map<String, dynamic> material) {
+    return material['id']?.toString() ??
+        material['material_id']?.toString() ??
+        material['stock_id']?.toString() ??
+        material['uuid']?.toString() ??
+        '';
   }
 
   @override
@@ -435,8 +597,14 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    widget.job == null ? 'Tambah Pekerjaan Printing' : 'Edit Pekerjaan Printing',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0A4D68)),
+                    widget.job == null
+                        ? 'Tambah Pekerjaan Printing'
+                        : 'Edit Pekerjaan Printing',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0A4D68),
+                    ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(false),
@@ -452,26 +620,27 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
                 decoration: InputDecoration(
                   labelText: 'Tanggal',
                   suffixIcon: const Icon(Icons.calendar_today),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                initialValue: _material,
+                value: _selectedMaterialId,
                 decoration: InputDecoration(
                   labelText: 'Bahan',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                items: _materials
-                    .map(
-                      (item) => DropdownMenuItem<String>(
-                        value: (item['name'] ?? '').toString(),
-                        child: Text(item['name'] ?? '-'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _material = value),
-                validator: (value) => value == null ? 'Pilih bahan' : null,
+                items: _materialDropdownItems(),
+                onChanged: (value) =>
+                    setState(() => _selectedMaterialId = value),
+                validator: (value) =>
+                    value == null || value == _emptyMaterialValue
+                    ? 'Pilih bahan'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -479,9 +648,13 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Jumlah',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                validator: (value) => (value == null || value.isEmpty) ? 'Jumlah wajib diisi' : null,
+                validator: (value) => (value == null || value.isEmpty)
+                    ? 'Jumlah wajib diisi'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -489,16 +662,22 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Harga per Unit',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                validator: (value) => (value == null || value.isEmpty) ? 'Harga wajib diisi' : null,
+                validator: (value) => (value == null || value.isEmpty)
+                    ? 'Harga wajib diisi'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _customerController,
                 decoration: InputDecoration(
                   labelText: 'Nama Customer (Opsional)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -507,7 +686,9 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
                 maxLines: 3,
                 decoration: InputDecoration(
                   labelText: 'Catatan (Opsional)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -518,7 +699,9 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00ACC1),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
@@ -529,7 +712,10 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
                             valueColor: AlwaysStoppedAnimation(Colors.white),
                           ),
                         )
-                      : const Text('Simpan Pekerjaan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : const Text(
+                          'Simpan Pekerjaan',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ],
@@ -539,8 +725,3 @@ class _PrintJobFormDialogState extends State<_PrintJobFormDialog> {
     );
   }
 }
-
-
-
-
-

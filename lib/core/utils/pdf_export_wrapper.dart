@@ -1,45 +1,45 @@
+import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
-// import 'package:printing/printing.dart'; // Commented out karena tidak kompatibel dengan Flutter 3.38.2
 
-/// Wrapper untuk PDF export yang menangani error dengan graceful fallback
-/// CATATAN: printing 5.9.3 tidak kompatibel dengan Flutter 3.38.2
-/// Wrapper ini akan memberikan pesan yang jelas bahwa PDF export tidak tersedia
-/// tetapi printing thermal tetap berfungsi dengan baik
+import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+/// Wrapper untuk PDF export yang menulis ke file sementara lalu memanggil share sheet
 class PdfExportWrapper {
   /// Export PDF dengan graceful error handling
-  /// CATATAN: Karena printing 5.9.3 tidak kompatibel dengan Flutter 3.38.2,
-  /// fitur PDF export sementara tidak tersedia. Printing thermal tetap berfungsi.
   static Future<void> sharePdf({
     required Uint8List bytes,
     required String filename,
     required BuildContext context,
   }) async {
-    // Karena printing package tidak kompatibel dengan Flutter 3.38.2,
-    // kita akan memberikan pesan yang jelas kepada user
-    if (!context.mounted) return;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Fitur export PDF sementara tidak tersedia karena masalah kompatibilitas dengan Flutter 3.38.2. '
-          'Fitur printing thermal tetap berfungsi dengan baik. '
-          'Silakan gunakan fitur print struk untuk mencetak informasi yang diperlukan.',
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final filePath = p.join(tempDir.path, filename);
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      await file.writeAsBytes(bytes, flush: true);
+      await Share.shareXFiles(
+        [XFile(file.path, name: filename)],
+        text: 'Slip gaji tersedia',
+        subject: filename,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal export slip gaji: $e'),
+          backgroundColor: Colors.red,
         ),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 8),
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
-      ),
-    );
+      );
+    }
   }
 
   /// Check apakah PDF export tersedia
-  /// Return false karena printing package tidak kompatibel dengan Flutter 3.38.2
-  static bool get isPdfExportAvailable => false;
+  static bool get isPdfExportAvailable => true;
 }
 
 

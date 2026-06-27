@@ -11,6 +11,8 @@ class Employee {
   final double? monthlySalary;
   final double? workHoursPerDay;
   final double? hourlyRate;
+  final double? allowanceMeal;
+  final double? allowanceTransport;
   final String? status;
   final String? createdAt;
 
@@ -27,6 +29,8 @@ class Employee {
     this.monthlySalary,
     this.workHoursPerDay,
     this.hourlyRate,
+    this.allowanceMeal,
+    this.allowanceTransport,
     this.status,
     this.createdAt,
   });
@@ -44,6 +48,8 @@ class Employee {
       monthlySalary: (json['monthly_salary'] as num?)?.toDouble(),
       workHoursPerDay: (json['work_hours_per_day'] as num?)?.toDouble(),
       hourlyRate: (json['hourly_rate'] as num?)?.toDouble(),
+      allowanceMeal: (json['allowance_meal'] as num?)?.toDouble(),
+      allowanceTransport: (json['allowance_transport'] as num?)?.toDouble(),
       status: json['status'],
       createdAt: json['created_at'],
     );

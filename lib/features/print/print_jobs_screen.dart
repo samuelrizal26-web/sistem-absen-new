@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sistem_absen_flutter_v2/services/api/api_service.dart';
 import 'package:sistem_absen_flutter_v2/core/utils/number_formatter.dart';
-import 'package:sistem_absen_flutter_v2/core/utils/error_handler.dart';
 import 'package:sistem_absen_flutter_v2/features/print/print_job_summary_screen.dart';
 
 class PrintJobsScreen extends StatefulWidget {
@@ -21,27 +20,21 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
   final _notesController = TextEditingController();
   
   DateTime _selectedDate = DateTime.now();
-  String? _selectedMaterial;
   String _selectedPaymentMethod = 'cash'; // NEW: Payment method selection
   bool _isSubmitting = false;
   bool _isLoadingSummary = true;
+  bool _isLoadingStock = true;
   Map<String, dynamic> _summary = {};
   Map<String, dynamic>? _stockInfo;
-  
-  final List<Map<String, String>> _materials = [
-    {'value': 'vinyl', 'label': 'Vinyl'},
-    {'value': 'kromo', 'label': 'Kromo'},
-    {'value': 'transparan', 'label': 'Transparant'},
-    {'value': 'art_carton', 'label': 'Art Carton'},
-  ];
+  List<Map<String, dynamic>> _stockItems = [];
+  Map<String, dynamic>? _selectedStock;
 
   @override
   void initState() {
     super.initState();
     _dateController.text = _selectedDate.toIso8601String().split('T').first;
-    _selectedMaterial = _materials.first['value'];
     _loadSummary();
-    _checkStock(_selectedMaterial!);
+    _loadStockItems();
     
     // Add listeners for real-time total calculation
     _quantityController.addListener(() {
@@ -80,12 +73,39 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
     }
   }
 
-  Future<void> _checkStock(String material) async {
+  Future<void> _loadStockItems() async {
     try {
-      final stockInfo = await ApiService.checkStockForMaterial(material);
+      final stocks = await ApiService.fetchStock();
+      if (!mounted) return;
+      setState(() {
+        _stockItems = stocks;
+        _isLoadingStock = false;
+        _selectedStock = stocks.isNotEmpty ? stocks.first : null;
+      });
+      if (_selectedStock != null) {
+        _fetchStockInfo(_selectedStock!['id']?.toString());
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingStock = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat stok: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _fetchStockInfo(String? materialId) async {
+    if (materialId == null || materialId.isEmpty) {
+      if (!mounted) return;
+      setState(() => _stockInfo = null);
+      return;
+    }
+
+    try {
+      final stockInfo = await ApiService.checkStockForMaterial(materialId);
       if (!mounted) return;
       setState(() => _stockInfo = stockInfo);
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _stockInfo = null);
     }
@@ -114,25 +134,25 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
       _notesController.clear();
       _selectedDate = DateTime.now();
       _dateController.text = _selectedDate.toIso8601String().split('T').first;
-      _selectedMaterial = _materials.first['value'];
       _selectedPaymentMethod = 'cash'; // Reset payment method
       _stockInfo = null;
+      _selectedStock = _stockItems.isNotEmpty ? _stockItems.first : null;
     });
-    if (_selectedMaterial != null) {
-      _checkStock(_selectedMaterial!);
+    if (_selectedStock != null) {
+      _fetchStockInfo(_selectedStock!['id']?.toString());
     }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     
-    if (_selectedMaterial == null) {
+    if (_selectedStock == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pilih bahan terlebih dahulu'), backgroundColor: Colors.red),
       );
       return;
     }
-
+    
     // Check stock before submit
     if (_stockInfo != null && _stockInfo!['available'] == true) {
       final availableQty = (_stockInfo!['quantity'] as num?)?.toDouble() ?? 0;
@@ -153,17 +173,27 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
     try {
       final customerName = _customerController.text.trim();
       final notes = _notesController.text.trim();
-      final body = {
+      final materialId = _selectedStock!['id']?.toString();
+      if (materialId == null || materialId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ID bahan tidak valid'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
+      final payload = {
         'date': _dateController.text,
-        'material': _selectedMaterial!,
+        'material_id': materialId,
         'quantity': ThousandsSeparatorInputFormatter.parseToDouble(_quantityController.text) ?? 0,
         'price': ThousandsSeparatorInputFormatter.parseToDouble(_priceController.text) ?? 0,
-        'payment_method': _selectedPaymentMethod, // NEW: Include payment method
+        'payment_method': _selectedPaymentMethod,
         if (customerName.isNotEmpty) 'customer_name': customerName,
         if (notes.isNotEmpty) 'notes': notes,
       };
 
-      final createdJob = await ApiService.createPrintJob(body);
+      debugPrint('CREATE PRINT JOB PAYLOAD: $payload');
+
+      final createdJob = await ApiService.createPrintJob(payload);
       
       if (!mounted) return;
       
@@ -468,10 +498,7 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
                 spacing: isLandscape ? 6 : 8,
                 runSpacing: isLandscape ? 6 : 8,
                 children: byMaterial.entries.map((entry) {
-                  final materialLabel = _materials.firstWhere(
-                    (m) => m['value'] == entry.key,
-                    orElse: () => {'label': entry.key},
-                  )['label']!;
+                  final materialLabel = _resolveMaterialLabel(entry.key);
                   final revenue = (entry.value['revenue'] as num?)?.toDouble() ?? 0;
                   final materialValue = entry.key;
                   return InkWell(
@@ -560,27 +587,27 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedMaterial,
+                        value: _selectedStock?['id']?.toString(),
                         decoration: InputDecoration(
                           labelText: 'Bahan *',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                         ),
-                        items: _materials.map((material) {
-                          return DropdownMenuItem<String>(
-                            value: material['value'],
-                            child: Text(material['label']!),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedMaterial = value;
-                          });
-                          if (value != null) {
-                            _checkStock(value);
-                          }
-                        },
+                        isExpanded: true,
+                        hint: _isLoadingStock ? const Text('Memuat stok...') : null,
+                        items: _buildStockDropdownItems(),
+                        onChanged: _isLoadingStock
+                            ? null
+                            : (value) {
+                                final selected = _findStockById(value);
+                                if (selected == null) return;
+                                setState(() {
+                                  _selectedStock = selected;
+                                  _stockInfo = null;
+                                });
+                                _fetchStockInfo(value);
+                              },
                         validator: (value) => value == null ? 'Pilih bahan' : null,
                       ),
                     ),
@@ -602,25 +629,25 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _selectedMaterial,
+                      value: _selectedStock?['id']?.toString(),
                       decoration: InputDecoration(
                         labelText: 'Bahan *',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      items: _materials.map((material) {
-                        return DropdownMenuItem<String>(
-                          value: material['value'],
-                          child: Text(material['label']!),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedMaterial = value;
-                        });
-                        if (value != null) {
-                          _checkStock(value);
-                        }
-                      },
+                      isExpanded: true,
+                      hint: _isLoadingStock ? const Text('Memuat stok...') : null,
+                      items: _buildStockDropdownItems(),
+                      onChanged: _isLoadingStock
+                          ? null
+                          : (value) {
+                              final selected = _findStockById(value);
+                              if (selected == null) return;
+                              setState(() {
+                                _selectedStock = selected;
+                                _stockInfo = null;
+                              });
+                              _fetchStockInfo(value);
+                            },
                       validator: (value) => value == null ? 'Pilih bahan' : null,
                     ),
                   ],
@@ -892,6 +919,41 @@ class _PrintJobsScreenState extends State<PrintJobsScreen> {
         ),
       ),
     );
+  }
+
+  List<DropdownMenuItem<String>> _buildStockDropdownItems() {
+    return _stockItems.where((stock) => stock['id'] != null).map((stock) {
+      final id = stock['id']!.toString();
+      final label = stock['name']?.toString() ??
+          stock['material_name']?.toString() ??
+          stock['label']?.toString() ??
+          id;
+      return DropdownMenuItem<String>(
+        value: id,
+        child: Text(label),
+      );
+    }).toList();
+  }
+
+  Map<String, dynamic>? _findStockById(String? id) {
+    if (id == null) return null;
+    for (final stock in _stockItems) {
+      if (stock['id']?.toString() == id) {
+        return stock;
+      }
+    }
+    return null;
+  }
+
+  String _resolveMaterialLabel(String materialId) {
+    final stock = _findStockById(materialId);
+    if (stock != null) {
+      return stock['name']?.toString() ??
+          stock['material_name']?.toString() ??
+          stock['label']?.toString() ??
+          materialId;
+    }
+    return materialId;
   }
 }
 

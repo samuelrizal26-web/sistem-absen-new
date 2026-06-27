@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getPrintJobsSummary, getPrintJobs, createPrintJob, getStock } from '../services/api'
+import { getPrintJobsSummary, getPrintJobs, createPrintJob, updatePrintJob, deletePrintJob, getStock } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { buildPrintJobReceipt, triggerRawBTPrint } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
@@ -41,6 +41,8 @@ export default function PrintJobPage() {
   const [savedJob, setSavedJob] = useState(null)
   const [cashier, setCashier] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [editJob, setEditJob] = useState(null)
+  const [editForm, setEditForm] = useState(null)
 
   const qty = parseFloat(form.quantity) || 0
   const hargaNormal = parseRupiahInput(form.harga_normal_raw) || parseFloat(form.harga_normal) || 0
@@ -83,6 +85,49 @@ export default function PrintJobPage() {
   useEffect(() => { loadData() }, [searchMonth])
 
   const handleFormChange = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  const handleDeleteJob = async (id) => {
+    if (!window.confirm('Hapus pekerjaan ini?')) return
+    try { await deletePrintJob(id); showToast('Dihapus', 'info'); await loadData() }
+    catch (e) { showToast(e.message || 'Gagal menghapus', 'error') }
+  }
+
+  const handleOpenEdit = (j) => {
+    setEditJob(j)
+    setEditForm({
+      date: j.date, material: j.material, payment_method: j.payment_method,
+      quantity: String(j.quantity), customer_name: j.customer_name || '', notes: j.notes || '',
+      harga_normal_raw: formatRupiahInput(String(j.harga_normal || j.price_per_unit || 0)),
+      harga_diskon_raw: formatRupiahInput(String(j.harga_diskon || '')),
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editForm.material || !editForm.quantity || !editForm.harga_normal_raw) {
+      showToast('Lengkapi field wajib', 'error'); return
+    }
+    const hn = parseRupiahInput(editForm.harga_normal_raw)
+    const hd = parseRupiahInput(editForm.harga_diskon_raw)
+    const q = parseFloat(editForm.quantity) || 0
+    const hasD = hd > 0 && hd < hn
+    const getD = q >= 10 && hasD
+    const hb = getD ? hd : hn
+    try {
+      await updatePrintJob(editJob.id, {
+        date: editForm.date, material: editForm.material,
+        payment_method: editForm.payment_method, quantity: q,
+        harga_normal: hn, harga_diskon: hasD ? hd : null,
+        price_per_unit: hb, total_price: q * hb,
+        diskon_nominal: getD ? q * (hn - hd) : 0,
+        dapat_diskon: getD,
+        customer_name: editForm.customer_name || null,
+        notes: editForm.notes || null,
+      })
+      showToast('Berhasil diperbarui!', 'success')
+      setEditJob(null); setEditForm(null)
+      await loadData()
+    } catch (e) { showToast(e.message || 'Gagal menyimpan', 'error') }
+  }
 
   const handleSaveJob = async () => {
     if (!form.material || !form.quantity || !form.harga_normal_raw) {
@@ -235,21 +280,24 @@ export default function PrintJobPage() {
                 </p>
                 <div className="space-y-2">
                   {items.map(j => (
-                    <div key={j.id} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100">
-                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                        <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div key={j.id} className="bg-white rounded-xl px-3 py-2.5 flex items-center gap-2.5 shadow-sm border border-gray-100">
+                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                        <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17H7A2 2 0 015 15V9a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2z" />
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 text-sm truncate">{j.material}</p>
-                        <p className="text-xs text-gray-400">{formatDate(j.date)} · {j.customer_name || '-'}</p>
+                        <p className="font-semibold text-gray-800 text-xs truncate">{j.material} · {j.customer_name || '-'}</p>
+                        <p className="text-[10px] text-gray-400">{formatDate(j.date)} · {j.payment_method === 'cash' ? 'Cash' : 'Transfer'} · {j.quantity} pcs</p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-bold text-gray-800 text-sm">{formatRupiah(j.total_price)}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${j.payment_method === 'cash' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'}`}>
-                          {j.payment_method === 'cash' ? 'Cash' : 'Transfer'}
-                        </span>
+                      <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(j.total_price)}</p>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => handleOpenEdit(j)} className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 active:scale-95">
+                          <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        <button onClick={() => handleDeleteJob(j.id)} className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 active:scale-95">
+                          <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -485,6 +533,58 @@ export default function PrintJobPage() {
       {/* Staff PIN Modal untuk Print */}
       {step === STEP.PIN_PRINT && (
         <StaffPinModal title="Siapa yang melayani?" onConfirm={handlePrintConfirm} onCancel={() => setStep(STEP.SUMMARY)} />
+      )}
+
+      {/* ── MODAL EDIT PRINT JOB ── */}
+      {editJob && editForm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-t-3xl p-5 space-y-3 shadow-2xl">
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-bold text-gray-800">Edit Print Job</p>
+              <button onClick={() => { setEditJob(null); setEditForm(null) }} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+            </div>
+            <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <select value={editForm.material} onChange={e => setEditForm(f => ({ ...f, material: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+              {stocks.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              {['cash','transfer'].map(m => (
+                <button key={m} onClick={() => setEditForm(f => ({ ...f, payment_method: m }))}
+                  className={`py-2 rounded-xl border-2 text-sm font-semibold ${editForm.payment_method === m ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-500'}`}>
+                  {m === 'cash' ? '💵 Cash' : '🏦 Transfer'}
+                </button>
+              ))}
+            </div>
+            <input type="number" value={editForm.quantity} onChange={e => setEditForm(f => ({ ...f, quantity: e.target.value }))} placeholder="Jumlah pcs *"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">Rp</span>
+                <input type="text" inputMode="numeric" value={editForm.harga_normal_raw}
+                  onChange={e => setEditForm(f => ({ ...f, harga_normal_raw: formatRupiahInput(e.target.value) }))}
+                  placeholder="Harga normal *"
+                  className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">Rp</span>
+                <input type="text" inputMode="numeric" value={editForm.harga_diskon_raw}
+                  onChange={e => setEditForm(f => ({ ...f, harga_diskon_raw: formatRupiahInput(e.target.value) }))}
+                  placeholder="Harga diskon"
+                  className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+            </div>
+            <input type="text" value={editForm.customer_name} onChange={e => setEditForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="Nama Customer"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <input type="text" value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Catatan"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <button onClick={handleSaveEdit}
+              className="w-full py-3 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark active:scale-95">
+              Simpan Perubahan
+            </button>
+          </div>
+        </div>
       )}
 
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}

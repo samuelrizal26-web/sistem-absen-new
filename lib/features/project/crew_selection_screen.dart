@@ -46,10 +46,16 @@ class _CrewSelectionScreenState extends State<CrewSelectionScreen> {
     }
   }
 
-  void _onCrewTapped(Employee employee) {
-    showDialog(
+  Future<void> _onCrewTapped(Employee employee) async {
+    final loggedInEmployee = await showDialog<Employee>(
       context: context,
       builder: (context) => _PinVerificationDialog(employee: employee),
+    );
+    if (loggedInEmployee == null) return;
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => CrewDashboardScreen(employee: loggedInEmployee)),
     );
   }
 
@@ -268,10 +274,20 @@ class _PinVerificationDialog extends StatefulWidget {
 class _PinVerificationDialogState extends State<_PinVerificationDialog> {
   final TextEditingController _pinController = TextEditingController();
   bool _isLoggingIn = false;
+  String? _errorMessage;
 
   Future<void> _verifyPin() async {
     if (!mounted) return;
-    setState(() { _isLoggingIn = true; });
+    if (_pinController.text.trim().length != 6) {
+      setState(() {
+        _errorMessage = 'PIN harus 6 digit';
+      });
+      return;
+    }
+    setState(() {
+      _isLoggingIn = true;
+      _errorMessage = null;
+    });
 
     try {
       final url = Uri.parse('https://sistem-absen-production.up.railway.app/api/auth/employee-login');
@@ -286,20 +302,22 @@ class _PinVerificationDialogState extends State<_PinVerificationDialog> {
       if (response.statusCode == 200) {
         final responseBody = json.decode(response.body);
         final loggedInEmployee = Employee.fromJson(responseBody['employee']);
-
-        Navigator.of(context).pop();
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => CrewDashboardScreen(employee: loggedInEmployee)),
-        );
+        Navigator.of(context).pop(loggedInEmployee);
       } else {
         final errorBody = json.decode(response.body);
         throw Exception(errorBody['detail'] ?? 'PIN Salah atau tidak terdaftar');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
-      Navigator.of(context).pop();
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+      });
     } finally {
-      if (mounted) setState(() { _isLoggingIn = false; });
+      if (mounted) {
+        setState(() {
+          _isLoggingIn = false;
+        });
+      }
     }
   }
 
@@ -339,6 +357,14 @@ class _PinVerificationDialogState extends State<_PinVerificationDialog> {
                 label: const Text('Masuk dengan PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25A18E), minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
               ),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ]),
     );
   }
@@ -457,7 +483,6 @@ class _CashflowDialogState extends State<_CashflowDialog> {
   final _dateController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _type = 'income';
-  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -490,28 +515,14 @@ class _CashflowDialogState extends State<_CashflowDialog> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSubmitting = true);
-    try {
-      await ApiService.createCashflow({
-        'type': _type,
-        'category': _type == 'income' ? 'Pemasukan' : 'Pengeluaran',
-        'amount': double.tryParse(_amountController.text) ?? 0,
-        'description': _descriptionController.text,
-        'date': _selectedDate.toIso8601String().split('T').first,
-      });
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cashflow berhasil dicatat'), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
+    final payload = {
+      'type': _type,
+      'category': _type == 'income' ? 'Pemasukan' : 'Pengeluaran',
+      'amount': double.tryParse(_amountController.text) ?? 0,
+      'description': _descriptionController.text,
+      'date': _selectedDate.toIso8601String().split('T').first,
+    };
+    Navigator.of(context).pop(payload);
   }
 
   @override
@@ -586,25 +597,16 @@ class _CashflowDialogState extends State<_CashflowDialog> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
+                  onPressed: _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00ACC1),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Simpan Cashflow',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                  child: const Text(
+                    'Simpan Cashflow',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],

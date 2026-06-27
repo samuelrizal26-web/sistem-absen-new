@@ -1,0 +1,26 @@
+{
+  "name": "Sistem Absen Labalaba",
+  "short_name": "Sistem Absen",
+  "description": "Aplikasi internal kantor untuk absensi, stok, kasbon, dan cashflow.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EAFBFF",
+  "theme_color": "#0A4D68",
+  "scope": "/",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
