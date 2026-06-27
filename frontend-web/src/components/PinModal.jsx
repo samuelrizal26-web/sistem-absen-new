@@ -4,17 +4,22 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
   const [pin, setPin] = useState('')
   const inputRef = useRef(null)
 
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (pin.trim()) onConfirm(pin.trim())
+  useEffect(() => {
+    if (error) setPin('')
+  }, [error])
+
+  const handleSubmit = () => {
+    if (pin.length === 6 && !loading) onConfirm(pin)
   }
 
   const handleDigit = (d) => {
-    if (pin.length < 6) setPin((p) => p + d)
+    if (pin.length < 6) {
+      const newPin = pin + d
+      setPin(newPin)
+      if (newPin.length === 6) setTimeout(() => onConfirm(newPin), 80)
+    }
   }
 
   const handleBackspace = () => setPin((p) => p.slice(0, -1))
@@ -57,8 +62,8 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
           inputMode="numeric"
           maxLength={6}
           value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(e) }}
+          onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setPin(v); if (v.length === 6) setTimeout(() => onConfirm(v), 80) }}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
           className="sr-only"
         />
 
@@ -100,7 +105,7 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
           </button>
           <button
             onClick={handleSubmit}
-            disabled={pin.length === 0 || loading}
+            disabled={pin.length < 6 || loading}
             className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? (
