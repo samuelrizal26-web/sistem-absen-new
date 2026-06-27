@@ -60,6 +60,7 @@ export default function AdminPage() {
   const [cfSaving, setCfSaving] = useState(false)
   const [cfTab, setCfTab] = useState('semua')
   const [editCf, setEditCf] = useState(null)
+  const [viewEmp, setViewEmp] = useState(null)
 
   // ── Settings state ──
   const [oldPin, setOldPin] = useState('')
@@ -415,10 +416,10 @@ export default function AdminPage() {
             <div className="space-y-2">
               {filteredEmp.map(emp => (
                 <div key={emp.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center shrink-0 cursor-pointer" onClick={() => setViewEmp(emp)}>
                     <span className="text-purple-600 font-bold text-sm">{(emp.name || '?')[0].toUpperCase()}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewEmp(emp)}>
                     <p className="font-semibold text-gray-800 text-sm truncate">{emp.name}</p>
                     <p className="text-xs text-gray-400">{emp.position} · {emp.whatsapp}</p>
                     <p className="text-xs text-gray-400">PIN: {emp.pin || '—'} · {emp.status_crew || '-'}</p>
@@ -646,7 +647,53 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ── MODAL: Add/Edit Employee ── */}
+      {/* ── MODAL: Detail Karyawan ── */}
+      {viewEmp && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setViewEmp(null)}>
+          <div className="bg-white w-full max-w-md rounded-t-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-gray-800">Detail Karyawan</h2>
+              <button onClick={() => setViewEmp(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+            </div>
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                <span className="text-purple-600 font-bold text-2xl">{(viewEmp.name || '?')[0].toUpperCase()}</span>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-800">{viewEmp.name}</p>
+                <p className="text-sm text-gray-500">{viewEmp.position || '-'}</p>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${viewEmp.status_crew === 'Tetap' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>{viewEmp.status_crew || '-'}</span>
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                ['WhatsApp', viewEmp.whatsapp || '-'],
+                ['PIN', viewEmp.pin || '(belum diset)'],
+                ['Tanggal Lahir', viewEmp.birthdate || '-'],
+                ['Tempat Lahir', viewEmp.birthplace || '-'],
+                ['Gaji Bulanan', viewEmp.monthly_salary ? formatRupiah(viewEmp.monthly_salary) : '-'],
+                ['Jam Kerja/Hari', viewEmp.work_hours_per_day ? `${viewEmp.work_hours_per_day} jam` : '-'],
+              ].map(([label, val]) => (
+                <div key={label} className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-xs text-gray-400 font-medium">{label}</span>
+                  <span className="text-sm text-gray-700 font-semibold">{val}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => { setViewEmp(null); handleEditEmployee(viewEmp) }}
+                className="flex-1 py-3 rounded-2xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 active:scale-95">
+                Edit Data
+              </button>
+              <button onClick={() => { setViewEmp(null); handleDeleteEmployee(viewEmp.id) }}
+                className="w-12 py-3 rounded-2xl bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-100 active:scale-95">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAddEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8 max-h-[90vh] overflow-y-auto">
