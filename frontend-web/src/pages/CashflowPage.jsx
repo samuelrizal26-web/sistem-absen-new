@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow } from '../services/api'
-import { formatRupiah, formatDate } from '../utils/format'
+import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
 import Toast from '../components/Toast'
@@ -30,6 +30,7 @@ export default function CashflowPage() {
 
   const [form, setForm] = useState({
     amount: '',
+    amount_raw: '',
     payment_method: 'cash',
     customer_cash: '',
     description: '',
@@ -71,7 +72,7 @@ export default function CashflowPage() {
   const handleTypeSelect = (type) => {
     setSelectedType(type)
     setShowTypePicker(false)
-    setForm({ amount: '', payment_method: 'cash', customer_cash: '', description: '', notes: '' })
+    setForm({ amount: '', amount_raw: '', payment_method: 'cash', customer_cash: '', description: '', notes: '' })
     setShowForm(true)
   }
 
@@ -92,7 +93,7 @@ export default function CashflowPage() {
       const isExpense = pendingForm.type === TIPE.PENGELUARAN
       await createCashflow({
         type: pendingForm.type,
-        amount: parseFloat(pendingForm.amount),
+        amount: parseRupiahInput(pendingForm.amount_raw) || parseFloat(pendingForm.amount) || 0,
         payment_method: isExpense ? 'cash' : pendingForm.payment_method,
         description: pendingForm.description,
         notes: pendingForm.notes || null,
@@ -276,8 +277,13 @@ export default function CashflowPage() {
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (Rp) *</label>
-                <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0"
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-lg font-semibold" />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                  <input type="text" inputMode="numeric" value={form.amount_raw}
+                    onChange={e => { const v = formatRupiahInput(e.target.value); setForm(f => ({ ...f, amount_raw: v, amount: String(parseRupiahInput(v)) })) }}
+                    placeholder="0"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-lg font-semibold" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi *</label>

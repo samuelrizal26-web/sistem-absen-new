@@ -7,7 +7,7 @@ import {
   getPrintJobs, getProjects, getAllAdvances,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
 } from '../services/api'
-import { formatRupiah, formatDate } from '../utils/format'
+import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
@@ -44,7 +44,7 @@ export default function AdminPage() {
   const [stockLoading, setStockLoading] = useState(false)
   const [showAddStock, setShowAddStock] = useState(false)
   const [editStock, setEditStock] = useState(null)
-  const [stockForm, setStockForm] = useState({ name: '', quantity: '', unit: 'pcs', price: '', usage_category: 'PRINT', notes: '' })
+  const [stockForm, setStockForm] = useState({ name: '', quantity: '', unit: 'pcs', price: '', price_raw: '', usage_category: 'PRINT', notes: '' })
   const [stockSaving, setStockSaving] = useState(false)
 
   // ── Cashflow state ──
@@ -56,7 +56,7 @@ export default function AdminPage() {
   const [cfLoading, setCfLoading] = useState(false)
   const [cfSearch, setCfSearch] = useState('')
   const [showAddCf, setShowAddCf] = useState(false)
-  const [cfForm, setCfForm] = useState({ type: 'income', amount: '', description: '', payment_method: 'cash', notes: '' })
+  const [cfForm, setCfForm] = useState({ type: 'income', amount: '', amount_raw: '', description: '', payment_method: 'cash', notes: '' })
   const [cfSaving, setCfSaving] = useState(false)
   const [cfTab, setCfTab] = useState('semua')
   const [editCf, setEditCf] = useState(null)
@@ -172,7 +172,7 @@ export default function AdminPage() {
 
   // ─────────────────── STOCK CRUD ───────────────────
   const resetStockForm = () => {
-    setStockForm({ name: '', quantity: '', unit: 'pcs', price: '', usage_category: 'PRINT', notes: '' })
+    setStockForm({ name: '', quantity: '', unit: 'pcs', price: '', price_raw: '', usage_category: 'PRINT', notes: '' })
     setEditStock(null); setShowAddStock(false)
   }
 
@@ -183,7 +183,7 @@ export default function AdminPage() {
       name: stockForm.name,
       quantity: parseFloat(stockForm.quantity),
       unit: stockForm.unit,
-      price: parseFloat(stockForm.price) || 0,
+      price: parseRupiahInput(stockForm.price_raw) || parseFloat(stockForm.price) || 0,
       usage_category: stockForm.usage_category,
       notes: stockForm.notes || '',
     }
@@ -203,7 +203,7 @@ export default function AdminPage() {
 
   // ─────────────────── CASHFLOW CRUD ───────────────────
   const resetCfForm = () => {
-    setCfForm({ type: 'income', amount: '', description: '', payment_method: 'cash', notes: '' })
+    setCfForm({ type: 'income', amount: '', amount_raw: '', description: '', payment_method: 'cash', notes: '' })
     setEditCf(null)
     setShowAddCf(false)
   }
@@ -212,7 +212,7 @@ export default function AdminPage() {
     if (!cfForm.amount || !cfForm.description) { showToast('Lengkapi jumlah dan deskripsi', 'error'); return }
     setCfSaving(true)
     try {
-      const payload = { ...cfForm, amount: parseFloat(cfForm.amount), handled_by: 'Admin' }
+      const payload = { ...cfForm, amount: parseRupiahInput(cfForm.amount_raw) || parseFloat(cfForm.amount) || 0, handled_by: 'Admin' }
       if (editCf) {
         await updateCashflow(editCf.id, payload)
         showToast('Cashflow diperbarui!', 'success')
@@ -229,7 +229,7 @@ export default function AdminPage() {
 
   const handleEditCashflow = (item) => {
     setEditCf(item)
-    setCfForm({ type: item.type, amount: String(item.amount), description: item.description || '', payment_method: item.payment_method || 'cash', notes: item.notes || '' })
+    setCfForm({ type: item.type, amount: String(item.amount), amount_raw: formatRupiahInput(String(item.amount)), description: item.description || '', payment_method: item.payment_method || 'cash', notes: item.notes || '' })
     setShowAddCf(true)
   }
 
@@ -466,7 +466,7 @@ export default function AdminPage() {
                       <p className="text-xs text-gray-400">{s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/unit' : '-'} · <span className={s.usage_category === 'PRINT' ? 'text-orange-500 font-medium' : 'text-blue-500 font-medium'}>{s.usage_category || 'UMUM'}</span></p>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <button onClick={() => { setEditStock(s); setStockForm({ name: s.name, quantity: s.quantity, unit: s.unit, price: s.price || '', usage_category: s.usage_category || 'PRINT', notes: s.notes || '' }); setShowAddStock(true) }}
+                      <button onClick={() => { setEditStock(s); setStockForm({ name: s.name, quantity: s.quantity, unit: s.unit, price: s.price || '', price_raw: formatRupiahInput(String(s.price || '')), usage_category: s.usage_category || 'PRINT', notes: s.notes || '' }); setShowAddStock(true) }}
                         className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </button>
@@ -731,8 +731,13 @@ export default function AdminPage() {
                   <option value="UMUM">📦 UMUM — muncul di halaman Project</option>
                 </select>
               </div>
-              <input type="number" value={stockForm.price} onChange={e => setStockForm(f => ({ ...f, price: e.target.value }))} placeholder="Harga per Unit (Opsional)"
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                <input type="text" inputMode="numeric" value={stockForm.price_raw}
+                  onChange={e => { const v = formatRupiahInput(e.target.value); setStockForm(f => ({ ...f, price_raw: v, price: String(parseRupiahInput(v)) })) }}
+                  placeholder="0 (Opsional)"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
+              </div>
               <input type="text" value={stockForm.notes} onChange={e => setStockForm(f => ({ ...f, notes: e.target.value }))} placeholder="Catatan (Opsional)"
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
               <button onClick={handleSaveStock} disabled={stockSaving || !stockForm.name || !stockForm.quantity}
@@ -771,8 +776,13 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
-              <input type="number" value={cfForm.amount} onChange={e => setCfForm(f => ({ ...f, amount: e.target.value }))} placeholder="Jumlah (Rp) *"
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300 text-lg font-semibold" />
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                <input type="text" inputMode="numeric" value={cfForm.amount_raw}
+                  onChange={e => { const v = formatRupiahInput(e.target.value); setCfForm(f => ({ ...f, amount_raw: v, amount: String(parseRupiahInput(v)) })) }}
+                  placeholder="0"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300 text-lg font-semibold" />
+              </div>
               <input type="text" value={cfForm.description} onChange={e => setCfForm(f => ({ ...f, description: e.target.value }))} placeholder="Deskripsi *"
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
               <input type="text" value={cfForm.notes} onChange={e => setCfForm(f => ({ ...f, notes: e.target.value }))} placeholder="Catatan (Opsional)"
