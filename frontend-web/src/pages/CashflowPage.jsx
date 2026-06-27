@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow, getPrintJobs, getProjects, getAllAdvances } from '../services/api'
+import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow } from '../services/api'
 import { formatRupiah, formatDate } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
@@ -8,19 +8,16 @@ import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
 const TIPE = { PEMASUKAN: 'income', PENGELUARAN: 'expense' }
-const TAB = { SEMUA: 'semua', PRINT: 'print', PROJECT: 'project', MANUAL: 'manual', PENGELUARAN: 'expense' }
+const TAB = { CASH: 'cash', TRANSFER: 'transfer', PENGELUARAN: 'expense' }
 
 export default function CashflowPage() {
   const navigate = useNavigate()
   const { toast, showToast, clearToast } = useToast()
 
   const [summary, setSummary] = useState(null)
-  const [items, setItems] = useState([])         // cashflow manual
-  const [printJobs, setPrintJobs] = useState([])
-  const [projects, setProjects] = useState([])
-  const [advances, setAdvances] = useState([])
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState(TAB.SEMUA)
+  const [tab, setTab] = useState(TAB.CASH)
   const [searchMonth, setSearchMonth] = useState('')
 
   // Modal state
@@ -42,18 +39,12 @@ export default function CashflowPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [s, d, pj, pr, adv] = await Promise.all([
+      const [s, d] = await Promise.all([
         getCashflowSummary(),
         getCashflow(searchMonth ? `?month=${searchMonth}` : ''),
-        getPrintJobs(searchMonth ? `?month=${searchMonth}` : ''),
-        getProjects(searchMonth ? `?month=${searchMonth}` : ''),
-        getAllAdvances(),
       ])
       setSummary(s)
       setItems(Array.isArray(d) ? d : [])
-      setPrintJobs(Array.isArray(pj) ? pj : [])
-      setProjects(Array.isArray(pr) ? pr : [])
-      setAdvances(Array.isArray(adv) ? adv : [])
     } catch {
       showToast('Gagal memuat data', 'error')
     } finally {
@@ -63,27 +54,15 @@ export default function CashflowPage() {
 
   useEffect(() => { loadData() }, [searchMonth])
 
-  // Gabungkan semua transaksi jadi satu flat list
-  const allTransactions = [
-    ...items.map(i => ({ ...i, _source: i.category === 'income' ? 'manual-income' : 'manual-expense' })),
-    ...printJobs.map(j => ({ id: j.id, date: j.date, description: `Print: ${j.material}`, amount: j.total_price || 0, payment_method: j.payment_method || 'cash', category: 'income', _source: 'print' })),
-    ...projects.map(p => ({ id: p.id, date: p.date, description: `Project: ${p.project_name}`, amount: p.selling_price || p.total_project_value || 0, payment_method: p.payment_method || 'cash', category: 'income', _source: 'project' })),
-    ...advances.map(a => ({ id: a.id, date: a.date || a.created_at?.slice(0, 10), description: `Kasbon: ${a.employee_name || a.employee_id}`, amount: a.amount || 0, payment_method: 'cash', category: 'expense', _source: 'kasbon' })),
-  ]
-
-  const filteredItems = allTransactions.filter(i => {
-    const monthMatch = !searchMonth || (i.date || '').startsWith(searchMonth)
-    if (!monthMatch) return false
-    if (tab === TAB.SEMUA) return true
-    if (tab === TAB.PRINT) return i._source === 'print'
-    if (tab === TAB.PROJECT) return i._source === 'project'
-    if (tab === TAB.MANUAL) return i._source === 'manual-income' || i._source === 'manual-expense'
-    if (tab === TAB.PENGELUARAN) return i.category === 'expense'
+  const filteredItems = items.filter(i => {
+    if (tab === TAB.PENGELUARAN) return i.type === 'expense'
+    if (tab === TAB.CASH) return i.type === 'income' && i.payment_method === 'cash'
+    if (tab === TAB.TRANSFER) return i.type === 'income' && i.payment_method === 'transfer'
     return true
   })
 
   const grouped = filteredItems.reduce((acc, item) => {
-    const key = (item.date || '').slice(0, 7) || 'unknown'
+    const key = item.date?.slice(0, 7) || 'unknown'
     if (!acc[key]) acc[key] = []
     acc[key].push(item)
     return acc
@@ -161,26 +140,14 @@ export default function CashflowPage() {
 
       <div className="flex-1 p-4 space-y-4">
         {/* Summary Cards */}
-        <div className="bg-teal-700 rounded-2xl p-4 text-white shadow">
-          <p className="text-xs opacity-70 mb-1">Total Pemasukan Gabungan</p>
-          <p className="text-2xl font-bold">{formatRupiah(summary?.total_income || 0)}</p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-white/10 rounded-xl p-2">
-              <p className="opacity-70">Print Job</p>
-              <p className="font-bold">{formatRupiah(summary?.print_job_total || 0)}</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-2">
-              <p className="opacity-70">Project</p>
-              <p className="font-bold">{formatRupiah(summary?.project_total || 0)}</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-2">
-              <p className="opacity-70">Manual</p>
-              <p className="font-bold">{formatRupiah(summary?.manual_income || 0)}</p>
-            </div>
-            <div className="bg-red-400/60 rounded-xl p-2">
-              <p className="opacity-70">Pengeluaran</p>
-              <p className="font-bold">{formatRupiah(summary?.total_expense || 0)}</p>
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-green-500 rounded-2xl p-4 text-white shadow">
+            <p className="text-xs opacity-80">Pemasukan</p>
+            <p className="text-xl font-bold mt-1">{formatRupiah(summary?.manual_income || summary?.total_income || 0)}</p>
+          </div>
+          <div className="bg-red-500 rounded-2xl p-4 text-white shadow">
+            <p className="text-xs opacity-80">Pengeluaran</p>
+            <p className="text-xl font-bold mt-1">{formatRupiah(summary?.manual_expense || summary?.total_expense || 0)}</p>
           </div>
         </div>
 
@@ -203,16 +170,10 @@ export default function CashflowPage() {
         </button>
 
         {/* Tabs */}
-        <div className="flex bg-gray-100 rounded-2xl p-1 gap-1 overflow-x-auto">
-          {[
-            ['Semua', TAB.SEMUA],
-            ['Print', TAB.PRINT],
-            ['Project', TAB.PROJECT],
-            ['Manual', TAB.MANUAL],
-            ['Keluar', TAB.PENGELUARAN],
-          ].map(([label, val]) => (
+        <div className="flex bg-gray-100 rounded-2xl p-1 gap-1">
+          {[['CASH', TAB.CASH], ['TRANSFER', TAB.TRANSFER], ['PENGELUARAN', TAB.PENGELUARAN]].map(([label, val]) => (
             <button key={val} onClick={() => setTab(val)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap px-2 ${tab === val ? 'bg-white text-teal-600 shadow' : 'text-gray-500'}`}>
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === val ? 'bg-white text-primary shadow' : 'text-gray-500'}`}>
               {label}
             </button>
           ))}
@@ -235,45 +196,26 @@ export default function CashflowPage() {
                 {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
               </p>
               <div className="space-y-2">
-                {list.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(item => {
-                  const isIncome = item.category === 'income'
-                  const srcColor = {
-                    'print': 'bg-orange-100 text-orange-500',
-                    'project': 'bg-purple-100 text-purple-500',
-                    'kasbon': 'bg-yellow-100 text-yellow-600',
-                    'manual-income': 'bg-green-100 text-green-500',
-                    'manual-expense': 'bg-red-100 text-red-500',
-                  }[item._source] || 'bg-gray-100 text-gray-500'
-                  const srcLabel = {
-                    'print': 'Print', 'project': 'Project',
-                    'kasbon': 'Kasbon', 'manual-income': 'Manual', 'manual-expense': 'Manual',
-                  }[item._source] || ''
-                  return (
-                    <div key={`${item._source}-${item.id}`} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
-                        <svg className={`w-5 h-5 ${isIncome ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="font-semibold text-gray-800 text-sm truncate">{item.description}</p>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${srcColor}`}>{srcLabel}</span>
-                        </div>
-                        <p className="text-xs text-gray-400">{formatDate(item.date)} · {item.payment_method === 'cash' ? 'Cash' : 'Transfer'}{item.handled_by ? ` · ${item.handled_by}` : ''}</p>
-                        {item.notes && <p className="text-xs text-gray-400 truncate">{item.notes}</p>}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className={`font-bold text-sm ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
-                          {isIncome ? '+' : '-'}{formatRupiah(item.amount)}
-                        </p>
-                        {item._source === 'manual-income' || item._source === 'manual-expense' ? (
-                          <button onClick={() => handleDelete(item.id)} className="text-xs text-gray-300 hover:text-red-400 mt-0.5">hapus</button>
-                        ) : null}
-                      </div>
+                {list.map(item => (
+                  <div key={item.id} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-gray-100">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <svg className={`w-5 h-5 ${item.type === 'income' ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.type === 'income' ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
+                      </svg>
                     </div>
-                  )
-                })}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm truncate">{item.description}</p>
+                      <p className="text-xs text-gray-400">{formatDate(item.date)} · {item.handled_by || '-'}</p>
+                      {item.notes && <p className="text-xs text-gray-400 truncate">{item.notes}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`font-bold text-sm ${item.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                        {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
+                      </p>
+                      <button onClick={() => handleDelete(item.id)} className="text-xs text-gray-300 hover:text-red-400 mt-0.5">hapus</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))
