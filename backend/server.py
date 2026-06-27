@@ -39,17 +39,23 @@ class EmployeeCreate(BaseModel):
     whatsapp: str
     pin: str
     birthdate: str
+    birthplace: Optional[str] = ''
     position: str
     status_crew: str
+    monthly_salary: Optional[float] = 0
+    work_hours_per_day: Optional[float] = 8
 
 class EmployeeUpdate(BaseModel):
     name: Optional[str] = None
     whatsapp: Optional[str] = None
     pin: Optional[str] = None
     birthdate: Optional[str] = None
+    birthplace: Optional[str] = None
     position: Optional[str] = None
     status_crew: Optional[str] = None
     status: Optional[str] = None
+    monthly_salary: Optional[float] = None
+    work_hours_per_day: Optional[float] = None
 
 class StockCreate(BaseModel):
     name: str
@@ -209,8 +215,10 @@ async def get_employee(emp_id: str):
 async def create_employee(body: EmployeeCreate):
     pin_hash = bcrypt.hashpw(body.pin.encode(), bcrypt.gensalt()).decode()
     doc = {'id': new_id(), 'name': body.name, 'whatsapp': body.whatsapp,
-           'pin_hash': pin_hash, 'birthdate': body.birthdate, 'position': body.position,
-           'status_crew': body.status_crew, 'status': 'active', 'created_at': now_str()}
+           'pin_hash': pin_hash, 'birthdate': body.birthdate, 'birthplace': body.birthplace or '',
+           'position': body.position, 'status_crew': body.status_crew,
+           'monthly_salary': body.monthly_salary or 0, 'work_hours_per_day': body.work_hours_per_day or 8,
+           'status': 'active', 'created_at': now_str()}
     await db.employees.insert_one(doc)
     return {k: v for k, v in clean(doc).items() if k != 'pin_hash'}
 

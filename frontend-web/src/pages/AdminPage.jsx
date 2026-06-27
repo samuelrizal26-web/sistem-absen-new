@@ -138,7 +138,7 @@ export default function AdminPage() {
 
   const handleSaveEmployee = async () => {
     if (empStep === 1) {
-      if (!empForm.name || !empForm.whatsapp || !empForm.pin || !empForm.birthdate || !empForm.birthplace) {
+      if (!empForm.name || !empForm.whatsapp || (!editEmp && !empForm.pin) || !empForm.birthdate || !empForm.birthplace) {
         showToast('Lengkapi semua field wajib', 'error'); return
       }
       setEmpStep(2); return
@@ -149,7 +149,9 @@ export default function AdminPage() {
     setEmpSaving(true)
     try {
       if (editEmp) {
-        await updateEmployee(editEmp.id, empForm)
+        const payload = { ...empForm }
+        if (!payload.pin) delete payload.pin
+        await updateEmployee(editEmp.id, payload)
         showToast('Data karyawan diperbarui', 'success')
       } else {
         await createEmployee(empForm)
@@ -709,13 +711,23 @@ export default function AdminPage() {
 
             {empStep === 1 ? (
               <div className="space-y-3">
-                {[['Nama *', 'name', 'text'], ['No WhatsApp *', 'whatsapp', 'tel'], ['PIN (6 digit) *', 'pin', 'password'], ['Tempat Lahir *', 'birthplace', 'text']].map(([label, field, type]) => (
+                {[['Nama *', 'name', 'text'], ['No WhatsApp *', 'whatsapp', 'tel'], ['Tempat Lahir *', 'birthplace', 'text']].map(([label, field, type]) => (
                   <div key={field}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                    <input type={type} value={empForm[field]} onChange={e => setEmpForm(f => ({ ...f, [field]: e.target.value }))} maxLength={field === 'pin' ? 6 : undefined}
+                    <input type={type} value={empForm[field]} onChange={e => setEmpForm(f => ({ ...f, [field]: e.target.value }))}
                       className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300" />
                   </div>
                 ))}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    PIN (6 digit){editEmp ? '' : ' *'}
+                  </label>
+                  <input type="password" inputMode="numeric" value={empForm.pin} maxLength={6}
+                    onChange={e => setEmpForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                    placeholder={editEmp ? 'Kosongkan jika tidak ingin ubah PIN' : 'Masukkan 6 digit PIN'}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                  {editEmp && <p className="text-xs text-gray-400 mt-1 ml-1">PIN lama tetap berlaku jika dikosongkan</p>}
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir *</label>
                   <input type="date" value={empForm.birthdate} onChange={e => setEmpForm(f => ({ ...f, birthdate: e.target.value }))}
