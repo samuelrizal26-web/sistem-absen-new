@@ -181,6 +181,21 @@ async def change_admin_pin(body: dict):
     await db.config.update_one({'key': 'admin'}, {'$set': {'pin_hash': pin_hash}}, upsert=True)
     return {'success': True}
 
+@api.post('/auth/employee-login')
+async def employee_login(body: dict):
+    employee_id = body.get('employee_id', '')
+    pin = body.get('pin', '')
+    if not employee_id or not pin:
+        raise HTTPException(status_code=400, detail='employee_id dan pin wajib diisi')
+    emp = await db.employees.find_one({'id': employee_id})
+    if not emp:
+        raise HTTPException(status_code=404, detail='Karyawan tidak ditemukan')
+    if not emp.get('pin_hash'):
+        raise HTTPException(status_code=401, detail='PIN belum diset, hubungi admin')
+    if not bcrypt.checkpw(pin.encode(), emp['pin_hash'].encode()):
+        raise HTTPException(status_code=401, detail='PIN salah')
+    return {'success': True, 'employee': {k: v for k, v in emp.items() if k not in ('_id', 'pin_hash')}}
+
 @api.post('/auth/identify-by-pin')
 async def identify_by_pin(body: IdentifyByPin):
     employees = await db.employees.find({}, {'_id': 0}).to_list(None)
