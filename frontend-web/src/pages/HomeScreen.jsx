@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, resetPinByBirthdate } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate } from '../services/api'
 import { getInitials } from '../utils/format'
 import PinModal from '../components/PinModal'
 import CrewDashboard from './CrewDashboard'
@@ -116,7 +116,7 @@ export default function HomeScreen() {
     setResetLoading(true)
     setResetError('')
     try {
-      await resetPinByBirthdate(selectedEmployee.id, birthdateInput, '000000')
+      await verifyBirthdate(selectedEmployee.id, birthdateInput)
       setResetStep('newpin')
     } catch (e) {
       setResetError('Tanggal lahir tidak cocok')

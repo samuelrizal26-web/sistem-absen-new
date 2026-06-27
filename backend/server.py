@@ -204,6 +204,17 @@ async def identify_by_pin(body: IdentifyByPin):
             return {'success': True, 'employee': {k: v for k, v in emp.items() if k != 'pin_hash'}}
     raise HTTPException(status_code=404, detail='PIN tidak ditemukan')
 
+@api.post('/auth/verify-birthdate')
+async def verify_birthdate(body: dict):
+    employee_id = body.get('employee_id', '')
+    birthdate = body.get('birthdate', '')
+    emp = await db.employees.find_one({'id': employee_id})
+    if not emp:
+        raise HTTPException(status_code=404, detail='Karyawan tidak ditemukan')
+    if emp.get('birthdate', '').replace('-', '') != birthdate.replace('-', ''):
+        raise HTTPException(status_code=401, detail='Tanggal lahir tidak sesuai')
+    return {'success': True}
+
 @api.post('/auth/reset-pin-by-birthdate')
 async def reset_pin_by_birthdate(body: ResetPinByBirthdate):
     emp = await db.employees.find_one({'id': body.employee_id})

@@ -44,6 +44,9 @@ export const verifyEmployeePin = (employeeId, pin) =>
 export const identifyByPin = (pin) =>
   request('/auth/identify-by-pin', { method: 'POST', body: JSON.stringify({ pin }) })
 
+export const verifyBirthdate = (employeeId, birthdate) =>
+  request('/auth/verify-birthdate', { method: 'POST', body: JSON.stringify({ employee_id: employeeId, birthdate }) })
+
 export const resetPinByBirthdate = (employeeId, birthdate, newPin) =>
   request('/auth/reset-pin-by-birthdate', { method: 'POST', body: JSON.stringify({ employee_id: employeeId, birthdate, new_pin: newPin }) })
 
