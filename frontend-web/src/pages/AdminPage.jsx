@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   getEmployees, createEmployee, updateEmployee, deleteEmployee,
   getStock, createStock, updateStock, deleteStock,
-  getCashflow, getCashflowSummary, createCashflow, deleteCashflow,
+  getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow,
   getPrintJobs, getProjects, getAllAdvances,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
 } from '../services/api'
@@ -59,6 +59,7 @@ export default function AdminPage() {
   const [cfForm, setCfForm] = useState({ type: 'income', amount: '', description: '', payment_method: 'cash', notes: '' })
   const [cfSaving, setCfSaving] = useState(false)
   const [cfTab, setCfTab] = useState('semua')
+  const [editCf, setEditCf] = useState(null)
 
   // ── Settings state ──
   const [oldPin, setOldPin] = useState('')
@@ -201,18 +202,35 @@ export default function AdminPage() {
   }
 
   // ─────────────────── CASHFLOW CRUD ───────────────────
+  const resetCfForm = () => {
+    setCfForm({ type: 'income', amount: '', description: '', payment_method: 'cash', notes: '' })
+    setEditCf(null)
+    setShowAddCf(false)
+  }
+
   const handleSaveCashflow = async () => {
     if (!cfForm.amount || !cfForm.description) { showToast('Lengkapi jumlah dan deskripsi', 'error'); return }
     setCfSaving(true)
     try {
-      const isCash = cfForm.payment_method === 'cash' || cfForm.type === 'expense'
-      await createCashflow({ ...cfForm, amount: parseFloat(cfForm.amount), date: new Date().toISOString().split('T')[0], handled_by: 'Admin' })
-      if (isCash) openCashDrawerOnly()
-      showToast('Cashflow disimpan!' + (isCash ? ' Laci terbuka.' : ''), 'success')
-      setCfForm({ type: 'income', amount: '', description: '', payment_method: 'cash', notes: '' })
-      setShowAddCf(false); await loadCashflow()
+      const payload = { ...cfForm, amount: parseFloat(cfForm.amount), handled_by: 'Admin' }
+      if (editCf) {
+        await updateCashflow(editCf.id, payload)
+        showToast('Cashflow diperbarui!', 'success')
+      } else {
+        const isCash = payload.payment_method === 'cash' || payload.type === 'expense'
+        await createCashflow({ ...payload, date: new Date().toISOString().split('T')[0] })
+        if (isCash) openCashDrawerOnly()
+        showToast('Cashflow disimpan!' + (isCash ? ' Laci terbuka.' : ''), 'success')
+      }
+      resetCfForm(); await loadCashflow()
     } catch (e) { showToast(e.message || 'Gagal menyimpan', 'error') }
     finally { setCfSaving(false) }
+  }
+
+  const handleEditCashflow = (item) => {
+    setEditCf(item)
+    setCfForm({ type: item.type, amount: String(item.amount), description: item.description || '', payment_method: item.payment_method || 'cash', notes: item.notes || '' })
+    setShowAddCf(true)
   }
 
   const handleDeleteCashflow = async (id) => {
@@ -541,31 +559,36 @@ export default function AdminPage() {
                 <div className="space-y-2">
                   {items.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(item => {
                     const isIncome = item.category === 'income'
-                    const srcColor = {'print':'bg-orange-100 text-orange-500','project':'bg-purple-100 text-purple-500','kasbon':'bg-yellow-100 text-yellow-600','manual-income':'bg-green-100 text-green-500','manual-expense':'bg-red-100 text-red-500'}[item._source]||'bg-gray-100 text-gray-500'
+                    const isManual = item._source === 'manual-income' || item._source === 'manual-expense'
+                    const srcColor = {'print':'bg-orange-100 text-orange-600','project':'bg-purple-100 text-purple-600','kasbon':'bg-yellow-100 text-yellow-700','manual-income':'bg-green-100 text-green-600','manual-expense':'bg-red-100 text-red-600'}[item._source]||'bg-gray-100 text-gray-500'
                     const srcLabel = {'print':'Print','project':'Project','kasbon':'Kasbon','manual-income':'Manual','manual-expense':'Manual'}[item._source]||''
                     return (
-                    <div key={`${item._source}-${item.id}`} className="bg-white rounded-2xl p-4 flex items-start gap-3 shadow-sm border border-gray-100">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
-                        <svg className={`w-4 h-4 ${isIncome ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div key={`${item._source}-${item.id}`} className="bg-white rounded-xl px-3 py-2.5 flex items-center gap-2.5 shadow-sm border border-gray-100">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
+                        <svg className={`w-3.5 h-3.5 ${isIncome ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="font-semibold text-gray-800 text-sm truncate">{item.description}</p>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${srcColor}`}>{srcLabel}</span>
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <p className="font-semibold text-gray-800 text-xs truncate">{item.description}</p>
+                          <span className={`text-[9px] px-1 py-0.5 rounded font-semibold shrink-0 ${srcColor}`}>{srcLabel}</span>
                         </div>
-                        <p className="text-xs text-gray-400">{formatDate(item.date)} · {item.payment_method === 'cash' ? 'Cash' : 'Transfer'}{item.handled_by ? ` · ${item.handled_by}` : ''}</p>
-                        {item.notes && <p className="text-xs text-gray-400 truncate">{item.notes}</p>}
+                        <p className="text-[10px] text-gray-400">{formatDate(item.date)} · {item.payment_method === 'cash' ? 'Cash' : 'Transfer'}</p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className={`font-bold text-sm ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
-                          {isIncome ? '+' : '-'}{formatRupiah(item.amount)}
-                        </p>
-                        {(item._source === 'manual-income' || item._source === 'manual-expense') && (
-                          <button onClick={() => handleDeleteCashflow(item.id)} className="text-xs text-gray-300 hover:text-red-400">hapus</button>
-                        )}
-                      </div>
+                      <p className={`font-bold text-xs shrink-0 ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
+                        {isIncome ? '+' : '-'}{formatRupiah(item.amount)}
+                      </p>
+                      {isManual && (
+                        <div className="flex gap-1 shrink-0">
+                          <button onClick={() => handleEditCashflow(item)} className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all">
+                            <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button onClick={() => handleDeleteCashflow(item.id)} className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 active:scale-95 transition-all">
+                            <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )})}
                 </div>
@@ -726,8 +749,8 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
             <div className="flex justify-between items-center mb-4">
-              <p className="font-bold text-gray-800">Tambah Cashflow</p>
-              <button onClick={() => setShowAddCf(false)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+              <p className="font-bold text-gray-800">{editCf ? 'Edit Cashflow' : 'Tambah Cashflow'}</p>
+              <button onClick={resetCfForm} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
             </div>
             <div className="space-y-3">
               <div>
@@ -756,7 +779,7 @@ export default function AdminPage() {
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
               <button onClick={handleSaveCashflow} disabled={cfSaving || !cfForm.amount || !cfForm.description}
                 className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-40">
-                {cfSaving ? 'Menyimpan...' : 'Simpan Cashflow'}
+                {cfSaving ? 'Menyimpan...' : editCf ? 'Simpan Perubahan' : 'Simpan Cashflow'}
               </button>
             </div>
           </div>
