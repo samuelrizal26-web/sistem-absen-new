@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { formatRupiah } from '../utils/format'
+import { formatRupiah, formatRupiahInput, parseRupiahInput } from '../utils/format'
 
 export default function KasbonModal({ employee, onConfirm, onCancel, loading = false }) {
   const [amount, setAmount] = useState('')
+  const [amountRaw, setAmountRaw] = useState('')
   const [via, setVia] = useState('cash')
   const [note, setNote] = useState('')
 
-  const parsedAmount = parseInt(amount.replace(/\D/g, ''), 10) || 0
+  const parsedAmount = parseRupiahInput(amountRaw) || 0
 
   const handleAmountChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '')
-    setAmount(raw)
+    const v = formatRupiahInput(e.target.value)
+    setAmountRaw(v)
+    setAmount(String(parseRupiahInput(v)))
   }
 
   const handleSubmit = () => {
@@ -43,7 +45,7 @@ export default function KasbonModal({ employee, onConfirm, onCancel, loading = f
             <input
               type="text"
               inputMode="numeric"
-              value={parsedAmount > 0 ? parsedAmount.toLocaleString('id-ID') : ''}
+              value={amountRaw}
               onChange={handleAmountChange}
               placeholder="0"
               className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-gray-200 text-gray-800 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"

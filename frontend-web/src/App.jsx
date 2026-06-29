@@ -5,6 +5,7 @@ import PrintJobPage from './pages/PrintJobPage'
 import CashflowPage from './pages/CashflowPage'
 import ProjectPage from './pages/ProjectPage'
 import AdminPage from './pages/AdminPage'
+import KasbonDashboard from './pages/KasbonDashboard'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/cashflow" element={<CashflowPage />} />
         <Route path="/project" element={<ProjectPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/kasbon-dashboard" element={<KasbonDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

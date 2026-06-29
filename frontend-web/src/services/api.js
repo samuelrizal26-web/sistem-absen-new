@@ -60,6 +60,26 @@ export const deleteAdvance = (id) =>
   request(`/advances/${id}`, { method: 'DELETE' })
 export const updateAdvance = (id, data) =>
   request(`/advances/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const createKasbon = (data) =>
+  request('/kasbon', { method: 'POST', body: JSON.stringify(data) })
+export const getKasbonSummary = (employeeId) =>
+  request(`/kasbon/employee/${employeeId}/summary`)
+export const getKasbonByEmployee = (employeeId, activeOnly = false) =>
+  request(`/kasbon/employee/${employeeId}${activeOnly ? '?active_only=true' : ''}`)
+export const settleKasbon = (employeeId) =>
+  request(`/kasbon/settle/${employeeId}`, { method: 'POST' })
+
+// ─── Jobs (Pekerjaan) ─────────────────────────────────────────
+export const getJobs = (status = '') =>
+  request(`/jobs${status ? `?status=${status}` : ''}`)
+export const createJob = (data) =>
+  request('/jobs', { method: 'POST', body: JSON.stringify(data) })
+export const updateJob = (id, data) =>
+  request(`/jobs/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const markJobDone = (id) =>
+  request(`/jobs/${id}/done`, { method: 'POST' })
+export const deleteJob = (id) =>
+  request(`/jobs/${id}`, { method: 'DELETE' })
 
 // ─── Cashflow ─────────────────────────────────────────────────
 export const getCashflow = (params = '') => request(`/cashflow${params}`)

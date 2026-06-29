@@ -4,7 +4,7 @@ import {
   getEmployees, createEmployee, updateEmployee, deleteEmployee,
   getStock, createStock, updateStock, deleteStock,
   getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow,
-  getPrintJobs, getProjects, getAllAdvances, deleteAdvance,
+  getPrintJobs, getProjects, getAllAdvances, deleteAdvance, settleKasbon,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
 } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
@@ -35,7 +35,7 @@ export default function AdminPage() {
   const [empSearch, setEmpSearch] = useState('')
   const [showAddEmp, setShowAddEmp] = useState(false)
   const [editEmp, setEditEmp] = useState(null)
-  const [empForm, setEmpForm] = useState({ name: '', whatsapp: '', pin: '', birthdate: '', birthplace: '', position: '', status_crew: 'Tetap', monthly_salary: 0, work_hours_per_day: 8 })
+  const [empForm, setEmpForm] = useState({ name: '', whatsapp: '', pin: '', birthdate: '', birthplace: '', position: '', status_crew: 'Tetap', monthly_salary: 0, monthly_salary_raw: '', work_hours_per_day: 8 })
   const [empStep, setEmpStep] = useState(1)
   const [empSaving, setEmpSaving] = useState(false)
 
@@ -132,7 +132,7 @@ export default function AdminPage() {
 
   // ─────────────────── EMPLOYEE CRUD ───────────────────
   const resetEmpForm = () => {
-    setEmpForm({ name: '', whatsapp: '', pin: '', birthdate: '', birthplace: '', position: '', status_crew: 'Tetap', monthly_salary: 0, work_hours_per_day: 8 })
+    setEmpForm({ name: '', whatsapp: '', pin: '', birthdate: '', birthplace: '', position: '', status_crew: 'Tetap', monthly_salary: 0, monthly_salary_raw: '', work_hours_per_day: 8 })
     setEmpStep(1); setEditEmp(null); setShowAddEmp(false)
   }
 
@@ -148,18 +148,29 @@ export default function AdminPage() {
     }
     setEmpSaving(true)
     try {
+      const salary = parseRupiahInput(empForm.monthly_salary_raw) || 0
+      const payload = { ...empForm, monthly_salary: salary }
+      delete payload.monthly_salary_raw
+      if (!payload.pin) delete payload.pin
       if (editEmp) {
-        const payload = { ...empForm }
-        if (!payload.pin) delete payload.pin
         await updateEmployee(editEmp.id, payload)
         showToast('Data karyawan diperbarui', 'success')
       } else {
-        await createEmployee(empForm)
+        await createEmployee(payload)
         showToast('Karyawan berhasil ditambahkan!', 'success')
       }
       resetEmpForm(); await loadEmployees()
     } catch (e) { showToast(e.message || 'Gagal menyimpan', 'error') }
     finally { setEmpSaving(false) }
+  }
+
+  const handleSettleKasbon = async (emp) => {
+    if (!window.confirm(`Tandai gaji ${emp.name} sudah ditransfer? Semua kasbon aktifnya akan dilunasi dan tampilan dashboard-nya kembali kosong.`)) return
+    try {
+      const res = await settleKasbon(emp.id)
+      showToast(`Gaji ditandai. ${res.settled_count || 0} kasbon dilunasi.`, 'success')
+      setViewEmp(null)
+    } catch (e) { showToast(e.message || 'Gagal melunasi kasbon', 'error') }
   }
 
   const handleDeleteEmployee = async (id) => {
@@ -169,7 +180,7 @@ export default function AdminPage() {
   }
 
   const handleEditEmployee = (emp) => {
-    setEmpForm({ name: emp.name, whatsapp: emp.whatsapp, pin: emp.pin || '', birthdate: emp.birthdate || '', birthplace: emp.birthplace || '', position: emp.position || '', status_crew: emp.status_crew || 'Tetap', monthly_salary: emp.monthly_salary || 0, work_hours_per_day: emp.work_hours_per_day || 8 })
+    setEmpForm({ name: emp.name, whatsapp: emp.whatsapp, pin: emp.pin || '', birthdate: emp.birthdate || '', birthplace: emp.birthplace || '', position: emp.position || '', status_crew: emp.status_crew || 'Tetap', monthly_salary: emp.monthly_salary || 0, monthly_salary_raw: formatRupiahInput(String(emp.monthly_salary || 0)), work_hours_per_day: emp.work_hours_per_day || 8 })
     setEditEmp(emp); setEmpStep(1); setShowAddEmp(true)
   }
 
@@ -682,7 +693,12 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 mt-5">
+            <button onClick={() => handleSettleKasbon(viewEmp)}
+              className="w-full mt-4 py-3 rounded-2xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 active:scale-95 flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              Tandai Gaji Ditransfer (Reset Kasbon)
+            </button>
+            <div className="flex gap-2 mt-3">
               <button onClick={() => { setViewEmp(null); handleEditEmployee(viewEmp) }}
                 className="flex-1 py-3 rounded-2xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 active:scale-95">
                 Edit Data
@@ -751,7 +767,9 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Gaji Bulanan (Rp)</label>
-                  <input type="number" value={empForm.monthly_salary} onChange={e => setEmpForm(f => ({ ...f, monthly_salary: e.target.value }))}
+                  <input type="text" inputMode="numeric" value={empForm.monthly_salary_raw}
+                    onChange={e => { const v = formatRupiahInput(e.target.value); setEmpForm(f => ({ ...f, monthly_salary_raw: v, monthly_salary: parseRupiahInput(v) || 0 })) }}
+                    placeholder="0"
                     className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300" />
                 </div>
                 <div>

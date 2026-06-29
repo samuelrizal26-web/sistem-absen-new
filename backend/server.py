@@ -126,7 +126,25 @@ class CashflowUpdate(BaseModel):
 class KasbonCreate(BaseModel):
     employee_id: str
     amount: float
+    payment_method: Optional[str] = 'cash'
     notes: Optional[str] = ''
+
+class JobCreate(BaseModel):
+    customer_name: str
+    job_name: str
+    total_price: float = 0
+    dp_amount: float = 0
+    date: Optional[str] = None
+    notes: Optional[str] = ''
+
+class JobUpdate(BaseModel):
+    customer_name: Optional[str] = None
+    job_name: Optional[str] = None
+    total_price: Optional[float] = None
+    dp_amount: Optional[float] = None
+    date: Optional[str] = None
+    notes: Optional[str] = None
+    progress_status: Optional[str] = None
 
 class AdminLogin(BaseModel):
     username: Optional[str] = None
@@ -511,8 +529,17 @@ async def get_all_kasbon():
     return await db.kasbon.find({}, {'_id': 0}).to_list(None)
 
 @api.get('/kasbon/employee/{emp_id}')
-async def get_kasbon_by_employee(emp_id: str):
-    return await db.kasbon.find({'employee_id': emp_id}, {'_id': 0}).to_list(None)
+async def get_kasbon_by_employee(emp_id: str, active_only: bool = False):
+    query = {'employee_id': emp_id}
+    if active_only:
+        query['settled'] = {'$ne': True}
+    return await db.kasbon.find(query, {'_id': 0}).sort('created_at', -1).to_list(None)
+
+@api.get('/kasbon/employee/{emp_id}/summary')
+async def get_kasbon_summary(emp_id: str):
+    items = await db.kasbon.find({'employee_id': emp_id, 'settled': {'$ne': True}}, {'_id': 0}).sort('created_at', -1).to_list(None)
+    total = sum(float(k.get('amount') or 0) for k in items)
+    return {'total': total, 'count': len(items), 'items': items}
 
 @api.post('/kasbon')
 async def create_kasbon(body: KasbonCreate):
@@ -520,9 +547,18 @@ async def create_kasbon(body: KasbonCreate):
     if not emp: raise HTTPException(status_code=404, detail='Karyawan tidak ditemukan')
     doc = {'id': new_id(), 'employee_id': body.employee_id,
            'employee_name': emp.get('name', ''), 'amount': body.amount,
-           'notes': body.notes or '', 'date': now_str()[:10], 'created_at': now_str()}
+           'payment_method': (body.payment_method or 'cash').lower(),
+           'notes': body.notes or '', 'settled': False,
+           'date': now_str()[:10], 'created_at': now_str()}
     await db.kasbon.insert_one(doc)
     return clean(doc)
+
+@api.post('/kasbon/settle/{emp_id}')
+async def settle_kasbon(emp_id: str):
+    result = await db.kasbon.update_many(
+        {'employee_id': emp_id, 'settled': {'$ne': True}},
+        {'$set': {'settled': True, 'settled_at': now_str()}})
+    return {'success': True, 'settled_count': result.modified_count}
 
 @api.put('/kasbon/{kasbon_id}')
 async def update_kasbon(kasbon_id: str, body: dict):
@@ -557,6 +593,56 @@ async def delete_advance(advance_id: str):
 @api.put('/advances/{advance_id}')
 async def update_advance(advance_id: str, body: dict):
     return await update_kasbon(advance_id, body)
+
+# ── Jobs (Pekerjaan) ─────────────────────────────────────────────────────────
+def job_payment_status(doc):
+    total = float(doc.get('total_price') or 0)
+    dp = float(doc.get('dp_amount') or 0)
+    return 'lunas' if total > 0 and dp >= total else 'dp'
+
+def job_out(doc):
+    doc = clean(doc)
+    doc['payment_status'] = job_payment_status(doc)
+    return doc
+
+@api.get('/jobs')
+async def get_jobs(status: Optional[str] = None):
+    query = {}
+    if status:
+        query['progress_status'] = status
+    docs = await db.jobs.find(query, {'_id': 0}).sort('created_at', -1).to_list(None)
+    return [job_out(d) for d in docs]
+
+@api.post('/jobs')
+async def create_job(body: JobCreate):
+    doc = {'id': new_id(), 'customer_name': body.customer_name, 'job_name': body.job_name,
+           'total_price': body.total_price or 0, 'dp_amount': body.dp_amount or 0,
+           'date': body.date or now_str()[:10], 'notes': body.notes or '',
+           'progress_status': 'proses', 'created_at': now_str()}
+    await db.jobs.insert_one(doc)
+    return job_out(doc)
+
+@api.put('/jobs/{job_id}')
+async def update_job(job_id: str, body: JobUpdate):
+    if not await db.jobs.find_one({'id': job_id}):
+        raise HTTPException(status_code=404, detail='Pekerjaan tidak ditemukan')
+    update = body.model_dump(exclude_none=True)
+    await db.jobs.update_one({'id': job_id}, {'$set': update})
+    doc = await db.jobs.find_one({'id': job_id}, {'_id': 0})
+    return job_out(doc)
+
+@api.post('/jobs/{job_id}/done')
+async def mark_job_done(job_id: str):
+    result = await db.jobs.update_one({'id': job_id}, {'$set': {'progress_status': 'selesai', 'completed_at': now_str()}})
+    if result.matched_count == 0: raise HTTPException(status_code=404, detail='Pekerjaan tidak ditemukan')
+    doc = await db.jobs.find_one({'id': job_id}, {'_id': 0})
+    return job_out(doc)
+
+@api.delete('/jobs/{job_id}')
+async def delete_job(job_id: str):
+    result = await db.jobs.delete_one({'id': job_id})
+    if result.deleted_count == 0: raise HTTPException(status_code=404, detail='Pekerjaan tidak ditemukan')
+    return {'message': 'Pekerjaan dihapus'}
 
 app.include_router(api)
 

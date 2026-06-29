@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createAdvance } from '../services/api'
-import { formatRupiah } from '../utils/format'
+import { formatRupiah, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
@@ -10,10 +10,11 @@ export default function CrewDashboard({ employee, onClose }) {
   const [step, setStep] = useState('menu') // menu | method | form
   const [via, setVia] = useState('cash')
   const [amount, setAmount] = useState('')
+  const [amountRaw, setAmountRaw] = useState('')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const parsedAmount = parseInt(amount.replace(/\D/g, ''), 10) || 0
+  const parsedAmount = parseRupiahInput(amountRaw) || 0
 
   const handleSubmit = async () => {
     if (!parsedAmount) { showToast('Masukkan nominal kasbon', 'error'); return }
@@ -114,8 +115,8 @@ export default function CrewDashboard({ employee, onClose }) {
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rp</span>
                 <input type="text" inputMode="numeric"
-                  value={parsedAmount > 0 ? parsedAmount.toLocaleString('id-ID') : ''}
-                  onChange={e => setAmount(e.target.value.replace(/\D/g, ''))}
+                  value={amountRaw}
+                  onChange={e => { const v = formatRupiahInput(e.target.value); setAmountRaw(v); setAmount(String(parseRupiahInput(v))) }}
                   placeholder="0"
                   className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-gray-200 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30" />
               </div>
