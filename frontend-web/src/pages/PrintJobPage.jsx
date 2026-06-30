@@ -231,6 +231,7 @@ export default function PrintJobPage() {
   const handlePinSaveConfirm = async (employee) => {
     setSaving(true)
     setCashier(employee.name)
+    console.log('Employee dari PIN:', JSON.stringify(employee))
     try {
       const payload = {
         date: form.date,
@@ -248,7 +249,9 @@ export default function PrintJobPage() {
         cashier: employee.name,
         cashier_id: employee.id,
       }
+      console.log('Payload yang dikirim:', JSON.stringify(payload))
       const res = await createPrintJob(payload)
+      console.log('Response dari backend:', JSON.stringify(res))
       setSavedJob({ ...payload, id: res.id || res._id })
       setStep(STEP.SUMMARY)
       await loadData()
