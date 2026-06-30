@@ -479,12 +479,14 @@ async def get_cashflow_summary():
     total_kasbon = sum(float(k.get('amount') or 0) for k in kasbon_docs)
     total_income = manual_income + print_cash + print_transfer + project_cash + project_transfer
     total_expense = manual_expense + total_kasbon
+    manual_balance = manual_income - manual_expense
     return {
         'total_income': total_income,
         'total_expense': total_expense,
         'balance': total_income - total_expense,
         'manual_income': manual_income,
         'manual_expense': manual_expense,
+        'manual_balance': manual_balance,
         'print_job_cash': print_cash,
         'print_job_transfer': print_transfer,
         'print_job_total': print_cash + print_transfer,
