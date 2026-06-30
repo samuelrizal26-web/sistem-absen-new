@@ -82,6 +82,8 @@ class PrintJobCreate(BaseModel):
     harga_diskon: Optional[float] = None
     customer_name: Optional[str] = ''
     notes: Optional[str] = ''
+    cashier: Optional[str] = ''
+    cashier_id: Optional[str] = ''
 
 class ProjectMaterialIn(BaseModel):
     name: str
@@ -110,11 +112,14 @@ class ProjectUpdate(BaseModel):
     materials: Optional[List[ProjectMaterialIn]] = None
 
 class CashflowCreate(BaseModel):
+    type: str
     date: str
-    category: str
     amount: float
     description: str
     notes: Optional[str] = ''
+    payment_method: Optional[str] = 'cash'
+    handled_by: Optional[str] = ''
+    employee_id: Optional[str] = ''
 
 class CashflowUpdate(BaseModel):
     date: Optional[str] = None
@@ -372,18 +377,15 @@ async def create_print_job(body: PrintJobCreate):
     hn = body.harga_normal
     hd = body.harga_diskon
     dapat_diskon = hd is not None and hd > 0 and hd < hn and qty >= 10
-    harga_berlaku = hd if dapat_diskon else hn
-    diskon_nominal = qty * (hn - hd) if dapat_diskon else 0.0
-    total_price = qty * harga_berlaku
-    stock = await db.stock.find_one({'name': body.material, 'usage_category': 'PRINT'})
-    if stock:
-        await db.stock.update_one({'id': stock['id']}, {'$inc': {'quantity': -qty}})
     doc = {'id': new_id(), 'date': body.date, 'material': body.material,
            'payment_method': body.payment_method, 'quantity': qty,
            'harga_normal': hn, 'harga_diskon': hd, 'dapat_diskon': dapat_diskon,
-           'diskon_nominal': diskon_nominal, 'price_per_unit': harga_berlaku,
-           'total_price': total_price, 'customer_name': body.customer_name or '',
-           'notes': body.notes or '', 'created_at': now_str()}
+           'diskon_nominal': (hd * qty) if dapat_diskon else 0,
+           'price_per_unit': hd if dapat_diskon else hn,
+           'total_price': (hd * qty) if dapat_diskon else (hn * qty),
+           'customer_name': body.customer_name or '', 'notes': body.notes or '',
+           'cashier': body.cashier or '', 'cashier_id': body.cashier_id or '',
+           'created_at': now_str()}
     await db.print_jobs.insert_one(doc)
     return clean(doc)
 
@@ -503,9 +505,11 @@ async def get_cashflow_item(cf_id: str):
 
 @api.post('/cashflow')
 async def create_cashflow(body: CashflowCreate):
-    doc = {'id': new_id(), 'date': body.date, 'category': body.category,
+    doc = {'id': new_id(), 'type': body.type, 'date': body.date,
            'amount': body.amount, 'description': body.description,
-           'notes': body.notes or '', 'created_at': now_str()}
+           'notes': body.notes or '', 'payment_method': body.payment_method or 'cash',
+           'handled_by': body.handled_by or '', 'employee_id': body.employee_id or '',
+           'created_at': now_str()}
     await db.cashflow.insert_one(doc)
     return clean(doc)
 
