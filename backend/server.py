@@ -361,6 +361,8 @@ async def get_print_jobs(month: Optional[str] = None):
             'total_price': float(d.get('total_price') or d.get('price') or 0),
             'customer_name': str(d.get('customer_name') or ''),
             'notes': str(d.get('notes') or ''),
+            'cashier': str(d.get('cashier') or ''),
+            'cashier_id': str(d.get('cashier_id') or ''),
             'created_at': str(d.get('created_at') or ''),
         })
     return result
