@@ -231,7 +231,6 @@ export default function PrintJobPage() {
   const handlePinSaveConfirm = async (employee) => {
     setSaving(true)
     setCashier(employee.name)
-    setCashierId(employee.id)
     try {
       const payload = {
         date: form.date,
