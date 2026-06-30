@@ -360,6 +360,10 @@ export default function AdminPage() {
       ])
       setEmpTxPrintJobs(Array.isArray(pj) ? pj : [])
       setEmpTxCashflows(Array.isArray(cf) ? cf : [])
+      
+      // Debug: Log sample data after deployment
+      console.log('Print Jobs sample:', Array.isArray(pj) && pj.length > 0 ? JSON.stringify(pj[0], null, 2) : 'No data')
+      console.log('Cashflow sample:', Array.isArray(cf) && cf.length > 0 ? JSON.stringify(cf[0], null, 2) : 'No data')
     } catch { showToast('Gagal memuat transaksi karyawan', 'error') }
     finally { setEmpTxLoading(false) }
   }
