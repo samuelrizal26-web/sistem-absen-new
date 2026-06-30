@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getPrintJobsSummary, getPrintJobs, createPrintJob, updatePrintJob, deletePrintJob, getStock } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
-import { buildPrintJobReceipt, triggerRawBTPrint } from '../utils/rawbt'
+import { buildPrintJobReceipt, triggerRawBTPrint, triggerBrowserPrint, openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
 const MATERIALS_KEY = 'print'
 
-const STEP = { LIST: 'list', FORM: 'form', SUMMARY: 'summary', PIN_PRINT: 'pin_print', DETAIL: 'detail' }
+const STEP = { LIST: 'list', FORM: 'form', SUMMARY: 'summary', PIN_PRINT: 'pin_print', PIN_SAVE: 'pin_save', DETAIL: 'detail' }
 
 export default function PrintJobPage() {
   const navigate = useNavigate()
@@ -43,6 +43,8 @@ export default function PrintJobPage() {
   const [saving, setSaving] = useState(false)
   const [editJob, setEditJob] = useState(null)
   const [editForm, setEditForm] = useState(null)
+  const [keypadField, setKeypadField] = useState(null) // 'harga_normal' or 'harga_diskon' or null
+  const [isEditMode, setIsEditMode] = useState(false)
 
   const qty = parseFloat(form.quantity) || 0
   const hargaNormal = parseRupiahInput(form.harga_normal_raw) || parseFloat(form.harga_normal) || 0
@@ -56,6 +58,95 @@ export default function PrintJobPage() {
   const totalPrice = qty * hargaBerlaku
   const diskonNominal = getDiskon ? qty * (hargaNormal - hargaDiskon) : 0
   const change = Math.max(0, (parseRupiahInput(form.customer_cash_raw) || parseFloat(form.customer_cash) || 0) - totalPrice)
+
+  const handleKeypadInput = (num) => {
+    if (!keypadField) return
+    
+    if (keypadField === 'quantity') {
+      // Handle quantity input (no Rupiah formatting)
+      const currentQty = isEditMode ? (parseFloat(editForm.quantity) || 0) : (parseFloat(form.quantity) || 0)
+      let newQty
+      if (num === 1000) {
+        newQty = currentQty * 1000
+      } else {
+        newQty = currentQty * 10 + num
+      }
+      
+      if (isEditMode) {
+        setEditForm(f => ({ ...f, quantity: String(newQty) }))
+      } else {
+        handleFormChange('quantity', String(newQty))
+      }
+    } else {
+      // Handle harga input (with Rupiah formatting)
+      const currentRaw = keypadField === 'harga_normal' ? (isEditMode ? editForm.harga_normal_raw : form.harga_normal_raw) : (isEditMode ? editForm.harga_diskon_raw : form.harga_diskon_raw)
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      let newNum
+      if (num === 1000) {
+        newNum = currentNum * 1000
+      } else {
+        newNum = currentNum * 10 + num
+      }
+      const newRaw = formatRupiahInput(String(newNum))
+      
+      if (isEditMode) {
+        setEditForm(f => ({ ...f, [keypadField + '_raw']: newRaw }))
+      } else {
+        handleFormChange(keypadField + '_raw', newRaw)
+        handleFormChange(keypadField, String(newNum))
+      }
+    }
+  }
+
+  const handleKeypadBackspace = () => {
+    if (!keypadField) return
+    
+    if (keypadField === 'quantity') {
+      // Handle quantity input
+      const currentQty = isEditMode ? (parseFloat(editForm.quantity) || 0) : (parseFloat(form.quantity) || 0)
+      const newQty = Math.floor(currentQty / 10)
+      
+      if (isEditMode) {
+        setEditForm(f => ({ ...f, quantity: String(newQty) }))
+      } else {
+        handleFormChange('quantity', String(newQty))
+      }
+    } else {
+      // Handle harga input
+      const currentRaw = keypadField === 'harga_normal' ? (isEditMode ? editForm.harga_normal_raw : form.harga_normal_raw) : (isEditMode ? editForm.harga_diskon_raw : form.harga_diskon_raw)
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      const newNum = Math.floor(currentNum / 10)
+      const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
+      
+      if (isEditMode) {
+        setEditForm(f => ({ ...f, [keypadField + '_raw']: newRaw }))
+      } else {
+        handleFormChange(keypadField + '_raw', newRaw)
+        handleFormChange(keypadField, String(newNum))
+      }
+    }
+  }
+
+  const handleKeypadClear = () => {
+    if (!keypadField) return
+    
+    if (keypadField === 'quantity') {
+      // Handle quantity input
+      if (isEditMode) {
+        setEditForm(f => ({ ...f, quantity: '' }))
+      } else {
+        handleFormChange('quantity', '')
+      }
+    } else {
+      // Handle harga input
+      if (isEditMode) {
+        setEditForm(f => ({ ...f, [keypadField + '_raw']: '' }))
+      } else {
+        handleFormChange(keypadField + '_raw', '')
+        handleFormChange(keypadField, '')
+      }
+    }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -133,6 +224,11 @@ export default function PrintJobPage() {
     if (!form.material || !form.quantity || !form.harga_normal_raw) {
       showToast('Lengkapi semua field wajib', 'error'); return
     }
+    // Show PIN modal first before creating job
+    setStep(STEP.PIN_SAVE)
+  }
+
+  const handlePinSaveConfirm = async (employee) => {
     setSaving(true)
     try {
       const payload = {
@@ -148,6 +244,8 @@ export default function PrintJobPage() {
         total_price: totalPrice,
         customer_name: form.customer_name || null,
         notes: form.notes || null,
+        cashier: employee.name,
+        cashier_id: employee.id,
       }
       const res = await createPrintJob(payload)
       setSavedJob({ ...payload, id: res.id || res._id })
@@ -160,12 +258,31 @@ export default function PrintJobPage() {
     }
   }
 
-  const handlePrintConfirm = (employee) => {
+  const handlePrintConfirm = async (employee) => {
     setCashier(employee.name)
+    // Update the job with cashier information
+    if (savedJob && savedJob.id) {
+      try {
+        await updatePrintJob(savedJob.id, { cashier: employee.name, cashier_id: employee.id })
+      } catch (e) {
+        console.error('Failed to update cashier:', e)
+      }
+    }
     setStep(STEP.LIST)
-    const receipt = buildPrintJobReceipt({ job: savedJob, cashier: employee.name, change })
-    triggerRawBTPrint(receipt, savedJob.payment_method === 'cash')
-    showToast(savedJob.payment_method === 'cash' ? 'Struk dicetak! Laci terbuka.' : 'Struk dicetak!', 'success')
+    const receipt = buildPrintJobReceipt({ job: { ...savedJob, cashier: employee.name }, cashier: employee.name, change })
+    
+    // Detect platform and use appropriate print method
+    const isAndroid = /Android/i.test(navigator.userAgent)
+    
+    if (isAndroid) {
+      // Android: Use RawBT with drawer control
+      triggerRawBTPrint(receipt, savedJob.payment_method === 'cash')
+    } else {
+      // Windows: Use browser print (drawer controlled by driver)
+      triggerBrowserPrint(receipt)
+    }
+    
+    showToast(savedJob.payment_method === 'cash' ? 'Struk dicetak!' : 'Struk dicetak!', 'success')
     setForm({ date: new Date().toISOString().split('T')[0], material: '', payment_method: 'cash', quantity: '', harga_normal: '', harga_diskon: '', customer_name: '', notes: '', customer_cash: '' })
   }
 
@@ -205,106 +322,275 @@ export default function PrintJobPage() {
 
       {/* ── LIST VIEW ── */}
       {step === STEP.LIST && (
-        <div className="flex-1 p-4 space-y-4">
-          {/* Summary Card */}
-          {summary && (
-            <div className="bg-green-500 rounded-2xl p-4 text-white shadow">
-              <p className="text-sm opacity-80">Total Pendapatan</p>
-              <p className="text-3xl font-bold mt-1">{formatRupiah(summary.total_revenue || 0)}</p>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <div className="bg-white/20 rounded-xl p-2.5">
-                  <p className="text-xs opacity-80">Total Pekerjaan</p>
-                  <p className="text-xl font-bold">{summary.total_jobs || 0}</p>
-                </div>
-                <div className="bg-white/20 rounded-xl p-2.5 grid grid-cols-2 gap-1">
-                  <div>
-                    <p className="text-xs opacity-80">Cash</p>
-                    <p className="text-sm font-semibold">{formatRupiah(summary.cash_revenue || 0)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs opacity-80">Transfer</p>
-                    <p className="text-sm font-semibold">{formatRupiah(summary.transfer_revenue || 0)}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Pendapatan Per Bahan */}
-          {pendapatanPerBahan.length > 0 && (
-            <div>
-              <p className="text-sm font-semibold text-gray-600 mb-2">Pendapatan per Bahan</p>
-              <div className="grid grid-cols-2 gap-2">
-                {pendapatanPerBahan.map(b => (
-                  <button key={b.name} onClick={() => setDetailBahan(b)}
-                    className="bg-white rounded-2xl p-3 text-left shadow-sm border border-gray-100 hover:shadow-md active:scale-95 transition-all">
-                    <p className="text-xs text-gray-500 truncate">{b.name}</p>
-                    <p className="text-base font-bold text-primary mt-0.5">{formatRupiah(b.total)}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Search */}
-          <div className="flex items-center gap-2">
-            <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
-              className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-            {searchMonth && (
-              <button onClick={() => setSearchMonth('')} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm">Reset</button>
-            )}
-          </div>
-
-          {/* Add Button */}
-          <button onClick={() => setStep(STEP.FORM)}
-            className="w-full py-3.5 rounded-2xl bg-primary text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-primary-dark active:scale-95 transition-all">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Tambah Pekerjaan Printing
-          </button>
-
-          {/* Job List */}
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            </div>
-          ) : (
-            Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, items]) => (
-              <div key={month}>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                  {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-                </p>
-                <div className="space-y-2">
-                  {items.map(j => (
-                    <div key={j.id} className="bg-white rounded-xl px-3 py-2.5 flex items-center gap-2.5 shadow-sm border border-gray-100">
-                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                        <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17H7A2 2 0 015 15V9a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2z" />
-                        </svg>
+        <div className="flex-1 flex flex-col p-4 gap-4">
+          {/* Top 2-Column Layout */}
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Left Panel - Summary & Materials */}
+            <div className="w-full md:w-1/2 flex flex-col gap-4">
+              {/* Summary Card */}
+              {summary && (
+                <div className="bg-green-500 rounded-2xl p-4 text-white shadow">
+                  <p className="text-sm opacity-80">Total Pendapatan</p>
+                  <p className="text-3xl font-bold mt-1">{formatRupiah(summary.total_revenue || 0)}</p>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <div className="bg-white/20 rounded-xl p-2.5">
+                      <p className="text-xs opacity-80">Total Pekerjaan</p>
+                      <p className="text-xl font-bold">{summary.total_jobs || 0}</p>
+                    </div>
+                    <div className="bg-white/20 rounded-xl p-2.5 grid grid-cols-2 gap-1">
+                      <div>
+                        <p className="text-xs opacity-80">Cash</p>
+                        <p className="text-sm font-semibold">{formatRupiah(summary.cash_revenue || 0)}</p>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 text-xs truncate">{j.material} · {j.customer_name || '-'}</p>
-                        <p className="text-[10px] text-gray-400">{formatDate(j.date)} · {j.payment_method === 'cash' ? 'Cash' : 'Transfer'} · {j.quantity} pcs</p>
-                      </div>
-                      <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(j.total_price)}</p>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => handleOpenEdit(j)} className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 active:scale-95">
-                          <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        </button>
-                        <button onClick={() => handleDeleteJob(j.id)} className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 active:scale-95">
-                          <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
+                      <div>
+                        <p className="text-xs opacity-80">Transfer</p>
+                        <p className="text-sm font-semibold">{formatRupiah(summary.transfer_revenue || 0)}</p>
                       </div>
                     </div>
-                  ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pendapatan Per Bahan */}
+              {pendapatanPerBahan.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                  <p className="text-sm font-semibold text-gray-600 mb-3">Pendapatan per Bahan</p>
+                  <div className="space-y-2">
+                    {pendapatanPerBahan.map(b => (
+                      <button key={b.name} onClick={() => setDetailBahan(b)}
+                        className="w-full bg-gray-50 rounded-xl p-3 text-left hover:bg-gray-100 active:scale-95 transition-all">
+                        <p className="text-xs text-gray-500 truncate">{b.name}</p>
+                        <p className="text-base font-bold text-primary mt-0.5">{formatRupiah(b.total)}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Panel - Form */}
+            <div className="w-full md:w-1/2 flex flex-col">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
+                <p className="text-sm font-semibold text-gray-600 mb-3">Tambah Pekerjaan Printing</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal *</label>
+                    <input type="date" value={form.date} onChange={e => handleFormChange('date', e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Bahan *</label>
+                    <select value={form.material} onChange={e => handleFormChange('material', e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      <option value="">-- Pilih Bahan --</option>
+                      {stocks.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
+                    {stockAvailable && (
+                      <p className="text-xs text-green-600 mt-1 ml-1">✓ Stok tersedia: {stockAvailable.quantity} {stockAvailable.unit}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Metode Pembayaran *</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['cash', 'transfer'].map(m => (
+                        <button key={m} onClick={() => handleFormChange('payment_method', m)}
+                          className={`py-2 rounded-xl border-2 font-semibold text-xs transition-all ${form.payment_method === m ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-500'}`}>
+                          {m === 'cash' ? '💵 Cash' : '🏦 Transfer'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Jumlah (pcs) *</label>
+                    <input type="text" readOnly value={form.quantity}
+                      onClick={() => { setIsEditMode(false); setKeypadField('quantity') }}
+                      placeholder="0"
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
+                  </div>
+
+                  {/* Harga */}
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                    <p className="text-xs font-semibold text-gray-700">Harga Satuan</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">Harga Normal *</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Rp</span>
+                          <input type="text" readOnly value={form.harga_normal_raw}
+                            onClick={() => { setIsEditMode(false); setKeypadField('harga_normal') }}
+                            placeholder="30.000"
+                            className="w-full pl-6 pr-2 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs cursor-pointer" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1">Harga Diskon ≥10</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Rp</span>
+                          <input type="text" readOnly value={form.harga_diskon_raw}
+                            onClick={() => { setIsEditMode(false); setKeypadField('harga_diskon') }}
+                            placeholder="20.000"
+                            className="w-full pl-6 pr-2 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs cursor-pointer" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview harga berlaku */}
+                    {hargaNormal > 0 && qty > 0 && (
+                      <div className={`rounded-lg px-2 py-2 ${getDiskon ? 'bg-green-50 border border-green-200' : 'bg-primary/5'}`}>
+                        {getDiskon ? (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-gray-500">
+                              <span>Harga normal: {formatRupiah(hargaNormal)} × {qty}</span>
+                              <span className="line-through">{formatRupiah(hargaNormal * qty)}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-green-600 font-medium">
+                              <span>🎉 Diskon ≥10 pcs: -{formatRupiah(hargaNormal - hargaDiskon)}/pcs</span>
+                              <span>-{formatRupiah(diskonNominal)}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-green-700 text-xs">
+                              <span>Total</span>
+                              <span>{formatRupiah(totalPrice)}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-600">Total</span>
+                            <span className="font-bold text-primary text-sm">{formatRupiah(totalPrice)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Nama Customer</label>
+                    <input type="text" value={form.customer_name} onChange={e => handleFormChange('customer_name', e.target.value)} placeholder="Nama customer..."
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Catatan</label>
+                    <input type="text" value={form.notes} onChange={e => handleFormChange('notes', e.target.value)} placeholder="Catatan tambahan..."
+                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  </div>
+                  <button onClick={handleSaveJob} disabled={saving || !form.material || !form.quantity || !form.harga_normal}
+                    className="w-full py-3 rounded-xl bg-amber-400 text-white font-bold text-sm shadow hover:bg-amber-500 disabled:opacity-40 active:scale-95 transition-all">
+                    {saving ? 'Menyimpan...' : 'Simpan Pekerjaan'}
+                  </button>
                 </div>
               </div>
-            ))
-          )}
+
+              {/* Custom Numeric Keypad */}
+              {keypadField && !isEditMode && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setKeypadField(null)}>
+                  <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-sm font-semibold text-gray-700">
+                        {keypadField === 'quantity' ? 'Jumlah Pcs' : (keypadField === 'harga_normal' ? 'Harga Normal' : 'Harga Diskon')}
+                      </span>
+                      <button onClick={() => setKeypadField(null)} className="text-gray-400 hover:text-gray-600">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    {/* Display current value */}
+                    <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
+                      <span className="text-xl font-bold text-gray-800">
+                        {keypadField === 'quantity' 
+                          ? (form.quantity || '0') 
+                          : (keypadField === 'harga_normal' ? (form.harga_normal_raw || 'Rp 0') : (form.harga_diskon_raw || 'Rp 0'))}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                        <button
+                          key={num}
+                          onClick={() => handleKeypadInput(num)}
+                          className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all"
+                        >
+                          {num}
+                        </button>
+                      ))}
+                      <button onClick={handleKeypadClear} className="py-3 rounded-xl bg-red-100 text-lg font-semibold text-red-600 hover:bg-red-200 active:bg-red-300 transition-all">
+                        C
+                      </button>
+                      <button onClick={() => handleKeypadInput(0)} className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all">
+                        0
+                      </button>
+                      <button onClick={handleKeypadBackspace} className="py-3 rounded-xl bg-orange-100 text-lg font-semibold text-orange-600 hover:bg-orange-200 active:bg-orange-300 transition-all">
+                        ⌫
+                      </button>
+                    </div>
+                    <button onClick={() => handleKeypadInput(1000)} className="w-full py-3 rounded-xl bg-blue-100 text-lg font-semibold text-blue-600 hover:bg-blue-200 active:bg-blue-300 transition-all mb-2">
+                      000
+                    </button>
+                    <button onClick={() => setKeypadField(null)} className="w-full py-3 rounded-xl bg-primary text-white font-semibold text-sm">
+                      Selesai
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom - Full Width Job List */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-gray-800 font-bold text-lg">Daftar Pekerjaan</h2>
+              <div className="flex items-center gap-2">
+                <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                {searchMonth && (
+                  <button onClick={() => setSearchMonth('')} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-500 text-xs">Reset</button>
+                )}
+              </div>
+            </div>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              </div>
+            ) : Object.keys(grouped).length === 0 ? (
+              <p className="text-center text-gray-400 py-16">Belum ada pekerjaan.</p>
+            ) : (
+              <div className="space-y-4 overflow-y-auto max-h-[40vh]">
+                {Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, items]) => (
+                  <div key={month}>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                      {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                    </p>
+                    <div className="space-y-2">
+                      {items.map(j => (
+                        <div key={j.id} className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-center gap-2.5 border border-gray-100">
+                          <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17H7A2 2 0 015 15V9a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-800 text-xs truncate">{j.material} · {j.customer_name || '-'}</p>
+                            <p className="text-[10px] text-gray-400">{formatDate(j.date)} · {j.payment_method === 'cash' ? 'Cash' : 'Transfer'} · {j.quantity} pcs</p>
+                          </div>
+                          <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(j.total_price)}</p>
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => handleOpenEdit(j)} className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 active:scale-95">
+                              <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                            <button onClick={() => handleDeleteJob(j.id)} className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 active:scale-95">
+                              <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -343,8 +629,10 @@ export default function PrintJobPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (pcs) *</label>
-              <input type="number" value={form.quantity} onChange={e => handleFormChange('quantity', e.target.value)} placeholder="0"
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <input type="text" readOnly value={form.quantity}
+                onClick={() => { setIsEditMode(false); setKeypadField('quantity') }}
+                placeholder="0"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
             </div>
 
             {/* Harga */}
@@ -355,20 +643,20 @@ export default function PrintJobPage() {
                   <label className="block text-xs text-gray-500 mb-1">Harga Normal / pcs *</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">Rp</span>
-                    <input type="text" inputMode="numeric" value={form.harga_normal_raw}
-                      onChange={e => { const v = formatRupiahInput(e.target.value); handleFormChange('harga_normal_raw', v); handleFormChange('harga_normal', String(parseRupiahInput(v))) }}
+                    <input type="text" readOnly value={form.harga_normal_raw}
+                      onClick={() => { setIsEditMode(false); setKeypadField('harga_normal') }}
                       placeholder="30.000"
-                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm" />
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm cursor-pointer" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Harga Diskon ≥10 pcs</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">Rp</span>
-                    <input type="text" inputMode="numeric" value={form.harga_diskon_raw}
-                      onChange={e => { const v = formatRupiahInput(e.target.value); handleFormChange('harga_diskon_raw', v); handleFormChange('harga_diskon', String(parseRupiahInput(v))) }}
+                    <input type="text" readOnly value={form.harga_diskon_raw}
+                      onClick={() => { setIsEditMode(false); setKeypadField('harga_diskon') }}
                       placeholder="20.000 (opsional)"
-                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm" />
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm cursor-pointer" />
                   </div>
                 </div>
               </div>
@@ -535,6 +823,11 @@ export default function PrintJobPage() {
         <StaffPinModal title="Siapa yang melayani?" onConfirm={handlePrintConfirm} onCancel={() => setStep(STEP.SUMMARY)} />
       )}
 
+      {/* Staff PIN Modal untuk Save */}
+      {step === STEP.PIN_SAVE && (
+        <StaffPinModal title="Siapa yang melayani?" onConfirm={handlePinSaveConfirm} onCancel={() => setStep(STEP.FORM)} />
+      )}
+
       {/* ── MODAL EDIT PRINT JOB ── */}
       {editJob && editForm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
@@ -557,22 +850,24 @@ export default function PrintJobPage() {
                 </button>
               ))}
             </div>
-            <input type="number" value={editForm.quantity} onChange={e => setEditForm(f => ({ ...f, quantity: e.target.value }))} placeholder="Jumlah pcs *"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <input type="text" readOnly value={editForm.quantity}
+              onClick={() => { setIsEditMode(true); setKeypadField('quantity') }}
+              placeholder="Jumlah pcs *"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
             <div className="grid grid-cols-2 gap-2">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">Rp</span>
-                <input type="text" inputMode="numeric" value={editForm.harga_normal_raw}
-                  onChange={e => setEditForm(f => ({ ...f, harga_normal_raw: formatRupiahInput(e.target.value) }))}
+                <input type="text" readOnly value={editForm.harga_normal_raw}
+                  onClick={() => { setIsEditMode(true); setKeypadField('harga_normal') }}
                   placeholder="Harga normal *"
-                  className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
               </div>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">Rp</span>
-                <input type="text" inputMode="numeric" value={editForm.harga_diskon_raw}
-                  onChange={e => setEditForm(f => ({ ...f, harga_diskon_raw: formatRupiahInput(e.target.value) }))}
+                <input type="text" readOnly value={editForm.harga_diskon_raw}
+                  onClick={() => { setIsEditMode(true); setKeypadField('harga_diskon') }}
                   placeholder="Harga diskon"
-                  className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
               </div>
             </div>
             <input type="text" value={editForm.customer_name} onChange={e => setEditForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="Nama Customer"
@@ -583,6 +878,58 @@ export default function PrintJobPage() {
               className="w-full py-3 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark active:scale-95">
               Simpan Perubahan
             </button>
+            
+            {/* Custom Numeric Keypad for Edit Mode */}
+            {keypadField && isEditMode && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setKeypadField(null); setIsEditMode(false) }}>
+                <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-semibold text-gray-700">
+                      {keypadField === 'quantity' ? 'Jumlah Pcs' : (keypadField === 'harga_normal' ? 'Harga Normal' : 'Harga Diskon')}
+                    </span>
+                    <button onClick={() => { setKeypadField(null); setIsEditMode(false) }} className="text-gray-400 hover:text-gray-600">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  {/* Display current value */}
+                  <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
+                    <span className="text-xl font-bold text-gray-800">
+                      {keypadField === 'quantity' 
+                        ? (editForm.quantity || '0') 
+                        : (keypadField === 'harga_normal' ? (editForm.harga_normal_raw || 'Rp 0') : (editForm.harga_diskon_raw || 'Rp 0'))}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                      <button
+                        key={num}
+                        onClick={() => handleKeypadInput(num)}
+                        className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all"
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button onClick={handleKeypadClear} className="py-3 rounded-xl bg-red-100 text-lg font-semibold text-red-600 hover:bg-red-200 active:bg-red-300 transition-all">
+                      C
+                    </button>
+                    <button onClick={() => handleKeypadInput(0)} className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all">
+                      0
+                    </button>
+                    <button onClick={handleKeypadBackspace} className="py-3 rounded-xl bg-orange-100 text-lg font-semibold text-orange-600 hover:bg-orange-200 active:bg-orange-300 transition-all">
+                      ⌫
+                    </button>
+                  </div>
+                  <button onClick={() => handleKeypadInput(1000)} className="w-full py-3 rounded-xl bg-blue-100 text-lg font-semibold text-blue-600 hover:bg-blue-200 active:bg-blue-300 transition-all mb-2">
+                    000
+                  </button>
+                  <button onClick={() => { setKeypadField(null); setIsEditMode(false) }} className="w-full py-3 rounded-xl bg-primary text-white font-semibold text-sm">
+                    Selesai
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
