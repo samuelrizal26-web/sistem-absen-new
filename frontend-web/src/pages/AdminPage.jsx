@@ -361,9 +361,10 @@ export default function AdminPage() {
       setEmpTxPrintJobs(Array.isArray(pj) ? pj : [])
       setEmpTxCashflows(Array.isArray(cf) ? cf : [])
       
-      // Debug: Log sample data after deployment
-      console.log('Print Jobs sample:', Array.isArray(pj) && pj.length > 0 ? JSON.stringify(pj[0], null, 2) : 'No data')
-      console.log('Cashflow sample:', Array.isArray(cf) && cf.length > 0 ? JSON.stringify(cf[0], null, 2) : 'No data')
+      // Debug: Log semua print jobs (sorted by created_at)
+      const sortedPj = Array.isArray(pj) ? [...pj].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')) : []
+      console.log('Total Print Jobs:', sortedPj.length)
+      console.log('Print Jobs terbaru (3):', JSON.stringify(sortedPj.slice(0, 3).map(j => ({ id: j.id, cashier: j.cashier, cashier_id: j.cashier_id, created_at: j.created_at })), null, 2))
     } catch { showToast('Gagal memuat transaksi karyawan', 'error') }
     finally { setEmpTxLoading(false) }
   }
