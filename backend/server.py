@@ -470,8 +470,8 @@ async def get_cashflow_summary():
         db.projects.find({}, {'_id': 0}).to_list(None),
         db.kasbon.find({}, {'_id': 0}).to_list(None),
     )
-    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('category') == 'income')
-    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('category') == 'expense')
+    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
+    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
     print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
     print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
     project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
