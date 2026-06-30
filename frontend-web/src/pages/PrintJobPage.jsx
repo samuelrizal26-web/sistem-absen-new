@@ -263,6 +263,19 @@ export default function PrintJobPage() {
     setStep(STEP.LIST)
   }
 
+  const handlePrint = () => {
+    if (!savedJob) return
+    const receipt = buildPrintJobReceipt({ job: { ...savedJob, cashier }, cashier, change })
+    const isAndroid = /Android/i.test(navigator.userAgent)
+    if (isAndroid) {
+      triggerRawBTPrint(receipt, savedJob.payment_method === 'cash')
+    } else {
+      triggerBrowserPrint(receipt)
+    }
+    showToast('Struk dicetak!', 'success')
+    setForm({ date: new Date().toISOString().split('T')[0], material: '', payment_method: 'cash', quantity: '', harga_normal: '', harga_diskon: '', customer_name: '', notes: '', customer_cash: '' })
+  }
+
   // Group jobs by month
   const grouped = jobs.reduce((acc, j) => {
     const key = j.date?.slice(0, 7) || 'unknown'
