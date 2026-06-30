@@ -187,8 +187,8 @@ export default function CashflowPage() {
           {summary && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
               <p className="text-sm font-semibold text-gray-600 mb-2">Saldo</p>
-              <p className={`text-2xl font-bold ${summary.total_balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {formatRupiah(summary.total_balance || 0)}
+              <p className={`text-2xl font-bold ${summary.balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {formatRupiah(summary.balance || 0)}
               </p>
             </div>
           )}
