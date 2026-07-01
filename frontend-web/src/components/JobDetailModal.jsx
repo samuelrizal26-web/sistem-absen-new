@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { markJobDone, deleteJob, deleteProject } from '../services/api'
+import { markJobDone, markProjectDone, deleteJob, deleteProject } from '../services/api'
 import { formatRupiah, formatDate } from '../utils/format'
 
-export default function JobDetailModal({ job, onClose, onChanged, onEdit, showToast }) {
+export default function JobDetailModal({ job, onClose, onChanged, onEdit, showToast, tab }) {
   const [busy, setBusy] = useState(false)
   const isLunas = job.payment_status === 'lunas'
   const isSelesai = job.status === 'selesai'
@@ -13,8 +13,13 @@ export default function JobDetailModal({ job, onClose, onChanged, onEdit, showTo
   const handleSelesai = async () => {
     setBusy(true)
     try {
-      await markJobDone(job.id)
-      showToast('Pekerjaan ditandai selesai', 'success')
+      if (job._source === 'project') {
+        await markProjectDone(job.id)
+        showToast('Project ditandai selesai', 'success')
+      } else {
+        await markJobDone(job.id)
+        showToast('Pekerjaan ditandai selesai', 'success')
+      }
       onChanged()
       onClose()
     } catch (e) {
@@ -91,7 +96,7 @@ export default function JobDetailModal({ job, onClose, onChanged, onEdit, showTo
           )}
 
           <div className="space-y-2.5 pt-2">
-            {!isSelesai && (
+            {tab === 'aktif' && !isSelesai && (
               <button onClick={handleSelesai} disabled={busy}
                 className="w-full py-3 rounded-2xl bg-blue-500 text-white font-bold hover:bg-blue-600 disabled:opacity-40 transition-all flex items-center justify-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,13 +105,15 @@ export default function JobDetailModal({ job, onClose, onChanged, onEdit, showTo
                 SELESAI
               </button>
             )}
-            <button onClick={handleDiambil} disabled={busy}
-              className="w-full py-3 rounded-2xl bg-green-500 text-white font-bold hover:bg-green-600 disabled:opacity-40 transition-all flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              DIAMBIL
-            </button>
+            {tab === 'selesai' && (
+              <button onClick={handleDiambil} disabled={busy}
+                className="w-full py-3 rounded-2xl bg-green-500 text-white font-bold hover:bg-green-600 disabled:opacity-40 transition-all flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                DIAMBIL
+              </button>
+            )}
             <div className="flex gap-2.5">
               <button onClick={() => onEdit(job)} disabled={busy}
                 className="flex-1 py-3 rounded-2xl border border-gray-200 text-gray-700 font-medium">Edit</button>

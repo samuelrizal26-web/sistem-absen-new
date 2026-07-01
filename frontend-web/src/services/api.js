@@ -78,6 +78,8 @@ export const updateJob = (id, data) =>
   request(`/jobs/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const markJobDone = (id) =>
   request(`/jobs/${id}/done`, { method: 'POST' })
+export const markProjectDone = (id) =>
+  request(`/projects/${id}/done`, { method: 'POST' })
 export const deleteJob = (id) =>
   request(`/jobs/${id}`, { method: 'DELETE' })
 

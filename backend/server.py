@@ -646,6 +646,13 @@ async def mark_job_done(job_id: str):
     doc = await db.jobs.find_one({'id': job_id}, {'_id': 0})
     return job_out(doc)
 
+@api.post('/projects/{project_id}/done')
+async def mark_project_done(project_id: str):
+    result = await db.projects.update_one({'id': project_id}, {'$set': {'status': 'selesai', 'completed_at': now_str()}})
+    if result.matched_count == 0: raise HTTPException(status_code=404, detail='Project tidak ditemukan')
+    doc = await db.projects.find_one({'id': project_id}, {'_id': 0})
+    return clean(doc)
+
 @api.delete('/jobs/{job_id}')
 async def delete_job(job_id: str):
     result = await db.jobs.delete_one({'id': job_id})

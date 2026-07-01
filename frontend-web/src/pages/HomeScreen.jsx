@@ -419,6 +419,7 @@ export default function HomeScreen() {
           onChanged={loadJobs}
           onEdit={openEditJob}
           showToast={showToast}
+          tab={jobTab}
         />
       )}
 
