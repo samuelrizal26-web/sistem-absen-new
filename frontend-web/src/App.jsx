@@ -6,6 +6,7 @@ import CashflowPage from './pages/CashflowPage'
 import ProjectPage from './pages/ProjectPage'
 import AdminPage from './pages/AdminPage'
 import KasbonDashboard from './pages/KasbonDashboard'
+import ScreenSaver from './components/ScreenSaver'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/kasbon-dashboard" element={<KasbonDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <ScreenSaver />
     </BrowserRouter>
   )
 }
