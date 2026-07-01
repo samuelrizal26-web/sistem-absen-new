@@ -145,3 +145,7 @@ export const getPrintJobsByEmployeePaginated = (empId, page = 1, limit = 50) =>
   request(`/print-jobs/employee/${empId}/paginated?page=${page}&limit=${limit}`)
 export const getCashflowByEmployeePaginated = (empId, page = 1, limit = 50) =>
   request(`/cashflow/employee/${empId}/paginated?page=${page}&limit=${limit}`)
+
+// ─── Reset Database ───────────────────────────────────────────
+export const resetDatabase = () =>
+  request('/reset-database', { method: 'DELETE' })

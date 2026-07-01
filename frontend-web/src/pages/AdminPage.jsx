@@ -8,6 +8,7 @@ import {
   getJobs, getArchivedJobs, getArchivedProjects,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
   getKasbonByEmployeePaginated, getPrintJobsByEmployeePaginated, getCashflowByEmployeePaginated,
+  resetDatabase,
 } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
@@ -66,6 +67,7 @@ export default function AdminPage() {
   const [editCf, setEditCf] = useState(null)
   const [viewEmp, setViewEmp] = useState(null)
   const [viewCf, setViewCf] = useState(null)
+  const [resetLoading, setResetLoading] = useState(false)
   const [keypadField, setKeypadField] = useState(null) // 'amount' or null
 
   // ── Employee Transactions state ──
@@ -1170,6 +1172,22 @@ export default function AdminPage() {
                 catch (e) { showToast(e.message, 'error') }
               }} className="w-full py-3 rounded-2xl border border-purple-300 text-purple-600 font-semibold hover:bg-purple-50">
                 Setup PIN Admin
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
+              <p className="font-bold text-red-600 mb-3">Reset Database</p>
+              <p className="text-xs text-gray-500 mb-3">Hapus semua data uji coba. Tindakan ini tidak dapat dibatalkan!</p>
+              <button onClick={async () => {
+                if (!confirm('Apakah Anda yakin ingin menghapus SEMUA data? Tindakan ini tidak dapat dibatalkan!')) return
+                if (!confirm('Konfirmasi sekali lagi: Hapus semua data dari database?')) return
+                setResetLoading(true)
+                try { await resetDatabase(); showToast('Database berhasil di-reset. Semua data telah dihapus.', 'success') }
+                catch (e) { showToast(e.message || 'Gagal reset database', 'error') }
+                finally { setResetLoading(false) }
+              }} disabled={resetLoading}
+                className="w-full py-3 rounded-2xl border border-red-300 text-red-600 font-semibold hover:bg-red-50 disabled:opacity-40">
+                {resetLoading ? 'Menghapus data...' : 'Reset Database'}
               </button>
             </div>
           </div>
