@@ -773,6 +773,17 @@ async def delete_work_tracking(item_id: str):
     await db.work_tracking.delete_one({'id': item_id})
     return {'message': 'Work tracking item dihapus'}
 
+@api.delete('/reset-database')
+async def reset_database():
+    """Hapus semua data dari semua collections untuk reset database"""
+    collections = [
+        'attendance', 'employees', 'cashflow', 'kasbon', 'print_jobs', 
+        'inventory', 'transactions', 'work_tracking', 'history_jobs', 'history_projects'
+    ]
+    for collection_name in collections:
+        await db[collection_name].delete_many({})
+    return {'message': 'Database berhasil di-reset. Semua data telah dihapus.'}
+
 app.include_router(api)
 
 @app.get('/')
