@@ -490,8 +490,19 @@ export default function AdminPage() {
   const totalKasbon = advances.reduce((sum, a) => sum + (a.amount || 0), 0)
   const totalGajiDibayar = cashflows.filter(c => c.type === 'salary' || c.description?.toUpperCase().includes('GAJI')).reduce((sum, c) => sum + (c.amount || 0), 0)
   const sisaGajiHarusBayar = totalGajiBulanan - totalKasbon
-  const labaKotor = omzet - pengeluaran
-  const labaBersih = labaKotor - totalKasbon
+  const labaBersih = omzet - pengeluaran
+
+  // Separate cash vs transfer
+  const printCash = cfPrintJobs.filter(j => j.payment_method === 'cash').reduce((sum, j) => sum + (j.total_price || 0), 0)
+  const printTransfer = cfPrintJobs.filter(j => j.payment_method === 'transfer').reduce((sum, j) => sum + (j.total_price || 0), 0)
+  const projectCash = cfProjects.filter(p => p.payment_method === 'cash').reduce((sum, p) => sum + (p.selling_price || p.total_project_value || 0), 0)
+  const projectTransfer = cfProjects.filter(p => p.payment_method === 'transfer').reduce((sum, p) => sum + (p.selling_price || p.total_project_value || 0), 0)
+  const jobCash = cfJobs.filter(j => j.payment_method === 'cash').reduce((sum, j) => sum + (j.total_price || 0), 0)
+  const jobTransfer = cfJobs.filter(j => j.payment_method === 'transfer').reduce((sum, j) => sum + (j.total_price || 0), 0)
+  const manualCash = cashflows.filter(c => ['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'cash').reduce((sum, c) => sum + (c.amount || 0), 0)
+  const manualTransfer = cashflows.filter(c => ['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'transfer').reduce((sum, c) => sum + (c.amount || 0), 0)
+  const omzetCash = printCash + projectCash + jobCash + manualCash
+  const omzetTransfer = printTransfer + projectTransfer + jobTransfer + manualTransfer
 
   // Margin per division
   const printOmzet = cfSummary?.print_job_total || 0
@@ -811,13 +822,28 @@ export default function AdminPage() {
                 <p className="text-xs opacity-80">KASBON</p>
                 <p className="text-sm font-bold mt-0.5">{formatRupiah(totalKasbon)}</p>
               </div>
-              <div className="bg-blue-500 rounded-2xl p-3 text-white shadow">
-                <p className="text-xs opacity-80">LABA KOTOR</p>
-                <p className="text-sm font-bold mt-0.5">{formatRupiah(labaKotor)}</p>
-              </div>
-              <div className="bg-purple-500 rounded-2xl p-3 text-white shadow col-span-2">
+              <div className="bg-purple-500 rounded-2xl p-3 text-white shadow">
                 <p className="text-xs opacity-80">LABA BERSIH</p>
-                <p className="text-lg font-bold mt-0.5">{formatRupiah(labaBersih)}</p>
+                <p className="text-sm font-bold mt-0.5">{formatRupiah(labaBersih)}</p>
+              </div>
+            </div>
+
+            {/* Cash vs Transfer Breakdown */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <p className="text-sm font-semibold text-gray-600 mb-3">Omzet (Cash vs Transfer)</p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-xs text-gray-500">Omzet Cash</span>
+                  <span className="text-sm font-semibold text-green-600">{formatRupiah(omzetCash)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-xs text-gray-500">Omzet Transfer</span>
+                  <span className="text-sm font-semibold text-blue-600">{formatRupiah(omzetTransfer)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 bg-gray-50 px-2 rounded-xl">
+                  <span className="text-xs font-bold text-gray-700">Total Omzet</span>
+                  <span className="text-sm font-bold text-gray-800">{formatRupiah(omzetCash + omzetTransfer)}</span>
+                </div>
               </div>
             </div>
 
