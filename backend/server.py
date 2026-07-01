@@ -424,6 +424,11 @@ async def get_projects(month: Optional[str] = None):
         query['date'] = {'$regex': f'^{month}'}
     return await db.projects.find(query, {'_id': 0}).sort('date', -1).to_list(None)
 
+@api.get('/projects/archived')
+async def get_archived_projects():
+    docs = await db.projects.find({'archived': True}, {'_id': 0}).sort('archived_at', -1).to_list(None)
+    return docs
+
 @api.get('/projects/{project_id}')
 async def get_project(project_id: str):
     doc = await db.projects.find_one({'id': project_id}, {'_id': 0})
@@ -677,11 +682,6 @@ async def archive_project(project_id: str):
 async def get_archived_jobs():
     docs = await db.jobs.find({'archived': True}, {'_id': 0}).sort('archived_at', -1).to_list(None)
     return [job_out(d) for d in docs]
-
-@api.get('/projects/archived')
-async def get_archived_projects():
-    docs = await db.projects.find({'archived': True}, {'_id': 0}).sort('archived_at', -1).to_list(None)
-    return docs
 
 app.include_router(api)
 
