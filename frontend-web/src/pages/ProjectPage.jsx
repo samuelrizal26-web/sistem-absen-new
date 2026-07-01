@@ -40,6 +40,7 @@ export default function ProjectPage() {
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [keypadField, setKeypadField] = useState(null) // 'selling_price' or null
 
   const hpp = materials.reduce((s, m) => s + (parseFloat(m.price || 0) * parseFloat(m.quantity || 0)), 0)
   const sellingPrice = parseRupiahInput(form.selling_price_raw)
@@ -156,6 +157,34 @@ export default function ProjectPage() {
     }
   }
 
+  const handleKeypadInput = (num) => {
+    if (!keypadField) return
+    const currentRaw = form.selling_price_raw || ''
+    const currentNum = parseRupiahInput(currentRaw) || 0
+    let newNum
+    if (num === 1000) {
+      newNum = currentNum * 1000
+    } else {
+      newNum = currentNum * 10 + num
+    }
+    const newRaw = formatRupiahInput(String(newNum))
+    setForm(f => ({ ...f, selling_price_raw: newRaw }))
+  }
+
+  const handleKeypadBackspace = () => {
+    if (!keypadField) return
+    const currentRaw = form.selling_price_raw || ''
+    const currentNum = parseRupiahInput(currentRaw) || 0
+    const newNum = Math.floor(currentNum / 10)
+    const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
+    setForm(f => ({ ...f, selling_price_raw: newRaw }))
+  }
+
+  const handleKeypadClear = () => {
+    if (!keypadField) return
+    setForm(f => ({ ...f, selling_price_raw: '' }))
+  }
+
   const totalPemasukan = projects.reduce((s, p) => s + (p.selling_price || p.total_project_value || 0), 0)
   const totalBahan = projects.reduce((s, p) => s + (p.hpp || p.total_material_cost || 0), 0)
   const totalDispen = projects.length
@@ -225,81 +254,105 @@ export default function ProjectPage() {
 
       {/* ── DASHBOARD ── */}
       {step === STEP.DASHBOARD && (
-        <div className="flex-1 p-4 space-y-4">
-          {/* Summary */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-green-500 rounded-2xl p-3 text-white shadow">
-              <p className="text-xs opacity-80">Pemasukan</p>
-              <p className="text-sm font-bold mt-0.5">{formatRupiah(totalPemasukan)}</p>
-            </div>
-            <div className="bg-red-500 rounded-2xl p-3 text-white shadow">
-              <p className="text-xs opacity-80">Total Bahan</p>
-              <p className="text-sm font-bold mt-0.5">{formatRupiah(totalBahan)}</p>
-            </div>
-            <div className="bg-blue-500 rounded-2xl p-3 text-white shadow">
-              <p className="text-xs opacity-80">Dispen</p>
-              <p className="text-sm font-bold mt-0.5">{totalDispen} job</p>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="flex gap-2">
-            <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
-              className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
-            {searchMonth && <button onClick={() => setSearchMonth('')} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm">Reset</button>}
-          </div>
-
-          <button onClick={() => setStep(STEP.FORM)}
-            className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-blue-700 active:scale-95 transition-all">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Tambah Pekerjaan
-          </button>
-
-          {/* List */}
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <svg className="w-7 h-7 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            </div>
-          ) : projects.length === 0 ? (
-            <p className="text-center text-gray-400 py-8 text-sm">Belum ada data project</p>
-          ) : (
-            Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, items]) => (
-              <div key={month}>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                  {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+        <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
+          {/* Left Panel - Summary & Controls */}
+          <div className="w-full md:w-1/2 flex flex-col gap-4">
+            {/* Summary */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-green-500 rounded-2xl p-3 text-white shadow">
+                <p className="text-xs opacity-80">Pemasukan</p>
+                <p className="text-sm font-bold mt-0.5">{formatRupiah(totalPemasukan)}</p>
+              </div>
+              <div className="bg-red-500 rounded-2xl p-3 text-white shadow">
+                <p className="text-xs opacity-80">Total Bahan</p>
+                <p className="text-sm font-bold mt-0.5">{formatRupiah(totalBahan)}</p>
+              </div>
+              <div className="bg-blue-500 rounded-2xl p-3 text-white shadow">
+                <p className="text-xs opacity-80">Dispen</p>
+                <p className="text-sm font-bold mt-0.5">{totalDispen} job</p>
+              </div>
+              <div className="bg-purple-500 rounded-2xl p-3 text-white shadow">
+                <p className="text-xs opacity-80">Total Margin</p>
+                <p className="text-sm font-bold mt-0.5">
+                  {totalPemasukan > 0 ? ((totalPemasukan - totalBahan) / totalPemasukan * 100).toFixed(1) + '%' : '0%'}
                 </p>
-                <div className="space-y-2">
-                  {items.map(p => (
-                    <div key={p.id} className="bg-white rounded-xl px-3 py-2.5 flex items-center gap-2.5 shadow-sm border border-gray-100">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0" onClick={() => setDetailProject(p)}>
-                        <p className="font-semibold text-gray-800 text-xs truncate">{p.project_name} · {p.customer_name}</p>
-                        <p className="text-[10px] text-gray-400">{formatDate(p.date)} · {p.payment_method === 'cash' ? 'Cash' : 'Transfer'}</p>
-                      </div>
-                      <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(p.selling_price || p.total_project_value || 0)}</p>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => handleEditProject(p)} className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 active:scale-95">
-                          <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        </button>
-                        <button onClick={() => setConfirmDelete(p)} className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 active:scale-95">
-                          <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="flex gap-2">
+              <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
+                className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              {searchMonth && <button onClick={() => setSearchMonth('')} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm">Reset</button>}
+            </div>
+
+            <button onClick={() => setStep(STEP.FORM)}
+              className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-blue-700 active:scale-95 transition-all">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Tambah Pekerjaan
+            </button>
+
+            {/* Profit Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <p className="text-sm font-semibold text-gray-600 mb-2">Estimasi Profit</p>
+              <p className={`text-2xl font-bold ${totalPemasukan - totalBahan >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {formatRupiah(totalPemasukan - totalBahan)}
+              </p>
+            </div>
+          </div>
+
+          {/* Right Panel - List */}
+          <div className="w-full md:w-1/2 flex flex-col">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
+              <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Project</h2>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <svg className="w-7 h-7 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                </div>
+              ) : projects.length === 0 ? (
+                <p className="text-center text-gray-400 py-16">Belum ada data project.</p>
+              ) : (
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                  {Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, items]) => (
+                    <div key={month}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                        {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                      </p>
+                      <div className="space-y-2">
+                        {items.map(p => (
+                          <div key={p.id} className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-center gap-2.5 border border-gray-100">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0" onClick={() => setDetailProject(p)}>
+                              <p className="font-semibold text-gray-800 text-xs truncate">{p.project_name} · {p.customer_name}</p>
+                              <p className="text-[10px] text-gray-400">{formatDate(p.date)} · {p.payment_method === 'cash' ? 'Cash' : 'Transfer'}</p>
+                            </div>
+                            <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(p.selling_price || p.total_project_value || 0)}</p>
+                            <div className="flex gap-1 shrink-0">
+                              <button onClick={() => handleEditProject(p)} className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center hover:bg-blue-100 active:scale-95">
+                                <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              </button>
+                              <button onClick={() => setConfirmDelete(p)} className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 active:scale-95">
+                                <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            ))
-          )}
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -394,10 +447,10 @@ export default function ProjectPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Nilai Project (Harga Jual) *</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rp</span>
-              <input type="text" inputMode="numeric" value={form.selling_price_raw}
-                onChange={e => setForm(f => ({ ...f, selling_price_raw: formatRupiahInput(e.target.value) }))}
+              <input type="text" readOnly value={form.selling_price_raw}
+                onClick={() => setKeypadField('selling_price')}
                 placeholder="0"
-                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-lg font-semibold" />
+                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-lg font-semibold cursor-pointer" />
             </div>
           </div>
           {/* Catatan */}
@@ -575,6 +628,54 @@ export default function ProjectPage() {
               <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold">Batal</button>
               <button onClick={() => handleDeleteProject(confirmDelete.id)} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold">Hapus</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Numeric Keypad */}
+      {keypadField && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setKeypadField(null)}>
+          <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-sm font-semibold text-gray-700">Nilai Project (Rp)</span>
+              <button onClick={() => setKeypadField(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {/* Display current value */}
+            <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
+              <span className="text-xl font-bold text-gray-800">
+                {form.selling_price_raw || 'Rp 0'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                <button
+                  key={num}
+                  onClick={() => handleKeypadInput(num)}
+                  className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all"
+                >
+                  {num}
+                </button>
+              ))}
+              <button onClick={handleKeypadClear} className="py-3 rounded-xl bg-red-100 text-lg font-semibold text-red-600 hover:bg-red-200 active:bg-red-300 transition-all">
+                C
+              </button>
+              <button onClick={() => handleKeypadInput(0)} className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all">
+                0
+              </button>
+              <button onClick={handleKeypadBackspace} className="py-3 rounded-xl bg-gray-100 text-lg font-semibold text-gray-600 hover:bg-gray-200 active:bg-gray-300 transition-all">
+                ⌫
+              </button>
+            </div>
+            <button onClick={() => handleKeypadInput(1000)} className="w-full py-3 rounded-xl bg-gray-100 text-lg font-semibold text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-all mb-2">
+              000
+            </button>
+            <button onClick={() => setKeypadField(null)} className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm">
+              Selesai
+            </button>
           </div>
         </div>
       )}
