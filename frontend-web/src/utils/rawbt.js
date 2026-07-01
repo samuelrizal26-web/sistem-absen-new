@@ -1,4 +1,4 @@
-import logoPrint from '../../../assets/NEW LOGO.png'
+import logoPrint from '../assets/NEW LOGO.png'
 
 const STORE_NAME = 'LABALABA ADVERTISING'
 const STORE_TAGLINE = 'One Stop Cutting Sticker'
