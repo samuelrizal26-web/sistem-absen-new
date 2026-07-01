@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os, uuid, bcrypt, asyncio
 
 # ── Setup ────────────────────────────────────────────────────────────────────
@@ -384,6 +384,15 @@ async def get_print_job(job_id: str):
     if not doc: raise HTTPException(status_code=404, detail='Print job tidak ditemukan')
     return doc
 
+@api.get('/print-jobs/employee/{emp_id}/paginated')
+async def get_print_jobs_by_employee_paginated(emp_id: str, page: int = 1, limit: int = 50):
+    six_months_ago = (datetime.now(timezone.utc) - timedelta(days=180)).isoformat()
+    query = {'$or': [{'cashier_id': emp_id}, {'cashier': emp_id}], 'created_at': {'$gte': six_months_ago}}
+    skip = (page - 1) * limit
+    items = await db.print_jobs.find(query, {'_id': 0}).sort('created_at', -1).skip(skip).limit(limit).to_list(None)
+    total = await db.print_jobs.count_documents(query)
+    return {'items': items, 'total': total, 'page': page, 'limit': limit, 'total_pages': (total + limit - 1) // limit}
+
 @api.post('/print-jobs')
 async def create_print_job(body: PrintJobCreate):
     qty = body.quantity
@@ -519,6 +528,15 @@ async def get_cashflow(month: Optional[str] = None):
     query = {'date': {'$regex': f'^{month}'}} if month else {}
     return await db.cashflow.find(query, {'_id': 0}).sort('date', -1).to_list(None)
 
+@api.get('/cashflow/employee/{emp_id}/paginated')
+async def get_cashflow_by_employee_paginated(emp_id: str, page: int = 1, limit: int = 50):
+    six_months_ago = (datetime.now(timezone.utc) - timedelta(days=180)).isoformat()
+    query = {'employee_id': emp_id, 'created_at': {'$gte': six_months_ago}}
+    skip = (page - 1) * limit
+    items = await db.cashflow.find(query, {'_id': 0}).sort('created_at', -1).skip(skip).limit(limit).to_list(None)
+    total = await db.cashflow.count_documents(query)
+    return {'items': items, 'total': total, 'page': page, 'limit': limit, 'total_pages': (total + limit - 1) // limit}
+
 @api.get('/cashflow/{cf_id}')
 async def get_cashflow_item(cf_id: str):
     doc = await db.cashflow.find_one({'id': cf_id}, {'_id': 0})
@@ -560,6 +578,15 @@ async def get_kasbon_by_employee(emp_id: str, active_only: bool = False):
     if active_only:
         query['settled'] = {'$ne': True}
     return await db.kasbon.find(query, {'_id': 0}).sort('created_at', -1).to_list(None)
+
+@api.get('/kasbon/employee/{emp_id}/paginated')
+async def get_kasbon_by_employee_paginated(emp_id: str, page: int = 1, limit: int = 50):
+    six_months_ago = (datetime.now(timezone.utc) - timedelta(days=180)).isoformat()
+    query = {'employee_id': emp_id, 'created_at': {'$gte': six_months_ago}}
+    skip = (page - 1) * limit
+    items = await db.kasbon.find(query, {'_id': 0}).sort('created_at', -1).skip(skip).limit(limit).to_list(None)
+    total = await db.kasbon.count_documents(query)
+    return {'items': items, 'total': total, 'page': page, 'limit': limit, 'total_pages': (total + limit - 1) // limit}
 
 @api.get('/kasbon/employee/{emp_id}/summary')
 async def get_kasbon_summary(emp_id: str):
