@@ -21,13 +21,14 @@ export default function CrewDashboard({ employee, onClose }) {
     setLoading(true)
     try {
       const noteText = note ? `${note} [via ${via}]` : `Kasbon via ${via}`
+      // Trigger drawer immediately (still within user-gesture) before awaiting network call
+      if (via === 'cash') openCashDrawerOnly()
       await createAdvance({
         employee_id: employee.id,
         amount: parsedAmount,
         note: noteText,
       })
       if (via === 'cash') {
-        openCashDrawerOnly()
         showToast('Kasbon berhasil! Laci kasir dibuka.', 'success')
       } else {
         showToast('Kasbon berhasil! Owner akan segera transfer.', 'info')

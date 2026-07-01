@@ -57,6 +57,8 @@ export default function KasbonDashboard() {
     if (!parsedAmount) { showToast('Masukkan nominal kasbon', 'error'); return }
     setSaving(true)
     try {
+      // Trigger drawer immediately (still within user-gesture) before awaiting network call
+      if (via === 'cash') openCashDrawerOnly()
       await createKasbon({
         employee_id: employee.id,
         amount: parsedAmount,
@@ -64,7 +66,6 @@ export default function KasbonDashboard() {
         notes: note || `Kasbon via ${via}`,
       })
       if (via === 'cash') {
-        openCashDrawerOnly()
         showToast('Kasbon berhasil! Laci kasir dibuka.', 'success')
       } else {
         showToast('Kasbon berhasil! Owner akan segera transfer.', 'info')

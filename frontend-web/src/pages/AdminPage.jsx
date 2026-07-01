@@ -325,6 +325,8 @@ export default function AdminPage() {
         showToast('Cashflow diperbarui!', 'success')
       } else {
         const isCash = payload.payment_method === 'cash' || payload.type === 'expense'
+        // Trigger drawer immediately (still within user-gesture) before awaiting network call
+        if (isCash) openCashDrawerOnly()
         await createCashflow({ ...payload, date: new Date().toISOString().split('T')[0] })
         
         // Notification for kasbon with transfer method
@@ -335,7 +337,6 @@ export default function AdminPage() {
           )
         }
         
-        if (isCash) openCashDrawerOnly()
         showToast('Cashflow disimpan!' + (isCash ? ' Laci terbuka.' : ''), 'success')
       }
       resetCfForm(); await loadCashflow()
@@ -485,8 +486,9 @@ export default function AdminPage() {
     const amount = prompt('Jumlah modal yang ditaruh (Rp):')
     const ket = prompt('Keterangan:')
     if (!amount || !ket) return
+    openCashDrawerOnly()
     createCashflow({ type: 'modal_masuk', amount: parseFloat(amount), description: ket, payment_method: 'cash', date: new Date().toISOString().split('T')[0], handled_by: 'Admin' })
-      .then(() => { openCashDrawerOnly(); showToast('Modal dicatat. Laci terbuka.', 'success'); loadCashflow() })
+      .then(() => { showToast('Modal dicatat. Laci terbuka.', 'success'); loadCashflow() })
       .catch(e => showToast(e.message, 'error'))
   }
 
@@ -494,8 +496,9 @@ export default function AdminPage() {
     const amount = prompt('Jumlah kas yang diambil (Rp):')
     const ket = prompt('Keterangan:')
     if (!amount || !ket) return
+    openCashDrawerOnly()
     createCashflow({ type: 'kas_keluar', amount: parseFloat(amount), description: ket, payment_method: 'cash', date: new Date().toISOString().split('T')[0], handled_by: 'Admin' })
-      .then(() => { openCashDrawerOnly(); showToast('Kas tercatat. Laci terbuka.', 'success'); loadCashflow() })
+      .then(() => { showToast('Kas tercatat. Laci terbuka.', 'success'); loadCashflow() })
       .catch(e => showToast(e.message, 'error'))
   }
 

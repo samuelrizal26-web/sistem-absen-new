@@ -120,6 +120,8 @@ export default function CashflowPage() {
     try {
       const isCash = pendingForm.payment_method === 'cash'
       const isExpense = pendingForm.type === TIPE.PENGELUARAN
+      // Trigger drawer immediately (still within user-gesture) before awaiting network call
+      if (isCash || isExpense) openCashDrawerOnly()
       await createCashflow({
         type: pendingForm.type,
         amount: parseRupiahInput(pendingForm.amount_raw) || parseFloat(pendingForm.amount) || 0,
@@ -130,7 +132,6 @@ export default function CashflowPage() {
         employee_id: employee.id,
         date: new Date().toISOString().split('T')[0],
       })
-      if (isCash || isExpense) openCashDrawerOnly()
       showToast(`${isExpense ? 'Pengeluaran' : 'Pemasukan'} berhasil dicatat!${isCash || isExpense ? ' Laci terbuka.' : ''}`, 'success')
       setPendingForm(null)
       await loadData()
