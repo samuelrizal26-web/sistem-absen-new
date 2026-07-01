@@ -284,7 +284,6 @@ export default function HomeScreen() {
         <p className="text-white/60 text-sm tracking-widest uppercase mb-1">
           ONE_STOP CUTTING STICKER & ADVERTISING
         </p>
-        <h1 className="text-white text-3xl font-bold mb-1">Sistem Absensi Crew</h1>
       </div>
 
       {/* 2 Column Layout */}
