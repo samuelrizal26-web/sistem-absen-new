@@ -1,7 +1,7 @@
 {
-  "name": "Sistem Absen Labalaba",
-  "short_name": "Sistem Absen",
-  "description": "Aplikasi internal kantor untuk absensi, stok, kasbon, dan cashflow.",
+  "name": "ONE_STOP CUTTING STICKER & ADVERTISING",
+  "short_name": "LB.ADV",
+  "description": "Aplikasi internal untuk absensi, stok, kasbon, dan cashflow Labalaba Advertising.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
