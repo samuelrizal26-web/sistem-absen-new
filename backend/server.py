@@ -44,6 +44,7 @@ class EmployeeCreate(BaseModel):
     status_crew: str
     monthly_salary: Optional[float] = 0
     work_hours_per_day: Optional[float] = 8
+    photo: Optional[str] = ''
 
 class EmployeeUpdate(BaseModel):
     name: Optional[str] = None
@@ -56,6 +57,7 @@ class EmployeeUpdate(BaseModel):
     status: Optional[str] = None
     monthly_salary: Optional[float] = None
     work_hours_per_day: Optional[float] = None
+    photo: Optional[str] = None
 
 class StockCreate(BaseModel):
     name: str
@@ -278,6 +280,7 @@ async def create_employee(body: EmployeeCreate):
            'pin_hash': pin_hash, 'birthdate': body.birthdate, 'birthplace': body.birthplace or '',
            'position': body.position, 'status_crew': body.status_crew,
            'monthly_salary': body.monthly_salary or 0, 'work_hours_per_day': body.work_hours_per_day or 8,
+           'photo': body.photo or '',
            'status': 'active', 'created_at': now_str()}
     await db.employees.insert_one(doc)
     return {k: v for k, v in clean(doc).items() if k != 'pin_hash'}
