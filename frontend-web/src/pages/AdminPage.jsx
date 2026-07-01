@@ -1397,9 +1397,9 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="space-y-2 text-sm text-gray-600">
-                <p><span className="font-semibold">Position:</span> {selectedEmployee.position || '-'}</p>
+                <p><span className="font-semibold">Position:</span> {selectedEmployee.position || selectedEmployee.position_crew || '-'}</p>
                 <p><span className="font-semibold">WhatsApp:</span> {selectedEmployee.whatsapp || '-'}</p>
-                <p><span className="font-semibold">Status:</span> {selectedEmployee.status_crew || '-'}</p>
+                <p><span className="font-semibold">Status:</span> {selectedEmployee.status_crew || selectedEmployee.status || '-'}</p>
               </div>
               <div className="mt-auto text-xs text-gray-400 text-center pt-4">
                 Data 6 bulan terakhir
