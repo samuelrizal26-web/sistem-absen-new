@@ -285,7 +285,6 @@ export default function HomeScreen() {
           LADI One_Stop Cutting Sticker
         </p>
         <h1 className="text-white text-3xl font-bold mb-1">Sistem Absensi Crew</h1>
-        <p className="text-white/70 text-sm">Pilih nama Anda untuk absensi</p>
       </div>
 
       {/* 2 Column Layout */}
