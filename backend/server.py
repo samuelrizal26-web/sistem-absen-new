@@ -780,8 +780,8 @@ async def delete_work_tracking(item_id: str):
 async def reset_database():
     """Hapus semua data dari semua collections untuk reset database"""
     collections = [
-        'attendance', 'employees', 'cashflow', 'kasbon', 'print_jobs', 
-        'inventory', 'transactions', 'work_tracking', 'history_jobs', 'history_projects'
+        'employees', 'stock', 'cashflow', 'kasbon', 'print_jobs',
+        'projects', 'jobs', 'work_tracking'
     ]
     for collection_name in collections:
         await db[collection_name].delete_many({})
