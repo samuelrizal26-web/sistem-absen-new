@@ -137,3 +137,11 @@ export const updateWorkTracking = (id, data) =>
   request(`/work-tracking/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteWorkTracking = (id) =>
   request(`/work-tracking/${id}`, { method: 'DELETE' })
+
+// ─── Employee Transactions (Paginated) ─────────────────────────
+export const getKasbonByEmployeePaginated = (empId, page = 1, limit = 50) =>
+  request(`/kasbon/employee/${empId}/paginated?page=${page}&limit=${limit}`)
+export const getPrintJobsByEmployeePaginated = (empId, page = 1, limit = 50) =>
+  request(`/print-jobs/employee/${empId}/paginated?page=${page}&limit=${limit}`)
+export const getCashflowByEmployeePaginated = (empId, page = 1, limit = 50) =>
+  request(`/cashflow/employee/${empId}/paginated?page=${page}&limit=${limit}`)
