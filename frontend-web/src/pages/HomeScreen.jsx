@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects } from '../services/api'
 import { getInitials, formatRupiah, formatDate } from '../utils/format'
 import PinModal from '../components/PinModal'
 import JobFormModal from '../components/JobFormModal'
@@ -76,7 +76,9 @@ export default function HomeScreen() {
 
   // Jobs
   const [jobs, setJobs] = useState([])
+  const [projects, setProjects] = useState([])
   const [loadingJobs, setLoadingJobs] = useState(true)
+  const [jobTab, setJobTab] = useState('aktif') // 'aktif' | 'selesai'
   const [showJobForm, setShowJobForm] = useState(false)
   const [editingJob, setEditingJob] = useState(null)
   const [selectedJob, setSelectedJob] = useState(null)
@@ -98,11 +100,30 @@ export default function HomeScreen() {
 
   const loadJobs = () => {
     setLoadingJobs(true)
-    getJobs('proses')
-      .then((data) => setJobs(Array.isArray(data) ? data : []))
+    Promise.all([
+      getJobs(),
+      getProjects(),
+    ])
+      .then(([jobsData, projectsData]) => {
+        setJobs(Array.isArray(jobsData) ? jobsData : [])
+        setProjects(Array.isArray(projectsData) ? projectsData : [])
+      })
       .catch(() => showToast('Gagal memuat daftar pekerjaan', 'error'))
       .finally(() => setLoadingJobs(false))
   }
+
+  // Combine and filter jobs/projects based on tab
+  const allJobs = [
+    ...jobs.map(j => ({ ...j, _source: 'job' })),
+    ...projects.map(p => ({ ...p, _source: 'project' })),
+  ]
+
+  const filteredJobs = allJobs.filter(item => {
+    const status = item.progress_status || item.status || 'proses'
+    if (jobTab === 'aktif') return status === 'proses'
+    if (jobTab === 'selesai') return status === 'selesai'
+    return true
+  })
 
   useEffect(() => {
     getEmployees()
@@ -193,88 +214,140 @@ export default function HomeScreen() {
   const openEditJob = (job) => { setSelectedJob(null); setEditingJob(job); setShowJobForm(true) }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
+    <div className="min-h-screen flex flex-col bg-gray-100">
+      {/* Header dengan Logo Besar */}
       <div
-        className="relative flex flex-col items-center pt-10 pb-8 px-5"
+        className="relative flex flex-col items-center pt-8 pb-6 px-5"
         style={{
           background: 'linear-gradient(160deg, #0A4D68 0%, #0d7fa8 70%, #1ab3e8 100%)',
-          borderBottomLeftRadius: '2rem',
-          borderBottomRightRadius: '2rem',
         }}
       >
-        {/* Logo + tagline */}
-        <img src="/icon-512.png" alt="Logo" className="w-14 h-14 object-contain mb-1" />
-        <p className="text-white/60 text-xs tracking-widest uppercase mb-3">
-          One Stop Cutting Sticker
+        {/* Logo Besar */}
+        <img src="/icon-512.png" alt="Logo" className="w-24 h-24 object-contain mb-2" />
+        <p className="text-white/60 text-sm tracking-widest uppercase mb-1">
+          LADI One_Stop Cutting Sticker
         </p>
-        <h1 className="text-white text-2xl font-bold mb-0.5">Labalaba Advertising</h1>
-        <p className="text-white/70 text-sm">Manajemen Pekerjaan & Kasbon</p>
-
-        {/* Nav Buttons */}
-        <div className="grid grid-cols-2 gap-3 w-full mt-6">
-          {NAV_BUTTONS.map((btn) => (
-            <button
-              key={btn.label}
-              onClick={() => handleNavClick(btn)}
-              className={`flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-white font-semibold text-sm shadow-lg active:scale-95 transition-all bg-gradient-to-r ${btn.color}`}
-            >
-              {btn.icon}
-              {btn.label}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-white text-3xl font-bold mb-1">Sistem Absensi Crew</h1>
+        <p className="text-white/70 text-sm">Pilih nama Anda untuk absensi</p>
       </div>
 
-      {/* Daftar Pekerjaan */}
-      <div className="flex-1 px-4 py-5">
-        {/* Tombol Tambah Pekerjaan */}
-        <button onClick={openAddJob}
-          className="w-full mb-4 py-3.5 rounded-2xl bg-primary text-white font-bold shadow hover:bg-primary-dark active:scale-95 transition-all flex items-center justify-center gap-2">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Tambah Pekerjaan
-        </button>
-
-        <p className="text-sm font-semibold text-gray-600 mb-2 ml-1">Daftar Pekerjaan Berjalan</p>
-        {loadingJobs ? (
-          <div className="flex justify-center items-center py-16">
-            <svg className="w-8 h-8 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-          </div>
-        ) : jobs.length === 0 ? (
-          <p className="text-center text-gray-400 py-16">Belum ada pekerjaan berjalan.</p>
-        ) : (
-          <div className="space-y-3">
-            {jobs.map((job) => {
-              const isLunas = job.payment_status === 'lunas'
-              return (
+      {/* 2 Column Layout */}
+      <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
+        {/* Left Panel - Navigation Buttons */}
+        <div className="w-full md:w-1/2 flex flex-col gap-3">
+          <div className="bg-white rounded-2xl shadow-lg p-5 flex-1"
+            style={{
+              background: 'linear-gradient(160deg, #0A4D68 0%, #0d7fa8 70%, #1ab3e8 100%)',
+            }}
+          >
+            <div className="space-y-3">
+              {NAV_BUTTONS.map((btn) => (
                 <button
-                  key={job.id}
-                  onClick={() => setSelectedJob(job)}
-                  className={`w-full text-left rounded-2xl shadow-sm p-4 active:scale-[0.98] transition-all border-l-4 ${isLunas ? 'bg-green-50 border-green-500' : 'bg-orange-50 border-orange-500'}`}
+                  key={btn.label}
+                  onClick={() => handleNavClick(btn)}
+                  className={`w-full flex items-center gap-3 py-4 px-5 rounded-xl text-white font-semibold shadow-lg active:scale-95 transition-all bg-gradient-to-r ${btn.color}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-gray-800 leading-tight truncate">{job.job_name}</p>
-                      <p className="text-sm text-gray-500 truncate">{job.customer_name}</p>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${isLunas ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
-                      {isLunas ? 'LUNAS' : 'DP'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-2 text-xs">
-                    <span className="text-gray-400">{formatDate(job.date)}</span>
-                    <span className="font-semibold text-gray-700">{formatRupiah(job.total_price)}</span>
-                  </div>
+                  {btn.icon}
+                  {btn.label}
                 </button>
-              )
-            })}
+              ))}
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Right Panel - Job List */}
+        <div className="w-full md:w-1/2 flex flex-col">
+          <div className="bg-white rounded-2xl shadow-lg p-5 flex-1"
+            style={{
+              background: 'linear-gradient(160deg, #e0f2fe 0%, #bae6fd 100%)',
+            }}
+          >
+            {/* Tombol Tambah Pekerjaan */}
+            <button onClick={openAddJob}
+              className="w-full mb-4 py-3 rounded-xl bg-primary text-white font-bold shadow hover:bg-primary-dark active:scale-95 transition-all flex items-center justify-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Tambah Pekerjaan
+            </button>
+
+            {/* Tabs */}
+            <div className="flex bg-gray-100 rounded-xl p-1 mb-4 gap-1">
+              {['Aktif', 'Selesai'].map((tab) => (
+                <button key={tab} onClick={() => setJobTab(tab.toLowerCase())}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${jobTab === tab.toLowerCase() ? 'bg-white text-primary shadow' : 'text-gray-500'}`}>
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Pekerjaan</h2>
+            {loadingJobs ? (
+              <div className="flex justify-center items-center py-16">
+                <svg className="w-8 h-8 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              <p className="text-center text-gray-400 py-16">Belum ada pekerjaan.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredJobs.map((job) => {
+                  const isProject = job._source === 'project'
+                  const jobName = job.job_name || job.project_name || 'Tanpa nama'
+                  const customerName = job.customer_name || '-'
+                  const totalPrice = job.total_price || job.selling_price || job.total_project_value || 0
+                  const isLunas = job.payment_status === 'lunas'
+                  const isSelesai = (job.progress_status || job.status) === 'selesai'
+                  let bgColor = 'bg-orange-50'
+                  let borderColor = 'border-orange-500'
+                  let statusText = 'DP'
+
+                  if (isSelesai) {
+                    bgColor = 'bg-gray-100'
+                    borderColor = 'border-gray-400'
+                    statusText = 'SELESAI'
+                  } else if (isLunas) {
+                    bgColor = 'bg-green-50'
+                    borderColor = 'border-green-500'
+                    statusText = 'LUNAS'
+                  }
+
+                  return (
+                    <button
+                      key={job.id}
+                      onClick={() => setSelectedJob(job)}
+                      className={`w-full text-left rounded-xl shadow-sm p-4 active:scale-[0.98] transition-all border-l-4 ${bgColor} ${borderColor}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${isProject ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
+                              {isProject ? 'PROJECT' : 'JOB'}
+                            </span>
+                            <p className="font-bold text-gray-800 leading-tight truncate">{jobName}</p>
+                          </div>
+                          <p className="text-sm text-gray-500 truncate">{customerName}</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${isSelesai ? 'bg-gray-400 text-white' : isLunas ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
+                          {statusText}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 text-xs">
+                        <span className="text-gray-400">
+                          {formatDate(job.date)}
+                          {job.completed_at && ` · Selesai: ${formatDate(job.completed_at)}`}
+                        </span>
+                        <span className="font-semibold text-gray-700">{formatRupiah(totalPrice)}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* PIN Modal */}
@@ -311,8 +384,12 @@ export default function HomeScreen() {
                 {employees.map((emp) => (
                   <button key={emp.id} onClick={() => handleEmployeeClick(emp)}
                     className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-center gap-2 active:scale-95 transition-all hover:shadow-md border border-gray-100">
-                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-primary font-bold text-lg">{getInitials(emp.name)}</span>
+                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                      {emp.photo ? (
+                        <img src={emp.photo} alt={emp.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-primary font-bold text-lg">{getInitials(emp.name)}</span>
+                      )}
                     </div>
                     <p className="font-semibold text-gray-800 text-sm text-center leading-tight">{emp.name}</p>
                     <p className="text-xs text-gray-400 text-center">{emp.position || emp.role || '-'}</p>
