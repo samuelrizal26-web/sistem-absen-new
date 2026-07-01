@@ -282,7 +282,7 @@ export default function HomeScreen() {
         {/* Logo Besar */}
         <img src="/icon-512.png" alt="Logo" className="w-24 h-24 object-contain mb-2" />
         <p className="text-white/60 text-sm tracking-widest uppercase mb-1">
-          LADI One_Stop Cutting Sticker
+          ONE_STOP CUTTING STICKER & ADVERTISING
         </p>
         <h1 className="text-white text-3xl font-bold mb-1">Sistem Absensi Crew</h1>
       </div>
