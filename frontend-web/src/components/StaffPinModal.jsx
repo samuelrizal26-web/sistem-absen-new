@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { identifyByPin } from '../services/api'
 
 export default function StaffPinModal({ title = 'Verifikasi Karyawan', onConfirm, onCancel }) {
@@ -6,8 +6,6 @@ export default function StaffPinModal({ title = 'Verifikasi Karyawan', onConfirm
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef(null)
-
-  useEffect(() => { inputRef.current?.focus() }, [])
 
   const handleDigit = (d) => { if (pin.length < 6) setPin(p => p + d) }
   const handleBackspace = () => setPin(p => p.slice(0, -1))

@@ -4,8 +4,6 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
   const [pin, setPin] = useState('')
   const inputRef = useRef(null)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
-
   useEffect(() => {
     if (error) setPin('')
   }, [error])
