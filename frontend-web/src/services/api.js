@@ -80,6 +80,10 @@ export const markJobDone = (id) =>
   request(`/jobs/${id}/done`, { method: 'POST' })
 export const markProjectDone = (id) =>
   request(`/projects/${id}/done`, { method: 'POST' })
+export const archiveJob = (id) =>
+  request(`/jobs/${id}/archive`, { method: 'POST' })
+export const archiveProject = (id) =>
+  request(`/projects/${id}/archive`, { method: 'POST' })
 export const deleteJob = (id) =>
   request(`/jobs/${id}`, { method: 'DELETE' })
 

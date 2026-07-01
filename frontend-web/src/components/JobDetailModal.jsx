@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { markJobDone, markProjectDone, deleteJob, deleteProject } from '../services/api'
+import { markJobDone, markProjectDone, archiveJob, archiveProject } from '../services/api'
 import { formatRupiah, formatDate } from '../utils/format'
 
 export default function JobDetailModal({ job, onClose, onChanged, onEdit, showToast, tab }) {
@@ -33,16 +33,16 @@ export default function JobDetailModal({ job, onClose, onChanged, onEdit, showTo
     setBusy(true)
     try {
       if (job._source === 'project') {
-        await deleteProject(job.id)
-        showToast('Project diambil dan dihapus dari daftar', 'success')
+        await archiveProject(job.id)
+        showToast('Project diarsipkan', 'success')
       } else {
-        await deleteJob(job.id)
-        showToast('Pekerjaan diambil dan dihapus dari daftar', 'success')
+        await archiveJob(job.id)
+        showToast('Pekerjaan diarsipkan', 'success')
       }
       onChanged()
       onClose()
     } catch (e) {
-      showToast(e.message || 'Gagal menghapus', 'error')
+      showToast(e.message || 'Gagal mengarsipkan', 'error')
     } finally {
       setBusy(false)
     }

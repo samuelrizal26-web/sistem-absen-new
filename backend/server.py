@@ -419,7 +419,9 @@ async def get_projects_summary():
 
 @api.get('/projects')
 async def get_projects(month: Optional[str] = None):
-    query = {'date': {'$regex': f'^{month}'}} if month else {}
+    query = {'archived': {'$ne': True}}
+    if month:
+        query['date'] = {'$regex': f'^{month}'}
     return await db.projects.find(query, {'_id': 0}).sort('date', -1).to_list(None)
 
 @api.get('/projects/{project_id}')
@@ -615,7 +617,7 @@ def job_out(doc):
 
 @api.get('/jobs')
 async def get_jobs(status: Optional[str] = None):
-    query = {}
+    query = {'archived': {'$ne': True}}
     if status:
         query['progress_status'] = status
     docs = await db.jobs.find(query, {'_id': 0}).sort('created_at', -1).to_list(None)
@@ -658,6 +660,18 @@ async def delete_job(job_id: str):
     result = await db.jobs.delete_one({'id': job_id})
     if result.deleted_count == 0: raise HTTPException(status_code=404, detail='Pekerjaan tidak ditemukan')
     return {'message': 'Pekerjaan dihapus'}
+
+@api.post('/jobs/{job_id}/archive')
+async def archive_job(job_id: str):
+    result = await db.jobs.update_one({'id': job_id}, {'$set': {'archived': True, 'archived_at': now_str()}})
+    if result.matched_count == 0: raise HTTPException(status_code=404, detail='Pekerjaan tidak ditemukan')
+    return {'message': 'Pekerjaan diarsipkan'}
+
+@api.post('/projects/{project_id}/archive')
+async def archive_project(project_id: str):
+    result = await db.projects.update_one({'id': project_id}, {'$set': {'archived': True, 'archived_at': now_str()}})
+    if result.matched_count == 0: raise HTTPException(status_code=404, detail='Project tidak ditemukan')
+    return {'message': 'Project diarsipkan'}
 
 app.include_router(api)
 
