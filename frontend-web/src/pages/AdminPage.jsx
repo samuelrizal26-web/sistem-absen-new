@@ -65,6 +65,7 @@ export default function AdminPage() {
   const [editCf, setEditCf] = useState(null)
   const [viewEmp, setViewEmp] = useState(null)
   const [viewCf, setViewCf] = useState(null)
+  const [keypadField, setKeypadField] = useState(null) // 'amount' or null
 
   // ── Employee Transactions state ──
   const [empTxLoading, setEmpTxLoading] = useState(false)
@@ -299,6 +300,34 @@ export default function AdminPage() {
     setEditCf(item)
     setCfForm({ type: item.type, amount: String(item.amount), amount_raw: formatRupiahInput(String(item.amount)), description: item.description || '', payment_method: item.payment_method || 'cash', notes: item.notes || '', employee_id: item.employee_id || '' })
     setShowAddCf(true)
+  }
+
+  const handleKeypadInput = (num) => {
+    if (!keypadField) return
+    const currentRaw = cfForm.amount_raw || ''
+    const currentNum = parseRupiahInput(currentRaw) || 0
+    let newNum
+    if (num === 1000) {
+      newNum = currentNum * 1000
+    } else {
+      newNum = currentNum * 10 + num
+    }
+    const newRaw = formatRupiahInput(String(newNum))
+    setCfForm(f => ({ ...f, amount_raw: newRaw, amount: String(newNum) }))
+  }
+
+  const handleKeypadBackspace = () => {
+    if (!keypadField) return
+    const currentRaw = cfForm.amount_raw || ''
+    const currentNum = parseRupiahInput(currentRaw) || 0
+    const newNum = Math.floor(currentNum / 10)
+    const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
+    setCfForm(f => ({ ...f, amount_raw: newRaw, amount: String(newNum) }))
+  }
+
+  const handleKeypadClear = () => {
+    if (!keypadField) return
+    setCfForm(f => ({ ...f, amount_raw: '', amount: '' }))
   }
 
   const handleDeleteCashflow = async (id) => {
@@ -1566,10 +1595,10 @@ export default function AdminPage() {
               )}
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
-                <input type="text" inputMode="numeric" value={cfForm.amount_raw}
-                  onChange={e => { const v = formatRupiahInput(e.target.value); setCfForm(f => ({ ...f, amount_raw: v, amount: String(parseRupiahInput(v)) })) }}
+                <input type="text" readOnly value={cfForm.amount_raw}
+                  onClick={() => setKeypadField('amount')}
                   placeholder="0"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300 text-lg font-semibold" />
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300 text-lg font-semibold cursor-pointer" />
               </div>
               <input type="text" value={cfForm.description} onChange={e => setCfForm(f => ({ ...f, description: e.target.value }))} placeholder="Deskripsi *"
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
@@ -1580,6 +1609,54 @@ export default function AdminPage() {
                 {cfSaving ? 'Menyimpan...' : editCf ? 'Simpan Perubahan' : 'Simpan Cashflow'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Numeric Keypad */}
+      {keypadField && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setKeypadField(null)}>
+          <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-sm font-semibold text-gray-700">Jumlah (Rp)</span>
+              <button onClick={() => setKeypadField(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {/* Display current value */}
+            <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
+              <span className="text-xl font-bold text-gray-800">
+                {cfForm.amount_raw || 'Rp 0'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                <button
+                  key={num}
+                  onClick={() => handleKeypadInput(num)}
+                  className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all"
+                >
+                  {num}
+                </button>
+              ))}
+              <button onClick={handleKeypadClear} className="py-3 rounded-xl bg-red-100 text-lg font-semibold text-red-600 hover:bg-red-200 active:bg-red-300 transition-all">
+                C
+              </button>
+              <button onClick={() => handleKeypadInput(0)} className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all">
+                0
+              </button>
+              <button onClick={handleKeypadBackspace} className="py-3 rounded-xl bg-gray-100 text-lg font-semibold text-gray-600 hover:bg-gray-200 active:bg-gray-300 transition-all">
+                ⌫
+              </button>
+            </div>
+            <button onClick={() => handleKeypadInput(1000)} className="w-full py-3 rounded-xl bg-gray-100 text-lg font-semibold text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-all mb-2">
+              000
+            </button>
+            <button onClick={() => setKeypadField(null)} className="w-full py-3 rounded-xl bg-teal-500 text-white font-semibold text-sm">
+              Selesai
+            </button>
           </div>
         </div>
       )}
