@@ -145,11 +145,9 @@ export default function KasbonDashboard() {
                 <div className="w-full h-px bg-gray-100 my-4"></div>
                 <div className="w-full space-y-3 text-left">
                   {[
+                    ['Kota', employee.birthplace || '-'],
                     ['Tanggal Lahir', employee.birthdate ? formatDate(employee.birthdate) : '-'],
                     ['No. WhatsApp', employee.whatsapp || '-'],
-                    ['Status Crew', employee.status_crew || '-'],
-                    ['Gaji Bulanan', employee.monthly_salary ? formatRupiah(employee.monthly_salary) : '-'],
-                    ['Jam Kerja/Hari', employee.work_hours_per_day ? `${employee.work_hours_per_day} jam` : '-'],
                   ].map(([label, value]) => (
                     <div key={label} className="flex justify-between items-center">
                       <span className="text-sm text-gray-500">{label}</span>
@@ -162,7 +160,7 @@ export default function KasbonDashboard() {
 
             {/* Total Kasbon Card */}
             <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl shadow-md p-6 text-white">
-              <p className="text-white/80 text-sm">Total Kasbon Belum Lunas</p>
+              <p className="text-white/80 text-sm">TOTAL KASBON</p>
               <p className="text-4xl font-extrabold mt-2">{formatRupiah(total)}</p>
               <p className="text-white/70 text-xs mt-1">{items.length} transaksi</p>
             </div>
