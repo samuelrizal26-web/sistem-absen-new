@@ -14,10 +14,13 @@ const img = new Image()
 img.src = logoPrint
 img.onload = () => {
   const canvas = document.createElement('canvas')
-  canvas.width = img.width
-  canvas.height = img.height
+  // Resize logo to be smaller but eyecatching
+  const targetWidth = 200
+  const targetHeight = 200
+  canvas.width = targetWidth
+  canvas.height = targetHeight
   const ctx = canvas.getContext('2d')
-  ctx.drawImage(img, 0, 0)
+  ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
   logoBase64 = canvas.toDataURL('image/png')
 }
 
@@ -73,7 +76,6 @@ export function buildPrintJobReceipt({ job, cashier, change = 0 }) {
   lines.push(divider('-'))
   lines.push(row('Bahan:', job.material))
   lines.push(row('Qty  :', `${job.quantity} pcs`))
-  lines.push(row('Harga:', formatRp(hargaNormal) + '/pcs'))
   lines.push(divider('-'))
   lines.push(row('Subtot:', formatRp(subtotal)))
   if (dapat_diskon) lines.push(row('Diskon:', '-' + formatRp(diskon)))
@@ -87,11 +89,11 @@ export function buildPrintJobReceipt({ job, cashier, change = 0 }) {
   lines.push(center('Terima kasih!'))
   lines.push(center('- LB.ADV -'))
   lines.push('')
-  lines.push(center('Follow Us:'))
-  lines.push(center(CONTACT_INSTAGRAM))
-  lines.push(center(CONTACT_WHATSAPP))
-  lines.push(center(CONTACT_WEB))
-  lines.push(center(CONTACT_EMAIL))
+  lines.push('Follow Us:')
+  lines.push(CONTACT_INSTAGRAM)
+  lines.push(CONTACT_WHATSAPP)
+  lines.push(CONTACT_WEB)
+  lines.push(CONTACT_EMAIL)
   lines.push('')
   lines.push('')
   
@@ -162,12 +164,12 @@ export function triggerBrowserPrint(text) {
       <style>
         body {
           font-family: 'Courier New', monospace;
-          font-size: 11px;
+          font-size: 12px;
           width: 58mm;
           max-width: 58mm;
           margin: 0;
-          padding: 1.5mm;
-          line-height: 1.2;
+          padding: 2mm;
+          line-height: 1.3;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
         }
@@ -178,28 +180,31 @@ export function triggerBrowserPrint(text) {
         }
         .label {
           flex: 0 0 auto;
+          font-size: 12px;
         }
         .value {
           flex: 1;
           text-align: right;
+          font-size: 12px;
         }
         .center {
           text-align: center;
+          font-size: 13px;
         }
         .divider {
           border-bottom: 1px dashed #000;
-          margin: 2px 0;
+          margin: 3px 0;
         }
         img {
-          max-width: 45mm;
+          max-width: 35mm;
           height: auto;
           display: block;
-          margin: 0 auto 2mm auto;
+          margin: 0 auto 3mm auto;
         }
         @media print {
           body {
             margin: 0;
-            padding: 1.5mm;
+            padding: 2mm;
             width: 58mm;
             max-width: 58mm;
           }
