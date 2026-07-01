@@ -77,6 +77,7 @@ export default function AdminPage() {
   const [empTxPrintJobs, setEmpTxPrintJobs] = useState([])
   const [empTxCashflows, setEmpTxCashflows] = useState([])
   const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [viewEmployeeDetails, setViewEmployeeDetails] = useState(null)
 
   // Employee Transactions pagination state
   const [empTxPage, setEmpTxPage] = useState(1)
@@ -250,6 +251,10 @@ export default function AdminPage() {
     if (emp.id) {
       loadEmployeeTransactionsPaginated(emp.id, 1, 'all')
     }
+  }
+
+  const handleViewEmployeeDetails = (emp) => {
+    setViewEmployeeDetails(emp)
   }
 
   const loadHistory = async () => {
@@ -752,19 +757,22 @@ export default function AdminPage() {
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                   {filteredEmp.map(emp => (
                     <div key={emp.id} className="bg-gray-50 rounded-xl p-4 flex items-center gap-3 border border-gray-100">
-                      <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" onClick={() => handleViewEmployee(emp)}>
+                      <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" onClick={() => handleViewEmployeeDetails(emp)}>
                         {emp.photo ? (
                           <img src={emp.photo} alt={emp.name} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-purple-600 font-bold text-sm">{(emp.name || '?')[0].toUpperCase()}</span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleViewEmployee(emp)}>
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleViewEmployeeDetails(emp)}>
                         <p className="font-semibold text-gray-800 text-sm truncate">{emp.name}</p>
                         <p className="text-xs text-gray-400">{emp.position} · {emp.whatsapp}</p>
                         <p className="text-xs text-gray-400">{emp.status_crew || '-'}</p>
                       </div>
                       <div className="flex gap-2 shrink-0">
+                        <button onClick={() => handleViewEmployee(emp)} className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center hover:bg-indigo-100" title="Lihat Transaksi">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                        </button>
                         <button onClick={() => handleEditEmployee(emp)} className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-100">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
@@ -1406,6 +1414,74 @@ export default function AdminPage() {
                   <span className="text-sm font-semibold text-gray-800">{val}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Detail Karyawan ── */}
+      {viewEmployeeDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setViewEmployeeDetails(null)}>
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header with Close Button */}
+            <div className="relative">
+              <button onClick={() => setViewEmployeeDetails(null)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 flex items-center justify-center text-gray-600 shadow-lg z-10">
+                ✕
+              </button>
+              
+              {/* Large Photo Section */}
+              <div className="h-64 bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                {viewEmployeeDetails.photo ? (
+                  <img src={viewEmployeeDetails.photo} alt={viewEmployeeDetails.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center">
+                    <span className="text-white font-bold text-5xl">{(viewEmployeeDetails.name || '?')[0].toUpperCase()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Employee Info */}
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-1">{viewEmployeeDetails.name}</h2>
+              <p className="text-purple-600 font-semibold mb-4">{viewEmployeeDetails.position || viewEmployeeDetails.position_crew || '-'}</p>
+
+              <div className="space-y-3">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">WhatsApp</p>
+                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.whatsapp || '-'}</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">Status Crew</p>
+                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.status_crew || viewEmployeeDetails.status || '-'}</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">Tanggal Lahir</p>
+                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.birthdate || '-'} ({viewEmployeeDetails.birthplace || '-'})</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">Gaji Bulanan</p>
+                  <p className="text-lg font-semibold text-green-600">{formatRupiah(viewEmployeeDetails.monthly_salary || 0)}</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 mb-1">Jam Kerja per Hari</p>
+                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.work_hours_per_day || 8} jam</p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 flex gap-3">
+                <button onClick={() => { setViewEmployeeDetails(null); handleViewEmployee(viewEmployeeDetails) }} className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-all">
+                  Lihat Transaksi
+                </button>
+                <button onClick={() => { setViewEmployeeDetails(null); handleEditEmployee(viewEmployeeDetails) }} className="flex-1 py-3 rounded-xl border border-purple-300 text-purple-600 font-semibold hover:bg-purple-50 transition-all">
+                  Edit
+                </button>
+              </div>
             </div>
           </div>
         </div>
