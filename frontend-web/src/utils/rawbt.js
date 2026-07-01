@@ -3,10 +3,10 @@ import logoPrint from '../../../assets/NEW LOGO.png'
 const STORE_NAME = 'LABALABA ADVERTISING'
 const STORE_TAGLINE = 'One Stop Cutting Sticker'
 const PAPER_WIDTH = 42
-const CONTACT_INSTAGRAM = '@labalaba_advertising'
-const CONTACT_WHATSAPP = '081234567890'
-const CONTACT_WEB = 'www.labalaba.com'
-const CONTACT_EMAIL = 'info@labalaba.com'
+const CONTACT_INSTAGRAM = '@labalabaadv'
+const CONTACT_WHATSAPP = '085740280800'
+const CONTACT_WEB = 'www.labalabaa.com'
+const CONTACT_EMAIL = 'labalabasticker@gmail.com'
 
 // Convert image to base64 for RawBT
 let logoBase64 = null
