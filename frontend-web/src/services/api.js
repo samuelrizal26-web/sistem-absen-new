@@ -128,3 +128,12 @@ export const updateStock = (id, data) =>
   request(`/stock/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteStock = (id) =>
   request(`/stock/${id}`, { method: 'DELETE' })
+
+// ─── Work Tracking ─────────────────────────────────────────────
+export const getWorkTracking = () => request('/work-tracking')
+export const createWorkTracking = (data) =>
+  request('/work-tracking', { method: 'POST', body: JSON.stringify(data) })
+export const updateWorkTracking = (id, data) =>
+  request(`/work-tracking/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteWorkTracking = (id) =>
+  request(`/work-tracking/${id}`, { method: 'DELETE' })

@@ -151,6 +151,17 @@ class JobUpdate(BaseModel):
     notes: Optional[str] = None
     progress_status: Optional[str] = None
 
+class WorkTrackingCreate(BaseModel):
+    item_name: str
+    initial_qty: float
+    description: Optional[str] = ''
+
+class WorkTrackingUpdate(BaseModel):
+    item_name: Optional[str] = None
+    initial_qty: Optional[float] = None
+    completed_qty: Optional[float] = None
+    description: Optional[str] = None
+
 class AdminLogin(BaseModel):
     username: Optional[str] = None
     password: Optional[str] = None
@@ -682,6 +693,58 @@ async def archive_project(project_id: str):
 async def get_archived_jobs():
     docs = await db.jobs.find({'archived': True}, {'_id': 0}).sort('archived_at', -1).to_list(None)
     return [job_out(d) for d in docs]
+
+# ── Work Tracking ─────────────────────────────────────────────────────────────
+@api.get('/work-tracking')
+async def get_work_tracking():
+    docs = await db.work_tracking.find({}, {'_id': 0}).sort('created_at', -1).to_list(None)
+    return docs
+
+@api.post('/work-tracking')
+async def create_work_tracking(body: WorkTrackingCreate):
+    doc = {
+        'id': new_id(),
+        'item_name': body.item_name,
+        'initial_qty': body.initial_qty,
+        'completed_qty': 0,
+        'remaining_qty': body.initial_qty,
+        'description': body.description,
+        'created_at': now_str(),
+        'updated_at': now_str(),
+        'updated_by': 'owner'
+    }
+    await db.work_tracking.insert_one(doc)
+    return clean(doc)
+
+@api.put('/work-tracking/{item_id}')
+async def update_work_tracking(item_id: str, body: WorkTrackingUpdate):
+    existing = await db.work_tracking.find_one({'id': item_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail='Work tracking item tidak ditemukan')
+    
+    update_data = {}
+    if body.item_name is not None:
+        update_data['item_name'] = body.item_name
+    if body.initial_qty is not None:
+        update_data['initial_qty'] = body.initial_qty
+    if body.completed_qty is not None:
+        new_completed = existing.get('completed_qty', 0) + body.completed_qty
+        update_data['completed_qty'] = new_completed
+        update_data['remaining_qty'] = body.initial_qty - new_completed if body.initial_qty else existing.get('initial_qty', 0) - new_completed
+    if body.description is not None:
+        update_data['description'] = body.description
+    
+    update_data['updated_at'] = now_str()
+    update_data['updated_by'] = 'employee'
+    
+    await db.work_tracking.update_one({'id': item_id}, {'$set': update_data})
+    updated = await db.work_tracking.find_one({'id': item_id}, {'_id': 0})
+    return clean(updated)
+
+@api.delete('/work-tracking/{item_id}')
+async def delete_work_tracking(item_id: str):
+    await db.work_tracking.delete_one({'id': item_id})
+    return {'message': 'Work tracking item dihapus'}
 
 app.include_router(api)
 
