@@ -12,6 +12,7 @@ import {
 } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
+import { initNotifications, showNotification } from '../utils/notifications'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
@@ -181,6 +182,13 @@ export default function AdminPage() {
     if (tab === TAB.HISTORY) loadHistory()
   }, [authed, tab, cfSearch, empTxSearchMonth])
 
+  // Initialize browser notifications
+  useEffect(() => {
+    if (authed) {
+      initNotifications()
+    }
+  }, [authed])
+
   // ─────────────────── EMPLOYEE CRUD ───────────────────
   const resetEmpForm = () => {
     setEmpForm({ name: '', whatsapp: '', pin: '', birthdate: '', birthplace: '', position: '', status_crew: 'Tetap', monthly_salary: 0, monthly_salary_raw: '', work_hours_per_day: 8, photo: '' })
@@ -313,6 +321,15 @@ export default function AdminPage() {
       } else {
         const isCash = payload.payment_method === 'cash' || payload.type === 'expense'
         await createCashflow({ ...payload, date: new Date().toISOString().split('T')[0] })
+        
+        // Notification for kasbon with transfer method
+        if (payload.payment_method === 'transfer' && (payload.employee_id || payload.description?.toLowerCase().includes('kasbon'))) {
+          showNotification(
+            'Kasbon Baru Diajukan',
+            `${payload.description || 'Kasbon'} - ${formatRupiah(payload.amount)}`
+          )
+        }
+        
         if (isCash) openCashDrawerOnly()
         showToast('Cashflow disimpan!' + (isCash ? ' Laci terbuka.' : ''), 'success')
       }
