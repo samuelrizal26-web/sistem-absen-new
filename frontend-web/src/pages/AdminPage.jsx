@@ -489,6 +489,7 @@ export default function AdminPage() {
   const totalGajiBulanan = employees.reduce((sum, emp) => sum + (emp.monthly_salary || 0), 0)
   const totalKasbon = advances.reduce((sum, a) => sum + (a.amount || 0), 0)
   const totalGajiDibayar = cashflows.filter(c => c.type === 'salary' || c.description?.toUpperCase().includes('GAJI')).reduce((sum, c) => sum + (c.amount || 0), 0)
+  const sisaGajiHarusBayar = totalGajiBulanan - totalKasbon
   const labaKotor = omzet - pengeluaran
   const labaBersih = labaKotor - totalKasbon
 
@@ -829,7 +830,7 @@ export default function AdminPage() {
                   <span className="text-sm font-semibold text-gray-800">{formatRupiah(totalGajiBulanan)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                  <span className="text-xs text-gray-500">Total Kasbon (Belum Lunas)</span>
+                  <span className="text-xs text-gray-500">Total Kasbon</span>
                   <span className="text-sm font-semibold text-orange-600">{formatRupiah(totalKasbon)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-50">
@@ -838,7 +839,7 @@ export default function AdminPage() {
                 </div>
                 <div className="flex justify-between items-center py-2 bg-purple-50 px-2 rounded-xl">
                   <span className="text-xs font-bold text-purple-700">Sisa Gaji Harus Bayar</span>
-                  <span className="text-sm font-bold text-purple-800">{formatRupiah(totalGajiBulanan - totalGajiDibayar)}</span>
+                  <span className="text-sm font-bold text-purple-800">{formatRupiah(sisaGajiHarusBayar)}</span>
                 </div>
               </div>
             </div>
@@ -1225,8 +1226,8 @@ export default function AdminPage() {
                   <span className="text-sm font-semibold text-green-600">{formatRupiah(cashflows.filter(c => (c.type === 'salary' || c.description?.toUpperCase().includes('GAJI')) && c.employee_id === viewEmp.id).reduce((sum, c) => sum + (c.amount || 0), 0))}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-t border-purple-200 mt-2">
-                  <span className="text-xs font-bold text-purple-700">Sisa Gaji</span>
-                  <span className="text-lg font-bold text-purple-800">{formatRupiah((viewEmp.monthly_salary || 0) - advances.filter(a => a.employee_id === viewEmp.id).reduce((sum, a) => sum + (a.amount || 0), 0) - cashflows.filter(c => (c.type === 'salary' || c.description?.toUpperCase().includes('GAJI')) && c.employee_id === viewEmp.id).reduce((sum, c) => sum + (c.amount || 0), 0))}</span>
+                  <span className="text-xs font-bold text-purple-700">Sisa Gaji Harus Bayar</span>
+                  <span className="text-lg font-bold text-purple-800">{formatRupiah((viewEmp.monthly_salary || 0) - advances.filter(a => a.employee_id === viewEmp.id).reduce((sum, a) => sum + (a.amount || 0), 0))}</span>
                 </div>
               </div>
             </div>
