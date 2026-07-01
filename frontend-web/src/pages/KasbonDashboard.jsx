@@ -133,11 +133,11 @@ export default function KasbonDashboard() {
             {/* Employee Profile Card */}
             <div className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100">
               <div className="flex flex-col items-center text-center">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shrink-0 overflow-hidden border-4 border-white shadow-lg mb-4">
+                <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shrink-0 overflow-hidden border-4 border-white shadow-lg mb-4">
                   {employee.photo ? (
                     <img src={employee.photo} alt={employee.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-blue-600 font-bold text-4xl">{getInitials(employee.name)}</span>
+                    <span className="text-blue-600 font-bold text-5xl">{getInitials(employee.name)}</span>
                   )}
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800">{employee.name}</h2>
