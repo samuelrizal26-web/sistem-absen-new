@@ -1,6 +1,25 @@
+import logoPrint from '../../../assets/NEW LOGO.png'
+
 const STORE_NAME = 'LABALABA ADVERTISING'
 const STORE_TAGLINE = 'One Stop Cutting Sticker'
-const PAPER_WIDTH = 32
+const PAPER_WIDTH = 42
+const CONTACT_INSTAGRAM = '@labalaba_advertising'
+const CONTACT_WHATSAPP = '081234567890'
+const CONTACT_WEB = 'www.labalaba.com'
+const CONTACT_EMAIL = 'info@labalaba.com'
+
+// Convert image to base64 for RawBT
+let logoBase64 = null
+const img = new Image()
+img.src = logoPrint
+img.onload = () => {
+  const canvas = document.createElement('canvas')
+  canvas.width = img.width
+  canvas.height = img.height
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(img, 0, 0)
+  logoBase64 = canvas.toDataURL('image/png')
+}
 
 function pad(str, len, right = false) {
   const s = String(str ?? '')
@@ -37,45 +56,186 @@ export function buildPrintJobReceipt({ job, cashier, change = 0 }) {
   const subtotal = hargaNormal * job.quantity
   const diskon = job.diskon_nominal || 0
 
-  const lines = [
-    center(STORE_NAME),
-    center(STORE_TAGLINE),
-    divider('='),
-    row('Tgl  :', formatDate(job.date)),
-    row('Kasir:', cashier),
-    job.customer_name ? row('Cust :', job.customer_name) : null,
-    divider('-'),
-    row('Bahan:', job.material),
-    row('Qty  :', `${job.quantity} pcs`),
-    row('Harga:', formatRp(hargaNormal) + '/pcs'),
-    divider('-'),
-    row('Subtot:', formatRp(subtotal)),
-    dapat_diskon ? row('Diskon:', '-' + formatRp(diskon)) : null,
-    dapat_diskon ? center('* Hemat cetak minimal 10 pcs *') : null,
-    divider('-'),
-    row('TOTAL:', formatRp(job.total_price)),
-    row('Bayar:', job.payment_method === 'cash' ? 'Cash' : 'Transfer'),
-    job.payment_method === 'cash' ? row('Kemb :', formatRp(change)) : null,
-    job.notes ? row('Cat  :', job.notes) : null,
-    divider('='),
-    center('Terima kasih!'),
-    center('- LB.ADV -'),
-    '',
-    '',
-  ].filter(l => l !== null)
-  return lines.join('\n')
+  const lines = []
+  
+  // Add logo if available
+  if (logoBase64) {
+    lines.push('[IMAGE]' + logoBase64)
+  } else {
+    lines.push(center(STORE_NAME))
+    lines.push(center(STORE_TAGLINE))
+  }
+  
+  lines.push(divider('='))
+  lines.push(row('Tgl  :', formatDate(job.date)))
+  lines.push(row('Kasir:', cashier))
+  if (job.customer_name) lines.push(row('Cust :', job.customer_name))
+  lines.push(divider('-'))
+  lines.push(row('Bahan:', job.material))
+  lines.push(row('Qty  :', `${job.quantity} pcs`))
+  lines.push(row('Harga:', formatRp(hargaNormal) + '/pcs'))
+  lines.push(divider('-'))
+  lines.push(row('Subtot:', formatRp(subtotal)))
+  if (dapat_diskon) lines.push(row('Diskon:', '-' + formatRp(diskon)))
+  if (dapat_diskon) lines.push(center('* Hemat cetak minimal 10 pcs *'))
+  lines.push(divider('-'))
+  lines.push(row('TOTAL:', formatRp(job.total_price)))
+  lines.push(row('Bayar:', job.payment_method === 'cash' ? 'Cash' : 'Transfer'))
+  if (job.payment_method === 'cash') lines.push(row('Kemb :', formatRp(change)))
+  if (job.notes) lines.push(row('Cat  :', job.notes))
+  lines.push(divider('='))
+  lines.push(center('Terima kasih!'))
+  lines.push(center('- LB.ADV -'))
+  lines.push('')
+  lines.push(center('Follow Us:'))
+  lines.push(center(CONTACT_INSTAGRAM))
+  lines.push(center(CONTACT_WHATSAPP))
+  lines.push(center(CONTACT_WEB))
+  lines.push(center(CONTACT_EMAIL))
+  lines.push('')
+  lines.push('')
+  
+  return lines.filter(l => l !== null).join('\n')
 }
 
 export function triggerRawBTPrint(text, openDrawer = false) {
-  const encoded = encodeURIComponent(text)
-  const drawerCmd = openDrawer ? encodeURIComponent('\x1B\x70\x00\x19\xFA') : ''
-
+  // Check if text contains image and logo is ready
+  const hasImage = text.includes('[IMAGE]') && logoBase64
+  
+  if (hasImage) {
+    // For images, RawBT needs a different format
+    const imageData = logoBase64
+    const textOnly = text.replace(/\[IMAGE\][^\n]*/, '').trim()
+    
+    // RawBT format for image printing
+    const uri = `rawbt://print?image=${encodeURIComponent(imageData)}&text=${encodeURIComponent(textOnly)}`
+    const a = document.createElement('a')
+    a.href = uri
+    a.click()
+    return
+  }
+  
+  // Regular text printing (fallback if no image or image not ready)
   const fullText = openDrawer ? text + '\x1B\x70\x00\x19\xFA' : text
   const uri = `rawbt://print?text=${encodeURIComponent(fullText)}`
-
   const a = document.createElement('a')
   a.href = uri
   a.click()
+}
+
+export function triggerBrowserPrint(text) {
+  console.log('triggerBrowserPrint called')
+  // Format text for browser printing
+  const formattedText = text.replace(/\[IMAGE\][^\n]*/g, '') // Remove image marker
+  const lines = formattedText.split('\n').filter(line => line.trim)
+  
+  console.log('Receipt lines:', lines)
+  
+  // Parse lines into label-value pairs
+  const parsedLines = lines.map(line => {
+    if (line.includes('=')) return { type: 'divider', style: 'dashed' }
+    if (line.includes('-')) return { type: 'divider', style: 'dotted' }
+    if (line.includes('Terima kasih') || line.includes('LB.ADV')) return { type: 'center', text: line }
+    if (line.includes('Tgl') || line.includes('Kasir') || line.includes('Cust') || line.includes('Bahan') || 
+        line.includes('Qty') || line.includes('Harga') || line.includes('Subtot') || line.includes('Diskon') ||
+        line.includes('TOTAL') || line.includes('Bayar') || line.includes('Kemb') || line.includes('Cat')) {
+      const match = line.match(/^([A-Za-z\s]+):\s*(.+)$/)
+      if (match) {
+        return { type: 'row', label: match[1].trim(), value: match[2].trim() }
+      }
+    }
+    return { type: 'text', text: line }
+  })
+  
+  // Create a printable HTML document
+  const printWindow = window.open('', '_blank', 'width=300,height=600')
+  if (!printWindow) {
+    alert('Popup blocker detected! Please allow popups for this site to print.')
+    return
+  }
+  
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Print Receipt</title>
+      <style>
+        body {
+          font-family: 'Courier New', monospace;
+          font-size: 11px;
+          width: 58mm;
+          max-width: 58mm;
+          margin: 0;
+          padding: 1.5mm;
+          line-height: 1.2;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+        .line {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .label {
+          flex: 0 0 auto;
+        }
+        .value {
+          flex: 1;
+          text-align: right;
+        }
+        .center {
+          text-align: center;
+        }
+        .divider {
+          border-bottom: 1px dashed #000;
+          margin: 2px 0;
+        }
+        img {
+          max-width: 45mm;
+          height: auto;
+          display: block;
+          margin: 0 auto 2mm auto;
+        }
+        @media print {
+          body {
+            margin: 0;
+            padding: 1.5mm;
+            width: 58mm;
+            max-width: 58mm;
+          }
+          @page {
+            size: 58mm auto;
+            margin: 0;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      ${logoBase64 ? `<div class="center"><img src="${logoBase64}" alt="Logo"></div>` : ''}
+      ${parsedLines.map(line => {
+        if (line.type === 'divider') return `<div class="divider" style="border-bottom-style: ${line.style};"></div>`
+        if (line.type === 'center') return `<div class="center">${line.text}</div>`
+        if (line.type === 'row') return `<div class="line"><span class="label">${line.label}:</span><span class="value">${line.value}</span></div>`
+        return `<div class="line">${line.text}</div>`
+      }).join('')}
+    </body>
+    </html>
+  `)
+  printWindow.document.close()
+  
+  // Try to trigger print immediately
+  setTimeout(() => {
+    try {
+      printWindow.focus()
+      printWindow.print()
+      console.log('Print dialog triggered')
+    } catch (e) {
+      console.error('Print failed:', e)
+      alert('Print dialog gagal muncul. Silakan tekan Ctrl+P untuk print manual.')
+    }
+  }, 250)
+  
+  console.log('Print window opened')
 }
 
 export function openCashDrawerOnly() {
