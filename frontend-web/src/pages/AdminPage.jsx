@@ -1422,64 +1422,61 @@ export default function AdminPage() {
       {/* ── MODAL: Detail Karyawan ── */}
       {viewEmployeeDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setViewEmployeeDetails(null)}>
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            {/* Header with Close Button */}
-            <div className="relative">
-              <button onClick={() => setViewEmployeeDetails(null)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 flex items-center justify-center text-gray-600 shadow-lg z-10">
-                ✕
-              </button>
-              
-              {/* Large Photo Section */}
-              <div className="h-64 bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                {viewEmployeeDetails.photo ? (
-                  <img src={viewEmployeeDetails.photo} alt={viewEmployeeDetails.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center">
-                    <span className="text-white font-bold text-5xl">{(viewEmployeeDetails.name || '?')[0].toUpperCase()}</span>
-                  </div>
-                )}
-              </div>
+          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex h-[70vh]" onClick={e => e.stopPropagation()}>
+            {/* Left Panel - Large Photo */}
+            <div className="w-1/2 bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center p-8">
+              {viewEmployeeDetails.photo ? (
+                <img src={viewEmployeeDetails.photo} alt={viewEmployeeDetails.name} className="w-full h-full object-cover rounded-2xl shadow-2xl" />
+              ) : (
+                <div className="w-48 h-48 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-white font-bold text-7xl">{(viewEmployeeDetails.name || '?')[0].toUpperCase()}</span>
+                </div>
+              )}
             </div>
 
-            {/* Employee Info */}
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-1">{viewEmployeeDetails.name}</h2>
-              <p className="text-purple-600 font-semibold mb-4">{viewEmployeeDetails.position || viewEmployeeDetails.position_crew || '-'}</p>
+            {/* Right Panel - Employee Info */}
+            <div className="w-1/2 p-8 flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-800">{viewEmployeeDetails.name}</h2>
+                  <p className="text-purple-600 font-semibold text-lg">{viewEmployeeDetails.position || viewEmployeeDetails.position_crew || '-'}</p>
+                </div>
+                <button onClick={() => setViewEmployeeDetails(null)} className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all">
+                  ✕
+                </button>
+              </div>
 
-              <div className="space-y-3">
+              <div className="flex-1 space-y-4">
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-1">WhatsApp</p>
-                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.whatsapp || '-'}</p>
+                  <p className="text-xl font-semibold text-gray-800">{viewEmployeeDetails.whatsapp || '-'}</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-1">Status Crew</p>
-                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.status_crew || viewEmployeeDetails.status || '-'}</p>
+                  <p className="text-xl font-semibold text-gray-800">{viewEmployeeDetails.status_crew || viewEmployeeDetails.status || '-'}</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-1">Tanggal Lahir</p>
-                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.birthdate || '-'} ({viewEmployeeDetails.birthplace || '-'})</p>
+                  <p className="text-xl font-semibold text-gray-800">{viewEmployeeDetails.birthdate || '-'} ({viewEmployeeDetails.birthplace || '-'})</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-1">Gaji Bulanan</p>
-                  <p className="text-lg font-semibold text-green-600">{formatRupiah(viewEmployeeDetails.monthly_salary || 0)}</p>
+                  <p className="text-xl font-semibold text-green-600">{formatRupiah(viewEmployeeDetails.monthly_salary || 0)}</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-1">Jam Kerja per Hari</p>
-                  <p className="text-lg font-semibold text-gray-800">{viewEmployeeDetails.work_hours_per_day || 8} jam</p>
+                  <p className="text-xl font-semibold text-gray-800">{viewEmployeeDetails.work_hours_per_day || 8} jam</p>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="mt-6 flex gap-3">
-                <button onClick={() => { setViewEmployeeDetails(null); handleViewEmployee(viewEmployeeDetails) }} className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-all">
-                  Lihat Transaksi
-                </button>
-                <button onClick={() => { setViewEmployeeDetails(null); handleEditEmployee(viewEmployeeDetails) }} className="flex-1 py-3 rounded-xl border border-purple-300 text-purple-600 font-semibold hover:bg-purple-50 transition-all">
-                  Edit
+              {/* Edit Button Only */}
+              <div className="mt-6">
+                <button onClick={() => { setViewEmployeeDetails(null); handleEditEmployee(viewEmployeeDetails) }} className="w-full py-4 rounded-xl bg-purple-600 text-white font-bold text-lg hover:bg-purple-700 transition-all">
+                  Edit Data
                 </button>
               </div>
             </div>
