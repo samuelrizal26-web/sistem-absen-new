@@ -108,14 +108,18 @@ export function triggerRawBTPrint(text, openDrawer = false) {
   if (hasImage) {
     // For images, RawBT needs a different format
     const imageData = logoBase64
-    let textOnly = text.replace(/\[IMAGE\][^\n]*/, '').trim()
-    if (openDrawer) textOnly += drawerCmd
+    const textOnly = text.replace(/\[IMAGE\][^\n]*/, '').trim()
     
     // RawBT format for image printing
     const uri = `rawbt://print?image=${encodeURIComponent(imageData)}&text=${encodeURIComponent(textOnly)}`
     const a = document.createElement('a')
     a.href = uri
     a.click()
+    // Drawer kick command is not reliably interpreted when mixed with image
+    // print, so send it as a separate text-only intent right after.
+    if (openDrawer) {
+      setTimeout(() => openCashDrawerOnly(), 400)
+    }
     return
   }
   
