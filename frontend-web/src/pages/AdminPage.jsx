@@ -5,6 +5,7 @@ import {
   getStock, createStock, updateStock, deleteStock,
   getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow,
   getPrintJobs, getProjects, getAllAdvances, deleteAdvance, settleKasbon,
+  getJobs,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
 } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
@@ -53,6 +54,7 @@ export default function AdminPage() {
   const [cfSummary, setCfSummary] = useState(null)
   const [cfPrintJobs, setCfPrintJobs] = useState([])
   const [cfProjects, setCfProjects] = useState([])
+  const [cfJobs, setCfJobs] = useState([])
   const [advances, setAdvances] = useState([])
   const [cfLoading, setCfLoading] = useState(false)
   const [cfSearch, setCfSearch] = useState('')
@@ -116,17 +118,19 @@ export default function AdminPage() {
   const loadCashflow = async () => {
     setCfLoading(true)
     try {
-      const [cf, cfs, pj, pr, adv] = await Promise.all([
+      const [cf, cfs, pj, pr, jobs, adv] = await Promise.all([
         getCashflow(cfSearch ? `?month=${cfSearch}` : ''),
         getCashflowSummary(),
         getPrintJobs(cfSearch ? `?month=${cfSearch}` : ''),
         getProjects(cfSearch ? `?month=${cfSearch}` : ''),
+        getJobs(cfSearch ? `?month=${cfSearch}` : ''),
         getAllAdvances(),
       ])
       setCashflows(Array.isArray(cf) ? cf : [])
       setCfSummary(cfs)
       setCfPrintJobs(Array.isArray(pj) ? pj : [])
       setCfProjects(Array.isArray(pr) ? pr : [])
+      setCfJobs(Array.isArray(jobs) ? jobs : [])
       setAdvances(Array.isArray(adv) ? adv : [])
     } catch { showToast('Gagal memuat cashflow', 'error') }
     finally { setCfLoading(false) }
@@ -416,6 +420,13 @@ export default function AdminPage() {
       }
     })
     
+    // Jobs (cash only)
+    cfJobs.forEach(j => {
+      if (j.payment_method === 'cash') {
+        balance += (j.total_price || 0)
+      }
+    })
+    
     // Kasbon (always cash)
     advances.forEach(a => {
       balance -= (a.amount || 0)
@@ -447,7 +458,7 @@ export default function AdminPage() {
     const d = new Date()
     d.setMonth(d.getMonth() - (11 - i))
     const monthKey = d.toISOString().slice(0, 7)
-    const monthJobs = [...cfPrintJobs, ...cfProjects].filter(j => (j.date || '').startsWith(monthKey))
+    const monthJobs = [...cfPrintJobs, ...cfProjects, ...cfJobs].filter(j => (j.date || '').startsWith(monthKey))
     const monthOmzet = monthJobs.reduce((sum, j) => sum + (j.total_price || j.selling_price || j.total_project_value || 0), 0)
     return {
       month: d.toLocaleDateString('id-ID', { month: 'short' }),
@@ -463,6 +474,7 @@ export default function AdminPage() {
     ...cashflows.map(c => ({ ...c, _source: ['income','modal_masuk'].includes(c.type) ? 'manual-income' : 'manual-expense', category: ['income','modal_masuk'].includes(c.type) ? 'income' : 'expense' })),
     ...cfPrintJobs.map(j => ({ id: j.id, date: j.date, description: `Print: ${j.material} · ${j.customer_name || '-'}`, amount: j.total_price || 0, payment_method: j.payment_method || 'cash', category: 'income', _source: 'print', handled_by: '' })),
     ...cfProjects.map(p => ({ id: p.id, date: p.date, description: `Project: ${p.project_name} · ${p.customer_name || '-'}`, amount: p.selling_price || p.total_project_value || 0, payment_method: p.payment_method || 'cash', category: 'income', _source: 'project', handled_by: '' })),
+    ...cfJobs.map(j => ({ id: j.id, date: j.date, description: `Job: ${j.job_name} · ${j.customer_name || '-'}`, amount: j.total_price || 0, payment_method: j.payment_method || 'cash', category: 'income', _source: 'job', handled_by: '' })),
     ...advances.map(a => ({ id: a.id, date: a.date || a.created_at?.slice(0,10), description: `Kasbon: ${a.employee_name || a.employee_id}`, amount: a.amount || 0, payment_method: 'cash', category: 'expense', _source: 'kasbon', handled_by: 'Admin' })),
   ]
 
@@ -470,6 +482,7 @@ export default function AdminPage() {
     if (cfTab === 'semua') return true
     if (cfTab === 'print') return i._source === 'print'
     if (cfTab === 'project') return i._source === 'project'
+    if (cfTab === 'job') return i._source === 'job'
     if (cfTab === 'manual') return i._source === 'manual-income' || i._source === 'manual-expense'
     if (cfTab === 'gaji') return i.type === 'salary' || (i.description?.toUpperCase().includes('GAJI'))
     if (cfTab === 'keluar') return i.category === 'expense'
@@ -866,7 +879,7 @@ export default function AdminPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
               {/* Filter Tabs */}
               <div className="flex bg-gray-100 rounded-2xl p-1 gap-1 mb-4">
-                {[['semua','Semua'],['print','Print'],['project','Project'],['manual','Manual'],['gaji','Gaji'],['keluar','Keluar']].map(([val, label]) => (
+                {[['semua','Semua'],['print','Print'],['project','Project'],['job','Job'],['manual','Manual'],['gaji','Gaji'],['keluar','Keluar']].map(([val, label]) => (
                   <button key={val} onClick={() => setCfTab(val)}
                     className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${cfTab === val ? 'bg-white text-purple-600 shadow' : 'text-gray-500'}`}>
                     {label}
