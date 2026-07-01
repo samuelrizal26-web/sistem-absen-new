@@ -4,7 +4,7 @@
   "description": "Aplikasi internal untuk stok, kasbon, dan cashflow Labalaba Advertising.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#EAFBFF",
   "theme_color": "#0A4D68",
   "scope": "/",
