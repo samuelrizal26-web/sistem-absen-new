@@ -7,6 +7,7 @@ import {
   getPrintJobs, getProjects, getAllAdvances, deleteAdvance, settleKasbon,
   getJobs, getArchivedJobs, getArchivedProjects,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
+  getKasbonByEmployeePaginated, getPrintJobsByEmployeePaginated, getCashflowByEmployeePaginated,
 } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
@@ -73,6 +74,30 @@ export default function AdminPage() {
   const [empTxPrintJobs, setEmpTxPrintJobs] = useState([])
   const [empTxCashflows, setEmpTxCashflows] = useState([])
   const [selectedEmployee, setSelectedEmployee] = useState(null)
+
+  // Employee Transactions pagination state
+  const [empTxPage, setEmpTxPage] = useState(1)
+  const [empTxType, setEmpTxType] = useState('all') // 'all', 'print_jobs', 'cashflow', 'kasbon'
+  const [empTxData, setEmpTxData] = useState({ items: [], total: 0, page: 1, limit: 50, total_pages: 0 })
+
+  const loadEmployeeTransactionsPaginated = async (empId, page = 1, type = 'all') => {
+    setEmpTxLoading(true)
+    try {
+      let data
+      if (type === 'kasbon' || type === 'all') {
+        data = await getKasbonByEmployeePaginated(empId, page)
+      } else if (type === 'print_jobs') {
+        data = await getPrintJobsByEmployeePaginated(empId, page)
+      } else if (type === 'cashflow') {
+        data = await getCashflowByEmployeePaginated(empId, page)
+      }
+      setEmpTxData(data)
+    } catch (e) {
+      showToast('Gagal memuat transaksi karyawan', 'error')
+    } finally {
+      setEmpTxLoading(false)
+    }
+  }
 
   // ── History state ──
   const [archivedJobs, setArchivedJobs] = useState([])
@@ -212,10 +237,13 @@ export default function AdminPage() {
     try {
       await loadCashflow() // Refresh advances data
       const fullEmp = await getEmployee(emp.id)
-      setViewEmp({ ...emp, ...fullEmp })
+      setSelectedEmployee({ ...emp, ...fullEmp })
+      setEmpTxPage(1)
+      setEmpTxType('all')
+      loadEmployeeTransactionsPaginated(emp.id, 1, 'all')
     } catch (e) {
       showToast('Gagal memuat detail karyawan', 'error')
-      setViewEmp(emp)
+      setSelectedEmployee(emp)
     }
   }
 
@@ -1343,69 +1371,92 @@ export default function AdminPage() {
 
       {/* ── MODAL: Detail Transaksi Karyawan ── */}
       {selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedEmployee(null)}>
-          <div className="bg-white w-full max-w-md rounded-t-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-gray-800">Transaksi Karyawan</h2>
-              <button onClick={() => setSelectedEmployee(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
-            </div>
-            <div className="bg-indigo-50 rounded-xl p-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                  <span className="text-indigo-600 font-bold text-lg">{(selectedEmployee.name || '?')[0].toUpperCase()}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedEmployee(null)}>
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Left Panel - Employee Info (Sticky) */}
+            <div className="w-1/3 bg-indigo-50 p-6 border-r border-indigo-100 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-800">Info Karyawan</h2>
+                <button onClick={() => setSelectedEmployee(null)} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-500 shadow-sm">✕</button>
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                  <span className="text-indigo-600 font-bold text-2xl">{(selectedEmployee.name || '?')[0].toUpperCase()}</span>
                 </div>
                 <div>
                   <p className="text-xl font-bold text-gray-800">{selectedEmployee.name}</p>
                   <p className="text-sm text-gray-600">{selectedEmployee.totalTransactions} transaksi</p>
                 </div>
               </div>
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-indigo-200">
-                <span className="text-sm text-gray-600">Total Amount</span>
-                <span className={`text-lg font-bold ${selectedEmployee.totalAmount >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  {formatRupiah(selectedEmployee.totalAmount)}
-                </span>
+              <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total Amount</span>
+                  <span className={`text-lg font-bold ${selectedEmployee.totalAmount >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {formatRupiah(selectedEmployee.totalAmount)}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p><span className="font-semibold">Position:</span> {selectedEmployee.position || '-'}</p>
+                <p><span className="font-semibold">WhatsApp:</span> {selectedEmployee.whatsapp || '-'}</p>
+                <p><span className="font-semibold">Status:</span> {selectedEmployee.status_crew || '-'}</p>
+              </div>
+              <div className="mt-auto text-xs text-gray-400 text-center pt-4">
+                Data 6 bulan terakhir
               </div>
             </div>
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
-              {selectedEmployee.printJobs.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Print Jobs ({selectedEmployee.printJobs.length})</p>
-                  <div className="space-y-2">
-                    {selectedEmployee.printJobs.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((tx, idx) => (
-                      <div key={`print-${idx}`} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm truncate">{tx.description}</p>
-                            <p className="text-xs text-gray-400">{formatDate(tx.date)} · {tx.payment_method === 'cash' ? 'Cash' : 'Transfer'}</p>
-                          </div>
-                          <p className="font-bold text-sm text-green-600 shrink-0 ml-2">
-                            +{formatRupiah(tx.amount)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+
+            {/* Right Panel - Transactions with Tabs */}
+            <div className="w-2/3 flex flex-col">
+              {/* Tabs */}
+              <div className="p-4 border-b border-gray-100">
+                <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+                  {['all', 'print_jobs', 'cashflow', 'kasbon'].map(type => (
+                    <button key={type} onClick={() => { setEmpTxType(type); setEmpTxPage(1); loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, type) }}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${empTxType === type ? 'bg-white text-indigo-600 shadow' : 'text-gray-500'}`}>
+                      {type === 'all' ? 'Semua' : type === 'print_jobs' ? 'Print Jobs' : type === 'cashflow' ? 'Cashflow' : 'Kasbon'}
+                    </button>
+                  ))}
                 </div>
-              )}
-              {selectedEmployee.cashflows.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cashflow ({selectedEmployee.cashflows.length})</p>
+              </div>
+
+              {/* Transaction List */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {empTxLoading ? (
+                  <div className="flex justify-center py-8"><svg className="w-7 h-7 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg></div>
+                ) : empTxData.items.length === 0 ? (
+                  <p className="text-center text-gray-400 py-8">Belum ada transaksi.</p>
+                ) : (
                   <div className="space-y-2">
-                    {selectedEmployee.cashflows.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((tx, idx) => (
-                      <div key={`cf-${idx}`} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    {empTxData.items.map((tx, idx) => (
+                      <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                         <div className="flex justify-between items-start">
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm truncate">{tx.description}</p>
-                            <p className="text-xs text-gray-400">{formatDate(tx.date)} · {tx.payment_method === 'cash' ? 'Cash' : 'Transfer'}</p>
-                            {tx.notes && <p className="text-xs text-gray-400 truncate">{tx.notes}</p>}
+                            <p className="font-semibold text-gray-800 text-sm truncate">{tx.description || tx.material || tx.item_name || '-'}</p>
+                            <p className="text-xs text-gray-400">{formatDate(tx.date || tx.created_at)} · {tx.payment_method || '-'}</p>
                           </div>
-                          <p className={`font-bold text-sm shrink-0 ml-2 ${tx.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
-                            {tx.type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
+                          <p className={`font-bold text-sm shrink-0 ml-2 ${tx.type === 'expense' || tx.type === 'kas_keluar' ? 'text-red-500' : 'text-green-600'}`}>
+                            {tx.type === 'expense' || tx.type === 'kas_keluar' ? '-' : '+'}{formatRupiah(tx.amount || tx.total_price)}
                           </p>
                         </div>
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {empTxData.total_pages > 1 && (
+                <div className="p-4 border-t border-gray-100 flex items-center justify-between">
+                  <button onClick={() => { if (empTxPage > 1) { setEmpTxPage(empTxPage - 1); loadEmployeeTransactionsPaginated(selectedEmployee.id, empTxPage - 1, empTxType) } }} disabled={empTxPage === 1}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-semibold disabled:opacity-40">
+                    Sebelumnya
+                  </button>
+                  <span className="text-sm text-gray-600">Halaman {empTxPage} dari {empTxData.total_pages}</span>
+                  <button onClick={() => { if (empTxPage < empTxData.total_pages) { setEmpTxPage(empTxPage + 1); loadEmployeeTransactionsPaginated(selectedEmployee.id, empTxPage + 1, empTxType) } }} disabled={empTxPage === empTxData.total_pages}
+                    className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40">
+                    Selanjutnya
+                  </button>
                 </div>
               )}
             </div>
