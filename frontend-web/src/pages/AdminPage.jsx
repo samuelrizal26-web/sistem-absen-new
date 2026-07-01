@@ -234,16 +234,11 @@ export default function AdminPage() {
   }
 
   const handleViewEmployee = async (emp) => {
-    try {
-      await loadCashflow() // Refresh advances data
-      const fullEmp = await getEmployee(emp.id)
-      setSelectedEmployee({ ...emp, ...fullEmp })
-      setEmpTxPage(1)
-      setEmpTxType('all')
+    setSelectedEmployee(emp)
+    setEmpTxPage(1)
+    setEmpTxType('all')
+    if (emp.id) {
       loadEmployeeTransactionsPaginated(emp.id, 1, 'all')
-    } catch (e) {
-      showToast('Gagal memuat detail karyawan', 'error')
-      setSelectedEmployee(emp)
     }
   }
 
@@ -382,9 +377,15 @@ export default function AdminPage() {
     empTxPrintJobs.forEach(job => {
       // Try multiple fields for employee name
       const empName = job.cashier || job.cashier_name || (employees.find(e => e.id === job.cashier_id)?.name) || 'Unknown'
+      const empId = job.cashier_id || (employees.find(e => e.name === empName)?.id) || null
+      const empData = employees.find(e => e.id === empId) || {}
       if (!employeeMap[empName]) {
         employeeMap[empName] = {
+          id: empId,
           name: empName,
+          position: empData.position || empData.position_crew || '',
+          whatsapp: empData.whatsapp || '',
+          status_crew: empData.status_crew || empData.status || '',
           printJobs: [],
           cashflows: [],
           totalTransactions: 0,
@@ -407,9 +408,15 @@ export default function AdminPage() {
       if (cf.handled_by === 'Admin') return
       // Try multiple fields for employee name
       const empName = cf.handled_by || (employees.find(e => e.id === cf.employee_id)?.name) || 'Unknown'
+      const empId = cf.employee_id || (employees.find(e => e.name === empName)?.id) || null
+      const empData = employees.find(e => e.id === empId) || {}
       if (!employeeMap[empName]) {
         employeeMap[empName] = {
+          id: empId,
           name: empName,
+          position: empData.position || empData.position_crew || '',
+          whatsapp: empData.whatsapp || '',
+          status_crew: empData.status_crew || empData.status || '',
           printJobs: [],
           cashflows: [],
           totalTransactions: 0,
