@@ -673,6 +673,16 @@ async def archive_project(project_id: str):
     if result.matched_count == 0: raise HTTPException(status_code=404, detail='Project tidak ditemukan')
     return {'message': 'Project diarsipkan'}
 
+@api.get('/jobs/archived')
+async def get_archived_jobs():
+    docs = await db.jobs.find({'archived': True}, {'_id': 0}).sort('archived_at', -1).to_list(None)
+    return [job_out(d) for d in docs]
+
+@api.get('/projects/archived')
+async def get_archived_projects():
+    docs = await db.projects.find({'archived': True}, {'_id': 0}).sort('archived_at', -1).to_list(None)
+    return docs
+
 app.include_router(api)
 
 @app.get('/')

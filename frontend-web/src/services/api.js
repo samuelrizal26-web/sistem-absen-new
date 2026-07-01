@@ -84,6 +84,10 @@ export const archiveJob = (id) =>
   request(`/jobs/${id}/archive`, { method: 'POST' })
 export const archiveProject = (id) =>
   request(`/projects/${id}/archive`, { method: 'POST' })
+export const getArchivedJobs = () =>
+  request('/jobs/archived')
+export const getArchivedProjects = () =>
+  request('/projects/archived')
 export const deleteJob = (id) =>
   request(`/jobs/${id}`, { method: 'DELETE' })
 

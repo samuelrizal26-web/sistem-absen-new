@@ -5,7 +5,7 @@ import {
   getStock, createStock, updateStock, deleteStock,
   getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow,
   getPrintJobs, getProjects, getAllAdvances, deleteAdvance, settleKasbon,
-  getJobs,
+  getJobs, getArchivedJobs, getArchivedProjects,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
 } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
@@ -13,7 +13,7 @@ import { openCashDrawerOnly } from '../utils/rawbt'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
-const TAB = { CREW: 'crew', STOCK: 'stock', CASHFLOW: 'cashflow', EMPLOYEE_TX: 'employee_tx', SETTINGS: 'settings' }
+const TAB = { CREW: 'crew', STOCK: 'stock', CASHFLOW: 'cashflow', EMPLOYEE_TX: 'employee_tx', HISTORY: 'history', SETTINGS: 'settings' }
 
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -72,6 +72,11 @@ export default function AdminPage() {
   const [empTxPrintJobs, setEmpTxPrintJobs] = useState([])
   const [empTxCashflows, setEmpTxCashflows] = useState([])
   const [selectedEmployee, setSelectedEmployee] = useState(null)
+
+  // ── History state ──
+  const [archivedJobs, setArchivedJobs] = useState([])
+  const [archivedProjects, setArchivedProjects] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   // ── Settings state ──
   const [oldPin, setOldPin] = useState('')
@@ -145,6 +150,7 @@ export default function AdminPage() {
       loadEmployees() // Load employees for name mapping
       loadEmployeeTransactions()
     }
+    if (tab === TAB.HISTORY) loadHistory()
   }, [authed, tab, cfSearch, empTxSearchMonth])
 
   // ─────────────────── EMPLOYEE CRUD ───────────────────
@@ -210,6 +216,19 @@ export default function AdminPage() {
       showToast('Gagal memuat detail karyawan', 'error')
       setViewEmp(emp)
     }
+  }
+
+  const loadHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const [jobs, projects] = await Promise.all([
+        getArchivedJobs(),
+        getArchivedProjects(),
+      ])
+      setArchivedJobs(Array.isArray(jobs) ? jobs : [])
+      setArchivedProjects(Array.isArray(projects) ? projects : [])
+    } catch { showToast('Gagal memuat riwayat', 'error') }
+    finally { setHistoryLoading(false) }
   }
 
   const [showPin, setShowPin] = useState(false)
@@ -590,7 +609,7 @@ export default function AdminPage() {
 
       {/* Tab Navigation */}
       <div className="flex gap-1 px-4 py-3">
-        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => (
+        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === t ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-500 border border-gray-100'}`}>
             {label}
@@ -1064,6 +1083,62 @@ export default function AdminPage() {
                 Setup PIN Admin
               </button>
             </div>
+          </div>
+        </div>
+      )}
+{/* ── TAB: HISTORY ── */}
+      {tab === TAB.HISTORY && (
+        <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
+          <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <h2 className="text-gray-800 font-bold text-lg mb-4">Riwayat Pekerjaan Diarsipkan</h2>
+            {historyLoading ? (
+              <div className="flex justify-center py-8"><svg className="w-7 h-7 animate-spin text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg></div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Jobs ({archivedJobs.length})</h3>
+                  {archivedJobs.length === 0 ? (
+                    <p className="text-sm text-gray-400">Belum ada job yang diarsipkan</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {archivedJobs.map(job => (
+                        <div key={job.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-semibold text-gray-800 text-sm">{job.job_name}</p>
+                              <p className="text-xs text-gray-500">{job.customer_name || '-'}</p>
+                            </div>
+                            <span className="text-sm font-bold text-gray-700">{formatRupiah(job.total_price)}</span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">Diarsipkan: {formatDate(job.archived_at)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Projects ({archivedProjects.length})</h3>
+                  {archivedProjects.length === 0 ? (
+                    <p className="text-sm text-gray-400">Belum ada project yang diarsipkan</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {archivedProjects.map(project => (
+                        <div key={project.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-semibold text-gray-800 text-sm">{project.project_name}</p>
+                              <p className="text-xs text-gray-500">{project.customer_name || '-'}</p>
+                            </div>
+                            <span className="text-sm font-bold text-gray-700">{formatRupiah(project.selling_price || project.total_project_value)}</span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">Diarsipkan: {formatDate(project.archived_at)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
