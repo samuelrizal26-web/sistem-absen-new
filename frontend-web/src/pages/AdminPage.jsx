@@ -497,7 +497,7 @@ export default function AdminPage() {
   const printTransfer = cfPrintJobs.filter(j => j.payment_method === 'transfer').reduce((sum, j) => sum + (j.total_price || 0), 0)
   const projectCash = cfProjects.filter(p => p.payment_method === 'cash').reduce((sum, p) => sum + (p.selling_price || p.total_project_value || 0), 0)
   const projectTransfer = cfProjects.filter(p => p.payment_method === 'transfer').reduce((sum, p) => sum + (p.selling_price || p.total_project_value || 0), 0)
-  const manualCash = cashflows.filter(c => ['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'cash').reduce((sum, c) => sum + (c.amount || 0), 0)
+  const manualCash = cashflows.filter(c => ['income', 'modal_masuk'].includes(c.type) && (c.payment_method === 'cash' || !c.payment_method)).reduce((sum, c) => sum + (c.amount || 0), 0)
   const manualTransfer = cashflows.filter(c => ['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'transfer').reduce((sum, c) => sum + (c.amount || 0), 0)
   const omzetCash = printCash + projectCash + manualCash
   const omzetTransfer = printTransfer + projectTransfer + manualTransfer
