@@ -14,9 +14,9 @@ const img = new Image()
 img.src = logoPrint
 img.onload = () => {
   const canvas = document.createElement('canvas')
-  // Resize logo to be smaller but eyecatching
-  const targetWidth = 200
-  const targetHeight = 200
+  // Resize logo to be smaller
+  const targetWidth = 120
+  const targetHeight = 120
   canvas.width = targetWidth
   canvas.height = targetHeight
   const ctx = canvas.getContext('2d')
