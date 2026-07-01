@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking } from '../services/api'
 import { getInitials, formatRupiah, formatDate } from '../utils/format'
 import PinModal from '../components/PinModal'
 import JobFormModal from '../components/JobFormModal'
@@ -98,6 +98,15 @@ export default function HomeScreen() {
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
 
+  // Work Tracking state
+  const [workTracking, setWorkTracking] = useState([])
+  const [showWorkModal, setShowWorkModal] = useState(false)
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [selectedWorkItem, setSelectedWorkItem] = useState(null)
+  const [workForm, setWorkForm] = useState({ item_name: '', initial_qty: '', description: '' })
+  const [updateForm, setUpdateForm] = useState({ completed_qty: '' })
+  const [isAdmin, setIsAdmin] = useState(false)
+
   const loadJobs = () => {
     setLoadingJobs(true)
     Promise.all([
@@ -110,6 +119,53 @@ export default function HomeScreen() {
       })
       .catch(() => showToast('Gagal memuat daftar pekerjaan', 'error'))
       .finally(() => setLoadingJobs(false))
+  }
+
+  const loadWorkTracking = () => {
+    getWorkTracking()
+      .then((data) => setWorkTracking(Array.isArray(data) ? data : []))
+      .catch(() => showToast('Gagal memuat work tracking', 'error'))
+  }
+
+  const handleCreateWorkItem = () => {
+    if (!workForm.item_name || !workForm.initial_qty) {
+      showToast('Nama item dan jumlah awal wajib diisi', 'error')
+      return
+    }
+    createWorkTracking({ ...workForm, initial_qty: parseFloat(workForm.initial_qty) })
+      .then(() => {
+        showToast('Work item berhasil ditambahkan', 'success')
+        setWorkForm({ item_name: '', initial_qty: '', description: '' })
+        setShowWorkModal(false)
+        loadWorkTracking()
+      })
+      .catch((e) => showToast(e.message || 'Gagal menambah work item', 'error'))
+  }
+
+  const handleUpdateProgress = () => {
+    if (!updateForm.completed_qty) {
+      showToast('Jumlah selesai wajib diisi', 'error')
+      return
+    }
+    updateWorkTracking(selectedWorkItem.id, { completed_qty: parseFloat(updateForm.completed_qty) })
+      .then(() => {
+        showToast('Progress berhasil diupdate', 'success')
+        setUpdateForm({ completed_qty: '' })
+        setShowUpdateModal(false)
+        setSelectedWorkItem(null)
+        loadWorkTracking()
+      })
+      .catch((e) => showToast(e.message || 'Gagal update progress', 'error'))
+  }
+
+  const handleDeleteWorkItem = (id) => {
+    if (!window.confirm('Hapus work item ini?')) return
+    deleteWorkTracking(id)
+      .then(() => {
+        showToast('Work item berhasil dihapus', 'success')
+        loadWorkTracking()
+      })
+      .catch((e) => showToast(e.message || 'Gagal menghapus work item', 'error'))
   }
 
   // Combine and filter jobs/projects based on tab
@@ -131,6 +187,7 @@ export default function HomeScreen() {
       .catch(() => showToast('Gagal memuat data karyawan', 'error'))
       .finally(() => setLoadingEmployees(false))
     loadJobs()
+    loadWorkTracking()
   }, [])
 
   const handleNavClick = (btn) => {
@@ -251,6 +308,44 @@ export default function HomeScreen() {
                   {btn.label}
                 </button>
               ))}
+            </div>
+
+            {/* Work Tracking Section */}
+            <div className="mt-4 pt-4 border-t border-white/20">
+              <div className="flex justify-between items-center mb-3">
+                <p className="text-white font-semibold text-sm">Work Tracking</p>
+                <button onClick={() => setShowWorkModal(true)} className="text-white/80 hover:text-white text-xs bg-white/20 px-2 py-1 rounded-lg">
+                  + Tambah
+                </button>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {workTracking.map((item) => {
+                  const progress = (item.completed_qty / item.initial_qty) * 100
+                  let bgColor = 'bg-green-500'
+                  if (progress < 25) bgColor = 'bg-red-500'
+                  else if (progress < 50) bgColor = 'bg-yellow-500'
+                  else if (progress < 75) bgColor = 'bg-orange-500'
+
+                  return (
+                    <div key={item.id} onClick={() => { setSelectedWorkItem(item); setShowUpdateModal(true) }} className="bg-white/10 rounded-xl p-3 cursor-pointer hover:bg-white/20 transition-all">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-white font-medium text-sm truncate flex-1">{item.item_name}</span>
+                        <span className="text-white/80 text-xs ml-2">{item.remaining_qty} pcs</span>
+                      </div>
+                      <div className="w-full bg-white/20 rounded-full h-1.5 mt-2">
+                        <div className={`${bgColor} h-1.5 rounded-full transition-all`} style={{ width: `${Math.min(progress, 100)}%` }}></div>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-white/60 text-xs">{item.completed_qty} / {item.initial_qty} pcs</span>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteWorkItem(item.id) }} className="text-red-300 hover:text-red-200 text-xs">Hapus</button>
+                      </div>
+                    </div>
+                  )
+                })}
+                {workTracking.length === 0 && (
+                  <p className="text-white/60 text-xs text-center py-4">Belum ada work item</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -470,6 +565,52 @@ export default function HomeScreen() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Work Item Modal */}
+      {showWorkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-bold text-gray-800">Tambah Work Item</p>
+              <button onClick={() => setShowWorkModal(false)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+            </div>
+            <div className="space-y-3">
+              <input type="text" value={workForm.item_name} onChange={e => setWorkForm(f => ({ ...f, item_name: e.target.value }))} placeholder="Nama Item *"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <input type="number" value={workForm.initial_qty} onChange={e => setWorkForm(f => ({ ...f, initial_qty: e.target.value }))} placeholder="Jumlah Awal *"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <input type="text" value={workForm.description} onChange={e => setWorkForm(f => ({ ...f, description: e.target.value }))} placeholder="Deskripsi (Opsional)"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <button onClick={handleCreateWorkItem}
+                className="w-full py-3.5 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark active:scale-95 transition-all">
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Progress Modal */}
+      {showUpdateModal && selectedWorkItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-bold text-gray-800">Update Progress</p>
+              <button onClick={() => { setShowUpdateModal(false); setSelectedWorkItem(null) }} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">{selectedWorkItem.item_name}</p>
+              <p className="text-xs text-gray-500">Sisa: {selectedWorkItem.remaining_qty} pcs</p>
+              <input type="number" value={updateForm.completed_qty} onChange={e => setUpdateForm(f => ({ ...f, completed_qty: e.target.value }))} placeholder="Jumlah Selesai Hari Ini *"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <button onClick={handleUpdateProgress}
+                className="w-full py-3.5 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark active:scale-95 transition-all">
+                Update Progress
+              </button>
+            </div>
           </div>
         </div>
       )}
