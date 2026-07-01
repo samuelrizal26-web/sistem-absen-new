@@ -4,7 +4,7 @@ buildCommand = "npm run build"
 watchPaths = ["package.json", "vite.config.js", "src"]
 
 [deploy]
-startCommand = "npx serve dist -l 3000"
+startCommand = "npx serve dist -l $PORT"
 healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
