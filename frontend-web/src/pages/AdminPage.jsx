@@ -497,12 +497,10 @@ export default function AdminPage() {
   const printTransfer = cfPrintJobs.filter(j => j.payment_method === 'transfer').reduce((sum, j) => sum + (j.total_price || 0), 0)
   const projectCash = cfProjects.filter(p => p.payment_method === 'cash').reduce((sum, p) => sum + (p.selling_price || p.total_project_value || 0), 0)
   const projectTransfer = cfProjects.filter(p => p.payment_method === 'transfer').reduce((sum, p) => sum + (p.selling_price || p.total_project_value || 0), 0)
-  const jobCash = cfJobs.filter(j => j.payment_method === 'cash').reduce((sum, j) => sum + (j.total_price || 0), 0)
-  const jobTransfer = cfJobs.filter(j => j.payment_method === 'transfer').reduce((sum, j) => sum + (j.total_price || 0), 0)
   const manualCash = cashflows.filter(c => ['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'cash').reduce((sum, c) => sum + (c.amount || 0), 0)
   const manualTransfer = cashflows.filter(c => ['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'transfer').reduce((sum, c) => sum + (c.amount || 0), 0)
-  const omzetCash = printCash + projectCash + jobCash + manualCash
-  const omzetTransfer = printTransfer + projectTransfer + jobTransfer + manualTransfer
+  const omzetCash = printCash + projectCash + manualCash
+  const omzetTransfer = printTransfer + projectTransfer + manualTransfer
 
   // Margin per division
   const printOmzet = cfSummary?.print_job_total || 0
