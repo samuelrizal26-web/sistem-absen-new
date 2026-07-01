@@ -28,16 +28,8 @@ export default function SplashScreen() {
           className="w-28 h-28 object-contain drop-shadow-2xl"
         />
         <p className="text-white/70 text-sm mt-3 tracking-widest uppercase">
-          One Stop Cutting Sticker
+          ONE_STOP CUTTING STICKER & ADVERTISING
         </p>
-      </div>
-
-      {/* App name */}
-      <div className="text-center mb-24">
-        <h1 className="text-white text-3xl font-bold tracking-tight drop-shadow">
-          Sistem Absen
-        </h1>
-        <p className="text-white/60 text-sm mt-1">Labalaba Advertising</p>
       </div>
 
       {/* Tap prompt */}
