@@ -103,11 +103,13 @@ export function buildPrintJobReceipt({ job, cashier, change = 0 }) {
 export function triggerRawBTPrint(text, openDrawer = false) {
   // Check if text contains image and logo is ready
   const hasImage = text.includes('[IMAGE]') && logoBase64
+  const drawerCmd = '\x1B\x70\x00\x19\xFA'
   
   if (hasImage) {
     // For images, RawBT needs a different format
     const imageData = logoBase64
-    const textOnly = text.replace(/\[IMAGE\][^\n]*/, '').trim()
+    let textOnly = text.replace(/\[IMAGE\][^\n]*/, '').trim()
+    if (openDrawer) textOnly += drawerCmd
     
     // RawBT format for image printing
     const uri = `rawbt://print?image=${encodeURIComponent(imageData)}&text=${encodeURIComponent(textOnly)}`
@@ -118,7 +120,7 @@ export function triggerRawBTPrint(text, openDrawer = false) {
   }
   
   // Regular text printing (fallback if no image or image not ready)
-  const fullText = openDrawer ? text + '\x1B\x70\x00\x19\xFA' : text
+  const fullText = openDrawer ? text + drawerCmd : text
   const uri = `rawbt://print?text=${encodeURIComponent(fullText)}`
   const a = document.createElement('a')
   a.href = uri
