@@ -4,9 +4,10 @@ import { formatRupiah, formatDate } from '../utils/format'
 
 export default function JobDetailModal({ job, onClose, onChanged, onEdit, showToast, tab }) {
   const [busy, setBusy] = useState(false)
-  const isLunas = job.payment_status === 'lunas'
-  const isSelesai = job.status === 'selesai'
-  const total = Number(job.total_price || 0)
+  const isProject = job._source === 'project'
+  const isLunas = job.payment_status === 'lunas' || (job.total_price > 0 && job.dp_amount >= job.total_price) || (job.selling_price > 0 && job.dp_amount >= job.selling_price)
+  const isSelesai = job.status === 'selesai' || job.progress_status === 'selesai' || job.progress_status === 'completed'
+  const total = Number(job.total_price || job.selling_price || job.total_project_value || 0)
   const dp = Number(job.dp_amount || 0)
   const sisa = Math.max(total - dp, 0)
 
@@ -54,7 +55,7 @@ export default function JobDetailModal({ job, onClose, onChanged, onEdit, showTo
         <div className={`p-5 ${isSelesai ? 'bg-gray-500' : isLunas ? 'bg-green-500' : 'bg-orange-500'} text-white`}>
           <div className="flex items-start justify-between">
             <div className="min-w-0">
-              <p className="font-bold text-lg leading-tight truncate">{job.job_name}</p>
+              <p className="font-bold text-lg leading-tight truncate">{job.job_name || job.project_name}</p>
               <p className="text-white/80 text-sm truncate">{job.customer_name}</p>
             </div>
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/20 shrink-0">
@@ -70,7 +71,7 @@ export default function JobDetailModal({ job, onClose, onChanged, onEdit, showTo
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 font-medium">JUDUL</span>
-            <span className="font-semibold text-gray-800">{job.job_name}</span>
+            <span className="font-semibold text-gray-800">{job.job_name || job.project_name}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 font-medium">TOTAL</span>
