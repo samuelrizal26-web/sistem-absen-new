@@ -176,8 +176,8 @@ export default function HomeScreen() {
 
   const filteredJobs = allJobs.filter(item => {
     const status = item.progress_status || item.status || 'proses'
-    if (jobTab === 'aktif') return status === 'proses'
-    if (jobTab === 'selesai') return status === 'selesai'
+    if (jobTab === 'aktif') return status === 'pending' || status === 'proses' || status === 'in_progress'
+    if (jobTab === 'selesai') return status === 'selesai' || status === 'completed'
     return true
   })
 
@@ -268,7 +268,17 @@ export default function HomeScreen() {
   }
 
   const openAddJob = () => { setEditingJob(null); setShowJobForm(true) }
-  const openEditJob = (job) => { setSelectedJob(null); setEditingJob(job); setShowJobForm(true) }
+  const openEditJob = (job) => {
+    setSelectedJob(null)
+    // Check if it's a project or job
+    if (job._source === 'project') {
+      // Navigate to ProjectPage with edit mode
+      navigate('/project', { state: { editingProject: job } })
+    } else {
+      setEditingJob(job)
+      setShowJobForm(true)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
@@ -391,8 +401,9 @@ export default function HomeScreen() {
                   const jobName = job.job_name || job.project_name || 'Tanpa nama'
                   const customerName = job.customer_name || '-'
                   const totalPrice = job.total_price || job.selling_price || job.total_project_value || 0
-                  const isLunas = job.payment_status === 'lunas'
-                  const isSelesai = (job.progress_status || job.status) === 'selesai'
+                  const dpAmount = job.dp_amount || 0
+                  const isLunas = job.payment_status === 'lunas' || (totalPrice > 0 && dpAmount >= totalPrice)
+                  const isSelesai = (job.progress_status || job.status) === 'selesai' || (job.progress_status || job.status) === 'completed'
                   let bgColor = 'bg-orange-50'
                   let borderColor = 'border-orange-500'
                   let statusText = 'DP'

@@ -101,6 +101,8 @@ class ProjectCreate(BaseModel):
     customer_name: Optional[str] = ''
     payment_method: str = 'cash'
     selling_price: float = 0
+    dp_amount: float = 0
+    progress_status: Optional[str] = 'pending'
     notes: Optional[str] = ''
     materials: List[ProjectMaterialIn] = []
 
@@ -110,6 +112,8 @@ class ProjectUpdate(BaseModel):
     customer_name: Optional[str] = None
     payment_method: Optional[str] = None
     selling_price: Optional[float] = None
+    dp_amount: Optional[float] = None
+    progress_status: Optional[str] = None
     notes: Optional[str] = None
     materials: Optional[List[ProjectMaterialIn]] = None
 
@@ -467,7 +471,8 @@ async def create_project(body: ProjectCreate):
             await db.stock.update_one({'id': m.stock_id}, {'$inc': {'quantity': -m.quantity}})
     doc = {'id': new_id(), 'date': body.date, 'project_name': body.project_name,
            'customer_name': body.customer_name or '', 'payment_method': body.payment_method,
-           'selling_price': body.selling_price, 'hpp': hpp,
+           'selling_price': body.selling_price, 'dp_amount': body.dp_amount,
+           'progress_status': body.progress_status or 'pending', 'hpp': hpp,
            'profit': body.selling_price - hpp, 'notes': body.notes or '',
            'materials': mats, 'created_at': now_str()}
     await db.projects.insert_one(doc)

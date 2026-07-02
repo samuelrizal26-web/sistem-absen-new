@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { getProjects, createProject, updateProject, deleteProject, getStock, verifyAdminPin, verifyAdminPassword } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import Toast from '../components/Toast'
@@ -9,6 +9,7 @@ const STEP = { PIN: 'pin', DASHBOARD: 'dashboard', FORM: 'form', EDIT: 'edit' }
 
 export default function ProjectPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { toast, showToast, clearToast } = useToast()
 
   const [step, setStep] = useState(STEP.PIN)
@@ -29,6 +30,8 @@ export default function ProjectPage() {
     customer_name: '',
     payment_method: 'transfer',
     selling_price_raw: '',
+    dp_amount_raw: '',
+    progress_status: 'pending',
     notes: '',
   })
   const [materials, setMaterials] = useState([]) // [{name, quantity, unit, price, stock_id, is_custom}]
@@ -65,6 +68,28 @@ export default function ProjectPage() {
     if (step === STEP.DASHBOARD) loadData()
   }, [step, searchMonth])
 
+  // Handle navigation state from HomeScreen for editing
+  useEffect(() => {
+    if (location.state?.editingProject && step === STEP.PIN) {
+      // Auto-enter PIN mode then navigate to edit
+      setEditingId(location.state.editingProject.id)
+      setForm({
+        date: location.state.editingProject.date || new Date().toISOString().split('T')[0],
+        project_name: location.state.editingProject.project_name || '',
+        customer_name: location.state.editingProject.customer_name || '',
+        payment_method: location.state.editingProject.payment_method || 'transfer',
+        selling_price_raw: formatRupiahInput(String(location.state.editingProject.selling_price || location.state.editingProject.total_project_value || '')),
+        dp_amount_raw: formatRupiahInput(String(location.state.editingProject.dp_amount || '')),
+        progress_status: location.state.editingProject.progress_status || 'pending',
+        notes: location.state.editingProject.notes || '',
+      })
+      setMaterials(Array.isArray(location.state.editingProject.materials) ? location.state.editingProject.materials.map(m => ({ ...m })) : [])
+      setStep(STEP.FORM)
+      // Clear the state to avoid re-triggering
+      navigate('/project', { replace: true, state: {} })
+    }
+  }, [location.state, step, navigate])
+
   const handlePinSubmit = async () => {
     if (!pin) return
     setPinLoading(true)
@@ -86,7 +111,7 @@ export default function ProjectPage() {
   }
 
   const resetForm = () => {
-    setForm({ date: new Date().toISOString().split('T')[0], project_name: '', customer_name: '', payment_method: 'transfer', selling_price_raw: '', notes: '' })
+    setForm({ date: new Date().toISOString().split('T')[0], project_name: '', customer_name: '', payment_method: 'transfer', selling_price_raw: '', dp_amount_raw: '', progress_status: 'pending', notes: '' })
     setMaterials([])
     setEditingId(null)
   }
@@ -100,6 +125,8 @@ export default function ProjectPage() {
       customer_name: p.customer_name || '',
       payment_method: p.payment_method || 'transfer',
       selling_price_raw: formatRupiahInput(String(p.selling_price || p.total_project_value || '')),
+      dp_amount_raw: formatRupiahInput(String(p.dp_amount || '')),
+      progress_status: p.progress_status || 'pending',
       notes: p.notes || '',
     })
     setMaterials(Array.isArray(p.materials) ? p.materials.map(m => ({ ...m })) : [])
@@ -130,6 +157,8 @@ export default function ProjectPage() {
         customer_name: form.customer_name,
         payment_method: form.payment_method,
         selling_price: sellingPrice,
+        dp_amount: parseRupiahInput(form.dp_amount_raw) || 0,
+        progress_status: form.progress_status || 'pending',
         notes: form.notes || '',
         materials: materials.map(m => ({
           name: m.name,
@@ -451,6 +480,29 @@ export default function ProjectPage() {
                 onClick={() => setKeypadField('selling_price')}
                 placeholder="0"
                 className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 text-lg font-semibold cursor-pointer" />
+            </div>
+          </div>
+          {/* DP Dibayar */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">DP Dibayar</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Rp</span>
+              <input type="text" inputMode="numeric" value={form.dp_amount_raw}
+                onChange={e => setForm(f => ({ ...f, dp_amount_raw: formatRupiahInput(e.target.value) }))}
+                placeholder="0"
+                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+            </div>
+          </div>
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <div className="grid grid-cols-2 gap-3">
+              {['pending', 'in_progress', 'completed'].map(s => (
+                <button key={s} onClick={() => setForm(f => ({ ...f, progress_status: s }))}
+                  className={`py-2.5 rounded-2xl border-2 font-semibold text-sm transition-all ${form.progress_status === s ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
+                  {s === 'pending' ? '⏳ Pending' : s === 'in_progress' ? '🔄 Proses' : '✅ Selesai'}
+                </button>
+              ))}
             </div>
           </div>
           {/* Catatan */}
