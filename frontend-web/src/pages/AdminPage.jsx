@@ -10,6 +10,7 @@ import {
   getKasbonByEmployeePaginated, getPrintJobsByEmployeePaginated, getCashflowByEmployeePaginated,
   resetDatabase,
 } from '../services/api'
+import DeviceSettingsModal from '../components/DeviceSettingsModal'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import { initNotifications, showNotification } from '../utils/notifications'
@@ -114,6 +115,7 @@ export default function AdminPage() {
   const [newPinA, setNewPinA] = useState('')
   const [newPinB, setNewPinB] = useState('')
   const [pinChanging, setPinChanging] = useState(false)
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false)
 
   // ─────────────────── AUTH ───────────────────
   const handlePinAuth = async (pinValue) => {
@@ -1179,6 +1181,16 @@ export default function AdminPage() {
           {/* Right Panel - Forms */}
           <div className="w-full md:w-1/2 flex flex-col gap-4">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex justify-between items-center mb-4">
+                <p className="font-bold text-gray-800">Pengaturan Perangkat</p>
+                <button onClick={() => setShowDeviceSettings(true)} className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+                  Kelola
+                </button>
+              </div>
+              <p className="text-sm text-gray-500">Kelola perangkat dan role untuk notifikasi</p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
               <p className="font-bold text-gray-800 mb-4">Ganti PIN Admin</p>
               <div className="space-y-3">
                 <input type="password" inputMode="numeric" maxLength={6} value={oldPin} onChange={e => setOldPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="PIN lama"
@@ -1867,6 +1879,7 @@ export default function AdminPage() {
       )}
 
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}
+      {showDeviceSettings && <DeviceSettingsModal onClose={() => setShowDeviceSettings(false)} showToast={showToast} />}
     </div>
   )
 }

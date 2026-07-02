@@ -91,6 +91,16 @@ export const getArchivedProjects = () =>
 export const deleteJob = (id) =>
   request(`/jobs/${id}`, { method: 'DELETE' })
 
+// ─── Devices ─────────────────────────────────────────────────
+export const registerDevice = (data) =>
+  request('/devices', { method: 'POST', body: JSON.stringify(data) })
+export const getDevices = () => request('/devices')
+export const updateDevice = (deviceId, data) =>
+  request(`/devices/${deviceId}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteDevice = (deviceId) =>
+  request(`/devices/${deviceId}`, { method: 'DELETE' })
+export const getDevicesByRole = (role) => request(`/devices/by-role/${role}`)
+
 // ─── Cashflow ─────────────────────────────────────────────────
 export const getCashflow = (params = '') => request(`/cashflow${params}`)
 export const getCashflowSummary = () => request('/cashflow/summary')

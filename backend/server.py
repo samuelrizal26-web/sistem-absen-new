@@ -8,6 +8,15 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import os, uuid, bcrypt, asyncio
 
+# FCM Integration (placeholder - install firebase-admin and configure credentials)
+# try:
+#     from firebase_admin import credentials, messaging
+#     import firebase_admin
+#     firebase_admin.initialize_app(credentials.Certificate('path/to/service-account.json'))
+# except ImportError:
+#     print('[WARNING] firebase-admin not installed. Run: pip install firebase-admin')
+#     pass
+
 # ── Setup ────────────────────────────────────────────────────────────────────
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -180,6 +189,21 @@ class ResetPinByBirthdate(BaseModel):
     employee_id: str
     birthdate: str
     new_pin: str
+
+# ── Device Models ──────────────────────────────────────────────────────────────
+class DeviceRole(str):
+    NONE = 'NONE'
+    STORE_TABLET = 'STORE_TABLET'
+    OWNER = 'OWNER'
+
+class DeviceCreate(BaseModel):
+    device_id: str
+    device_name: Optional[str] = ''
+    role: str = 'NONE'
+
+class DeviceUpdate(BaseModel):
+    device_name: Optional[str] = None
+    role: Optional[str] = None
 
 # ── Auth ────────────────────────────────────────────────────────────────────
 @api.post('/auth/admin-login')
@@ -612,6 +636,15 @@ async def create_kasbon(body: KasbonCreate):
            'notes': body.notes or '', 'settled': False,
            'date': now_str()[:10], 'created_at': now_str()}
     await db.kasbon.insert_one(doc)
+    
+    # Send notification to OWNER when kasbon is submitted
+    await send_notification_to_role(
+        role='OWNER',
+        title='Permintaan Kasbon Baru',
+        body=f'{emp.get("name", "Karyawan")} meminta kasbon Rp {body.amount:,}',
+        data={'type': 'kasbon_request', 'kasbon_id': doc['id']}
+    )
+    
     return clean(doc)
 
 @api.post('/kasbon/settle/{emp_id}')
@@ -619,6 +652,17 @@ async def settle_kasbon(emp_id: str):
     result = await db.kasbon.update_many(
         {'employee_id': emp_id, 'settled': {'$ne': True}},
         {'$set': {'settled': True, 'settled_at': now_str()}})
+    
+    # Send notification to STORE_TABLET when kasbon is approved
+    if result.modified_count > 0:
+        emp = await db.employees.find_one({'id': emp_id})
+        await send_notification_to_role(
+            role='STORE_TABLET',
+            title='Kasbon Disetujui',
+            body=f'Kasbon untuk {emp.get("name", "Karyawan")} telah disetujui',
+            data={'type': 'kasbon_approved', 'employee_id': emp_id}
+        )
+    
     return {'success': True, 'settled_count': result.modified_count}
 
 @api.put('/kasbon/{kasbon_id}')
@@ -780,6 +824,66 @@ async def update_work_tracking(item_id: str, body: WorkTrackingUpdate):
 async def delete_work_tracking(item_id: str):
     await db.work_tracking.delete_one({'id': item_id})
     return {'message': 'Work tracking item dihapus'}
+
+# ── Device Management ───────────────────────────────────────────────────────────
+@api.post('/devices')
+async def register_device(body: DeviceCreate):
+    existing = await db.devices.find_one({'device_id': body.device_id})
+    if existing:
+        await db.devices.update_one({'device_id': body.device_id}, {'$set': {'device_name': body.device_name, 'role': body.role, 'last_active': now_str()}})
+        return clean(await db.devices.find_one({'device_id': body.device_id}, {'_id': 0}))
+    doc = {'id': new_id(), 'device_id': body.device_id, 'device_name': body.device_name, 'role': body.role, 'last_active': now_str(), 'created_at': now_str()}
+    await db.devices.insert_one(doc)
+    return clean(doc)
+
+@api.get('/devices')
+async def get_devices():
+    devices = await db.devices.find({}, {'_id': 0}).to_list(None)
+    return devices
+
+@api.put('/devices/{device_id}')
+async def update_device(device_id: str, body: DeviceUpdate):
+    existing = await db.devices.find_one({'device_id': device_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail='Device tidak ditemukan')
+    update = body.model_dump(exclude_none=True)
+    update['last_active'] = now_str()
+    await db.devices.update_one({'device_id': device_id}, {'$set': update})
+    return clean(await db.devices.find_one({'device_id': device_id}, {'_id': 0}))
+
+@api.delete('/devices/{device_id}')
+async def delete_device(device_id: str):
+    await db.devices.delete_one({'device_id': device_id})
+    return {'message': 'Device dihapus'}
+
+@api.get('/devices/by-role/{role}')
+async def get_devices_by_role(role: str):
+    devices = await db.devices.find({'role': role}, {'_id': 0}).to_list(None)
+    return devices
+
+# ── Notification Helper ─────────────────────────────────────────────────────────
+async def send_notification_to_role(role: str, title: str, body: str, data: dict = None):
+    """Send push notification to all devices with specified role"""
+    try:
+        devices = await db.devices.find({'role': role}, {'_id': 0}).to_list(None)
+        if not devices:
+            print(f'[NOTIFICATION] No devices found with role: {role}')
+            return
+        
+        # TODO: Implement FCM notification sending
+        # for device in devices:
+        #     if device.get('fcm_token'):
+        #         message = messaging.Message(
+        #             notification=messaging.Notification(title=title, body=body),
+        #             data=data,
+        #             token=device['fcm_token']
+        #         )
+        #         messaging.send(message)
+        
+        print(f'[NOTIFICATION] Would send to {len(devices)} devices with role {role}: {title} - {body}')
+        print(f'[NOTIFICATION] Devices: {[d.get('device_name', d['device_id']) for d in devices]}')
+    except Exception as e:
+        print(f'[NOTIFICATION ERROR] {e}')
 
 @api.delete('/reset-database')
 async def reset_database():
