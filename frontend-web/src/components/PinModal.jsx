@@ -2,21 +2,23 @@ import { useState, useEffect, useRef } from 'react'
 
 export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPin, loading = false, error = '' }) {
   const [pin, setPin] = useState('')
+  const [shake, setShake] = useState(false)
   const inputRef = useRef(null)
 
   useEffect(() => {
-    if (error) setPin('')
+    if (error) {
+      setPin('')
+      setShake(true)
+      if (navigator.vibrate) navigator.vibrate(200)
+      setTimeout(() => setShake(false), 500)
+    }
   }, [error])
 
-  const handleSubmit = () => {
-    if (pin.length === 6 && !loading) onConfirm(pin)
-  }
-
   const handleDigit = (d) => {
-    if (pin.length < 6) {
+    if (pin.length < 6 && !loading) {
       const newPin = pin + d
       setPin(newPin)
-      if (newPin.length === 6) setTimeout(() => onConfirm(newPin), 80)
+      if (newPin.length === 6) setTimeout(() => onConfirm(newPin), 100)
     }
   }
 
@@ -24,7 +26,7 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
+      <div className={`bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8 transition-transform ${shake ? 'animate-shake' : ''}`}>
         {/* Header */}
         <div className="text-center mb-6">
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
@@ -60,8 +62,13 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
           inputMode="numeric"
           maxLength={6}
           value={pin}
-          onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setPin(v); if (v.length === 6) setTimeout(() => onConfirm(v), 80) }}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
+          onChange={(e) => {
+            if (!loading) {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+              setPin(v)
+              if (v.length === 6) setTimeout(() => onConfirm(v), 100)
+            }
+          }}
           className="sr-only"
         />
 
@@ -94,29 +101,12 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
-          >
-            Batal
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={pin.length < 6 || loading}
-            className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-                Verifikasi...
-              </span>
-            ) : 'Masuk'}
-          </button>
-        </div>
+        <button
+          onClick={onCancel}
+          className="w-full h-12 rounded-2xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
+        >
+          Batal
+        </button>
       </div>
     </div>
   )

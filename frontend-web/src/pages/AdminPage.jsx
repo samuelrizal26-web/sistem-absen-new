@@ -29,6 +29,7 @@ export default function AdminPage() {
   const [passInput, setPassInput] = useState({ username: '', password: '' })
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+  const [shake, setShake] = useState(false)
 
   // Navigation
   const [tab, setTab] = useState(TAB.CREW)
@@ -124,6 +125,9 @@ export default function AdminPage() {
     } catch {
       setAuthError('PIN salah')
       setPinInput('')
+      setShake(true)
+      if (navigator.vibrate) navigator.vibrate(200)
+      setTimeout(() => setShake(false), 500)
     } finally { setAuthLoading(false) }
   }
 
@@ -631,7 +635,7 @@ export default function AdminPage() {
         </div>
 
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl shadow-lg p-7 w-full max-w-sm">
+          <div className={`bg-white rounded-3xl shadow-lg p-7 w-full max-w-sm transition-transform ${shake ? 'animate-shake' : ''}`}>
             <div className="flex items-center justify-center gap-1 mb-6">
               <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mx-auto">
                 <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -662,17 +666,21 @@ export default function AdminPage() {
                     if (d === '') return <div key={i} />
                     const isBack = d === '⌫'
                     return (
-                      <button key={i} onClick={() => isBack ? setPinInput(p => p.slice(0,-1)) : pinInput.length < 6 && setPinInput(p => p+d)}
+                      <button key={i} onClick={() => {
+                        if (isBack) {
+                          setPinInput(p => p.slice(0,-1))
+                        } else if (pinInput.length < 6 && !authLoading) {
+                          const newPin = pinInput + d
+                          setPinInput(newPin)
+                          if (newPin.length === 6) handlePinAuth()
+                        }
+                      }}
                         className={`h-12 rounded-2xl text-xl font-semibold active:scale-95 ${isBack ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-800 hover:bg-purple-50 hover:text-purple-600'}`}>
                         {d}
                       </button>
                     )
                   })}
                 </div>
-                <button onClick={handlePinAuth} disabled={pinInput.length === 0 || authLoading}
-                  className="w-full py-3.5 rounded-2xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-40">
-                  {authLoading ? 'Verifikasi...' : 'Masuk dengan PIN'}
-                </button>
               </div>
             ) : (
               <div className="space-y-3">

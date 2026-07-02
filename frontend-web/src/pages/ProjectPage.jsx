@@ -16,6 +16,7 @@ export default function ProjectPage() {
   const [pin, setPin] = useState('')
   const [pinError, setPinError] = useState('')
   const [pinLoading, setPinLoading] = useState(false)
+  const [shake, setShake] = useState(false)
 
   const [projects, setProjects] = useState([])
   const [stocks, setStocks] = useState([])
@@ -104,6 +105,9 @@ export default function ProjectPage() {
       } catch {
         setPinError('PIN Admin salah')
         setPin('')
+        setShake(true)
+        if (navigator.vibrate) navigator.vibrate(200)
+        setTimeout(() => setShake(false), 500)
       }
     } finally {
       setPinLoading(false)
@@ -244,7 +248,7 @@ export default function ProjectPage() {
       {/* ── PIN STEP ── */}
       {step === STEP.PIN && (
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl shadow-lg p-7 w-full max-w-sm">
+          <div className={`bg-white rounded-3xl shadow-lg p-7 w-full max-w-sm transition-transform ${shake ? 'animate-shake' : ''}`}>
             <div className="text-center mb-6">
               <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                 <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -266,16 +270,23 @@ export default function ProjectPage() {
                 const isBack = d === '⌫'
                 return (
                   <button key={i}
-                    onClick={() => isBack ? setPin(p => p.slice(0, -1)) : pin.length < 6 && setPin(p => p + d)}
+                    onClick={() => {
+                      if (isBack) {
+                        setPin(p => p.slice(0, -1))
+                      } else if (pin.length < 6 && !pinLoading) {
+                        const newPin = pin + d
+                        setPin(newPin)
+                        if (newPin.length === 6) handlePinSubmit()
+                      }
+                    }}
                     className={`h-13 py-3.5 rounded-2xl text-xl font-semibold transition-all active:scale-95 ${isBack ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-800 hover:bg-blue-50 hover:text-blue-600'}`}>
                     {d}
                   </button>
                 )
               })}
             </div>
-            <button onClick={handlePinSubmit} disabled={pin.length === 0 || pinLoading}
-              className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-40 transition-all">
-              {pinLoading ? 'Verifikasi...' : 'Masuk'}
+            <button onClick={() => navigate('/home')} className="w-full py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-all">
+              Batal
             </button>
           </div>
         </div>
