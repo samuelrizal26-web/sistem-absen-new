@@ -91,16 +91,17 @@ export default function ProjectPage() {
     }
   }, [location.state, step, navigate])
 
-  const handlePinSubmit = async () => {
-    if (!pin) return
+  const handlePinSubmit = async (pinValue) => {
+    const pinToUse = pinValue || pin
+    if (!pinToUse) return
     setPinLoading(true)
     setPinError('')
     try {
-      await verifyAdminPin(pin)
+      await verifyAdminPin(pinToUse)
       setStep(STEP.DASHBOARD)
     } catch {
       try {
-        await verifyAdminPassword('admin', pin)
+        await verifyAdminPassword('admin', pinToUse)
         setStep(STEP.DASHBOARD)
       } catch {
         setPinError('PIN Admin salah')
@@ -276,7 +277,7 @@ export default function ProjectPage() {
                       } else if (pin.length < 6 && !pinLoading) {
                         const newPin = pin + d
                         setPin(newPin)
-                        if (newPin.length === 6) handlePinSubmit()
+                        if (newPin.length === 6) handlePinSubmit(newPin)
                       }
                     }}
                     className={`h-13 py-3.5 rounded-2xl text-xl font-semibold transition-all active:scale-95 ${isBack ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-800 hover:bg-blue-50 hover:text-blue-600'}`}>

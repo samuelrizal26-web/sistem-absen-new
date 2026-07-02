@@ -116,11 +116,12 @@ export default function AdminPage() {
   const [pinChanging, setPinChanging] = useState(false)
 
   // ─────────────────── AUTH ───────────────────
-  const handlePinAuth = async () => {
-    if (!pinInput) return
+  const handlePinAuth = async (pinValue) => {
+    const pin = pinValue || pinInput
+    if (!pin) return
     setAuthLoading(true); setAuthError('')
     try {
-      await verifyAdminPin(pinInput)
+      await verifyAdminPin(pin)
       setAuthed(true)
     } catch {
       setAuthError('PIN salah')
@@ -672,7 +673,7 @@ export default function AdminPage() {
                         } else if (pinInput.length < 6 && !authLoading) {
                           const newPin = pinInput + d
                           setPinInput(newPin)
-                          if (newPin.length === 6) handlePinAuth()
+                          if (newPin.length === 6) handlePinAuth(newPin)
                         }
                       }}
                         className={`h-12 rounded-2xl text-xl font-semibold active:scale-95 ${isBack ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-800 hover:bg-purple-50 hover:text-purple-600'}`}>
