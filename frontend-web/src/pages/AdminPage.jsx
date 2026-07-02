@@ -241,7 +241,9 @@ export default function AdminPage() {
 
   const handleEditEmployee = (emp) => {
     setEmpForm({ name: emp.name, whatsapp: emp.whatsapp, pin: emp.pin || '', birthdate: emp.birthdate || '', birthplace: emp.birthplace || '', position: emp.position || '', status_crew: emp.status_crew || 'Tetap', monthly_salary: emp.monthly_salary || 0, monthly_salary_raw: formatRupiahInput(String(emp.monthly_salary || 0)), work_hours_per_day: emp.work_hours_per_day || 8, photo: emp.photo || '' })
-    setEditEmp(emp); setEmpStep(1); setShowAddEmp(true)
+    // If employee doesn't have position (Step 2 not filled), start from Step 2
+    const startStep = !emp.position ? 2 : 1
+    setEditEmp(emp); setEmpStep(startStep); setShowAddEmp(true)
   }
 
   const handleViewEmployee = async (emp) => {
