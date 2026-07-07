@@ -86,6 +86,15 @@ export default function AdminPage() {
   const [empTxType, setEmpTxType] = useState('all') // 'all', 'print_jobs', 'cashflow', 'kasbon'
   const [empTxData, setEmpTxData] = useState({ items: [], total: 0, page: 1, limit: 50, total_pages: 0 })
 
+  // Auto-load employee transactions when modal opens
+  useEffect(() => {
+    if (selectedEmployee) {
+      setEmpTxPage(1)
+      setEmpTxType('all')
+      loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, 'all')
+    }
+  }, [selectedEmployee])
+
   const loadEmployeeTransactionsPaginated = async (empId, page = 1, type = 'all') => {
     setEmpTxLoading(true)
     try {
