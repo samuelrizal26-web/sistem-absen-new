@@ -92,6 +92,18 @@ export default function AdminPage() {
       setEmpTxPage(1)
       setEmpTxType('all')
       loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, 'all')
+      // Fetch full employee data to include photo
+      const fetchEmployeePhoto = async () => {
+        try {
+          const empData = employees.find(e => e.id === selectedEmployee.id)
+          if (empData && empData.photo && !selectedEmployee.photo) {
+            setSelectedEmployee(prev => ({ ...prev, photo: empData.photo }))
+          }
+        } catch (e) {
+          console.error('Error fetching employee photo:', e)
+        }
+      }
+      fetchEmployeePhoto()
     }
   }, [selectedEmployee])
 
