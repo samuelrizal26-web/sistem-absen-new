@@ -252,14 +252,22 @@ export function triggerBrowserPrint(text) {
           const logoUrls = {
             instagram: 'https://cdn.simpleicons.org/instagram/000000',
             whatsapp: 'https://cdn.simpleicons.org/whatsapp/000000',
-            web: 'https://cdn.simpleicons.org/world/000000',
             email: 'https://cdn.simpleicons.org/gmail/000000'
+          }
+          const iconEmojis = {
+            web: '🌐'
           }
           const iconLabels = {
             instagram: 'Instagram',
             whatsapp: 'WhatsApp',
             web: 'Website',
             email: 'Email'
+          }
+          if (line.platform === 'web') {
+            return `<div class="contact-item">
+              <span>${iconEmojis.web}</span>
+              <span>${line.value}</span>
+            </div>`
           }
           return `<div class="contact-item">
             <img src="${logoUrls[line.platform]}" alt="${iconLabels[line.platform]}" />
