@@ -807,7 +807,7 @@ async def update_work_tracking(item_id: str, body: WorkTrackingUpdate):
     if body.initial_qty is not None:
         update_data['initial_qty'] = body.initial_qty
     if body.completed_qty is not None:
-        new_completed = existing.get('completed_qty', 0) + body.completed_qty
+        new_completed = body.completed_qty
         update_data['completed_qty'] = new_completed
         update_data['remaining_qty'] = body.initial_qty - new_completed if body.initial_qty else existing.get('initial_qty', 0) - new_completed
     if body.description is not None:
