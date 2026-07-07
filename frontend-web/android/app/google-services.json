@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "967406014596",
+    "project_id": "labalaba-5c615",
+    "storage_bucket": "labalaba-5c615.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:967406014596:android:47f24cb9aff8d3882df2d1",
+        "android_client_info": {
+          "package_name": "com.labalaba.advertising"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvtjHTX-NYG-HKGyvv5h7necNLeXGia_s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

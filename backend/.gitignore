@@ -1,0 +1,21 @@
+# Firebase Service Account Key (contains secrets)
+firebase-adminsdk.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite3

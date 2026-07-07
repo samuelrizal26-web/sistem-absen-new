@@ -8,14 +8,15 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import os, uuid, bcrypt, asyncio
 
-# FCM Integration (placeholder - install firebase-admin and configure credentials)
-# try:
-#     from firebase_admin import credentials, messaging
-#     import firebase_admin
-#     firebase_admin.initialize_app(credentials.Certificate('path/to/service-account.json'))
-# except ImportError:
-#     print('[WARNING] firebase-admin not installed. Run: pip install firebase-admin')
-#     pass
+# FCM Integration
+try:
+    from firebase_admin import credentials, messaging
+    import firebase_admin
+    firebase_admin.initialize_app(credentials.Certificate('firebase-adminsdk.json'))
+    print('[INFO] Firebase Admin SDK initialized successfully')
+except Exception as e:
+    print(f'[WARNING] Firebase initialization failed: {e}')
+    pass
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 ROOT_DIR = Path(__file__).parent
@@ -230,6 +231,7 @@ class DeviceCreate(BaseModel):
 class DeviceUpdate(BaseModel):
     device_name: Optional[str] = None
     role: Optional[str] = None
+    fcm_token: Optional[str] = None
 
 # ── Auth ────────────────────────────────────────────────────────────────────
 @api.post('/auth/admin-login')
@@ -988,18 +990,23 @@ async def send_notification_to_role(role: str, title: str, body: str, data: dict
             print(f'[NOTIFICATION] No devices found with role: {role}')
             return
         
-        # TODO: Implement FCM notification sending
-        # for device in devices:
-        #     if device.get('fcm_token'):
-        #         message = messaging.Message(
-        #             notification=messaging.Notification(title=title, body=body),
-        #             data=data,
-        #             token=device['fcm_token']
-        #         )
-        #         messaging.send(message)
+        # Send FCM notifications
+        for device in devices:
+            if device.get('fcm_token'):
+                try:
+                    message = messaging.Message(
+                        notification=messaging.Notification(title=title, body=body),
+                        data=data or {},
+                        token=device['fcm_token']
+                    )
+                    messaging.send(message)
+                    print(f'[NOTIFICATION] Sent to device: {device.get('device_name', device['device_id'])}')
+                except Exception as e:
+                    print(f'[NOTIFICATION ERROR] Failed to send to {device.get('device_name', device['device_id'])}: {e}')
+            else:
+                print(f'[NOTIFICATION] Device {device.get('device_name', device['device_id'])} has no FCM token')
         
-        print(f'[NOTIFICATION] Would send to {len(devices)} devices with role {role}: {title} - {body}')
-        print(f'[NOTIFICATION] Devices: {[d.get('device_name', d['device_id']) for d in devices]}')
+        print(f'[NOTIFICATION] Sent to {len(devices)} devices with role {role}: {title} - {body}')
     except Exception as e:
         print(f'[NOTIFICATION ERROR] {e}')
 
