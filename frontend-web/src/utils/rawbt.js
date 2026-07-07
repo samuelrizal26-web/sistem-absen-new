@@ -15,8 +15,8 @@ img.src = logoPrint
 img.onload = () => {
   const canvas = document.createElement('canvas')
   // Resize logo to be smaller
-  const targetWidth = 120
-  const targetHeight = 120
+  const targetWidth = 80
+  const targetHeight = 80
   canvas.width = targetWidth
   canvas.height = targetHeight
   const ctx = canvas.getContext('2d')
@@ -176,7 +176,7 @@ export function triggerBrowserPrint(text) {
       <style>
         body {
           font-family: 'Courier New', monospace;
-          font-size: 12px;
+          font-size: 13px;
           width: 58mm;
           max-width: 58mm;
           margin: 0;
@@ -192,16 +192,16 @@ export function triggerBrowserPrint(text) {
         }
         .label {
           flex: 0 0 auto;
-          font-size: 12px;
+          font-size: 13px;
         }
         .value {
           flex: 1;
           text-align: right;
-          font-size: 12px;
+          font-size: 13px;
         }
         .center {
           text-align: center;
-          font-size: 13px;
+          font-size: 14px;
         }
         .divider {
           border-bottom: 1px dashed #000;
