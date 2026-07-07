@@ -1185,9 +1185,13 @@ export default function AdminPage() {
                   {groupedEmployeeTransactions.map(emp => (
                     <div key={emp.name} onClick={() => setSelectedEmployee(emp)} className="bg-gray-50 rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition-all border border-gray-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                          <span className="text-indigo-600 font-bold text-sm">{(emp.name || '?')[0].toUpperCase()}</span>
-                        </div>
+                        {emp.photo ? (
+                          <img src={emp.photo} alt={emp.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                            <span className="text-indigo-600 font-bold text-sm">{(emp.name || '?')[0].toUpperCase()}</span>
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-800 text-sm truncate">{emp.name}</p>
                           <p className="text-xs text-gray-400">{emp.totalTransactions} transaksi</p>
