@@ -237,7 +237,7 @@ export function triggerBrowserPrint(text) {
           const logoUrls = {
             instagram: 'https://cdn.simpleicons.org/instagram/000000',
             whatsapp: 'https://cdn.simpleicons.org/whatsapp/000000',
-            web: 'https://cdn.simpleicons.org/internetexplorer/000000',
+            web: 'https://cdn.simpleicons.org/globe/000000',
             email: 'https://cdn.simpleicons.org/gmail/000000'
           }
           const iconLabels = {
@@ -246,7 +246,7 @@ export function triggerBrowserPrint(text) {
             web: 'Website',
             email: 'Email'
           }
-          return `<div class="line" style="justify-content: center; gap: 5px;">
+          return `<div class="center" style="gap: 5px; display: flex; align-items: center; justify-content: center;">
             <img src="${logoUrls[line.platform]}" alt="${iconLabels[line.platform]}" style="width: 16px; height: 16px;" />
             <span style="font-size: 11px;">${line.value}</span>
           </div>`
