@@ -203,11 +203,26 @@ export function triggerBrowserPrint(text) {
           text-align: center;
           font-size: 14px;
         }
+        .contact-item {
+          display: flex !important;
+          justify-content: flex-start !important;
+          align-items: center;
+          gap: 5px;
+          margin: 3px 0;
+        }
+        .contact-item img {
+          width: 16px;
+          height: 16px;
+          margin: 0;
+        }
+        .contact-item span {
+          font-size: 11px;
+        }
         .divider {
           border-bottom: 1px dashed #000;
           margin: 3px 0;
         }
-        img {
+        .logo-img {
           max-width: 35mm;
           height: auto;
           display: block;
@@ -228,7 +243,7 @@ export function triggerBrowserPrint(text) {
       </style>
     </head>
     <body>
-      ${logoBase64 ? `<div class="center"><img src="${logoBase64}" alt="Logo"></div>` : ''}
+      ${logoBase64 ? `<div class="center"><img src="${logoBase64}" class="logo-img" alt="Logo"></div>` : ''}
       ${parsedLines.map(line => {
         if (line.type === 'divider') return `<div class="divider" style="border-bottom-style: ${line.style};"></div>`
         if (line.type === 'center') return `<div class="center" style="${line.isHeader ? 'font-weight: bold; margin-top: 5px;' : ''}">${line.text}</div>`
@@ -237,7 +252,7 @@ export function triggerBrowserPrint(text) {
           const logoUrls = {
             instagram: 'https://cdn.simpleicons.org/instagram/000000',
             whatsapp: 'https://cdn.simpleicons.org/whatsapp/000000',
-            web: 'https://cdn.simpleicons.org/globe/000000',
+            web: 'https://cdn.simpleicons.org/world/000000',
             email: 'https://cdn.simpleicons.org/gmail/000000'
           }
           const iconLabels = {
@@ -246,9 +261,9 @@ export function triggerBrowserPrint(text) {
             web: 'Website',
             email: 'Email'
           }
-          return `<div class="line" style="gap: 5px; display: flex; align-items: center; justify-content: flex-start;">
-            <img src="${logoUrls[line.platform]}" alt="${iconLabels[line.platform]}" style="width: 16px; height: 16px;" />
-            <span style="font-size: 11px;">${line.value}</span>
+          return `<div class="contact-item">
+            <img src="${logoUrls[line.platform]}" alt="${iconLabels[line.platform]}" />
+            <span>${line.value}</span>
           </div>`
         }
         return `<div class="line">${line.text}</div>`
