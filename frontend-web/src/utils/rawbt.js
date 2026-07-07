@@ -144,6 +144,12 @@ export function triggerBrowserPrint(text) {
     if (line.includes('=')) return { type: 'divider', style: 'dashed' }
     if (line.includes('-')) return { type: 'divider', style: 'dotted' }
     if (line.includes('Terima kasih') || line.includes('LB.ADV')) return { type: 'center', text: line }
+    // Contact lines - replace with brand logos
+    if (line.includes('Follow Us')) return { type: 'center', text: line, isHeader: true }
+    if (line.includes(CONTACT_INSTAGRAM)) return { type: 'contact', platform: 'instagram', value: CONTACT_INSTAGRAM }
+    if (line.includes(CONTACT_WHATSAPP)) return { type: 'contact', platform: 'whatsapp', value: CONTACT_WHATSAPP }
+    if (line.includes(CONTACT_WEB)) return { type: 'contact', platform: 'web', value: CONTACT_WEB }
+    if (line.includes(CONTACT_EMAIL)) return { type: 'contact', platform: 'email', value: CONTACT_EMAIL }
     if (line.includes('Tgl') || line.includes('Kasir') || line.includes('Cust') || line.includes('Bahan') || 
         line.includes('Qty') || line.includes('Harga') || line.includes('Subtot') || line.includes('Diskon') ||
         line.includes('TOTAL') || line.includes('Bayar') || line.includes('Kemb') || line.includes('Cat')) {
@@ -225,8 +231,26 @@ export function triggerBrowserPrint(text) {
       ${logoBase64 ? `<div class="center"><img src="${logoBase64}" alt="Logo"></div>` : ''}
       ${parsedLines.map(line => {
         if (line.type === 'divider') return `<div class="divider" style="border-bottom-style: ${line.style};"></div>`
-        if (line.type === 'center') return `<div class="center">${line.text}</div>`
+        if (line.type === 'center') return `<div class="center" style="${line.isHeader ? 'font-weight: bold; margin-top: 5px;' : ''}">${line.text}</div>`
         if (line.type === 'row') return `<div class="line"><span class="label">${line.label}:</span><span class="value">${line.value}</span></div>`
+        if (line.type === 'contact') {
+          const logoUrls = {
+            instagram: 'https://cdn.simpleicons.org/instagram/000000',
+            whatsapp: 'https://cdn.simpleicons.org/whatsapp/000000',
+            web: 'https://cdn.simpleicons.org/internetexplorer/000000',
+            email: 'https://cdn.simpleicons.org/gmail/000000'
+          }
+          const iconLabels = {
+            instagram: 'Instagram',
+            whatsapp: 'WhatsApp',
+            web: 'Website',
+            email: 'Email'
+          }
+          return `<div class="line" style="justify-content: center; gap: 5px;">
+            <img src="${logoUrls[line.platform]}" alt="${iconLabels[line.platform]}" style="width: 16px; height: 16px;" />
+            <span style="font-size: 11px;">${line.value}</span>
+          </div>`
+        }
         return `<div class="line">${line.text}</div>`
       }).join('')}
     </body>
