@@ -149,6 +149,32 @@ class KasbonCreate(BaseModel):
     payment_method: Optional[str] = 'cash'
     notes: Optional[str] = ''
 
+# ── Floating Menu Config ──────────────────────────────────────────────────────
+class FloatingMenuItemCreate(BaseModel):
+    title: str
+    type: str  # 'navigation' or 'piket'
+    target: Optional[str] = ''  # For navigation: page path, For piket: piket_group_id
+    icon: Optional[str] = ''
+    order: int = 0
+
+class FloatingMenuItemUpdate(BaseModel):
+    title: Optional[str] = None
+    type: Optional[str] = None
+    target: Optional[str] = None
+    icon: Optional[str] = None
+    order: Optional[int] = None
+
+# ── Piket Groups ───────────────────────────────────────────────────────────────
+class PiketGroupCreate(BaseModel):
+    title: str
+    employee_ids: List[str]
+    current_index: int = 0
+
+class PiketGroupUpdate(BaseModel):
+    title: Optional[str] = None
+    employee_ids: Optional[List[str]] = None
+    current_index: Optional[int] = None
+
 class JobCreate(BaseModel):
     customer_name: str
     job_name: str
@@ -860,6 +886,98 @@ async def delete_device(device_id: str):
 async def get_devices_by_role(role: str):
     devices = await db.devices.find({'role': role}, {'_id': 0}).to_list(None)
     return devices
+
+# ── Floating Menu Config ──────────────────────────────────────────────────────
+@api.get('/floating-menu')
+async def get_floating_menu():
+    items = await db.floating_menu.find({}, {'_id': 0}).sort('order', 1).to_list(None)
+    return items
+
+@api.post('/floating-menu')
+async def create_floating_menu_item(body: FloatingMenuItemCreate):
+    doc = {
+        'id': new_id(),
+        'title': body.title,
+        'type': body.type,
+        'target': body.target or '',
+        'icon': body.icon or '',
+        'order': body.order,
+        'created_at': now_str()
+    }
+    await db.floating_menu.insert_one(doc)
+    return clean(doc)
+
+@api.put('/floating-menu/{item_id}')
+async def update_floating_menu_item(item_id: str, body: FloatingMenuItemUpdate):
+    if not await db.floating_menu.find_one({'id': item_id}):
+        raise HTTPException(status_code=404, detail='Menu item tidak ditemukan')
+    update = body.model_dump(exclude_none=True)
+    update['updated_at'] = now_str()
+    await db.floating_menu.update_one({'id': item_id}, {'$set': update})
+    return await db.floating_menu.find_one({'id': item_id}, {'_id': 0})
+
+@api.delete('/floating-menu/{item_id}')
+async def delete_floating_menu_item(item_id: str):
+    await db.floating_menu.delete_one({'id': item_id})
+    return {'message': 'Menu item dihapus'}
+
+# ── Piket Groups ───────────────────────────────────────────────────────────────
+@api.get('/piket-groups')
+async def get_piket_groups():
+    groups = await db.piket_groups.find({}, {'_id': 0}).to_list(None)
+    return groups
+
+@api.post('/piket-groups')
+async def create_piket_group(body: PiketGroupCreate):
+    doc = {
+        'id': new_id(),
+        'title': body.title,
+        'employee_ids': body.employee_ids,
+        'current_index': body.current_index,
+        'created_at': now_str()
+    }
+    await db.piket_groups.insert_one(doc)
+    return clean(doc)
+
+@api.get('/piket-groups/{group_id}')
+async def get_piket_group(group_id: str):
+    group = await db.piket_groups.find_one({'id': group_id}, {'_id': 0})
+    if not group:
+        raise HTTPException(status_code=404, detail='Piket group tidak ditemukan')
+    
+    # Get employee details
+    employees = await db.employees.find({'id': {'$in': group['employee_ids']}}, {'_id': 0, 'pin_hash': 0}).to_list(None)
+    return {**group, 'employees': employees}
+
+@api.put('/piket-groups/{group_id}')
+async def update_piket_group(group_id: str, body: PiketGroupUpdate):
+    if not await db.piket_groups.find_one({'id': group_id}):
+        raise HTTPException(status_code=404, detail='Piket group tidak ditemukan')
+    update = body.model_dump(exclude_none=True)
+    update['updated_at'] = now_str()
+    await db.piket_groups.update_one({'id': group_id}, {'$set': update})
+    return await db.piket_groups.find_one({'id': group_id}, {'_id': 0})
+
+@api.delete('/piket-groups/{group_id}')
+async def delete_piket_group(group_id: str):
+    await db.piket_groups.delete_one({'id': group_id})
+    return {'message': 'Piket group dihapus'}
+
+@api.post('/piket-groups/{group_id}/rotate')
+async def rotate_piket(group_id: str):
+    group = await db.piket_groups.find_one({'id': group_id})
+    if not group:
+        raise HTTPException(status_code=404, detail='Piket group tidak ditemukan')
+    
+    employee_count = len(group['employee_ids'])
+    if employee_count == 0:
+        raise HTTPException(status_code=400, detail='Piket group tidak memiliki anggota')
+    
+    new_index = (group['current_index'] + 1) % employee_count
+    await db.piket_groups.update_one({'id': group_id}, {'$set': {'current_index': new_index, 'updated_at': now_str()}})
+    
+    updated_group = await db.piket_groups.find_one({'id': group_id}, {'_id': 0})
+    return clean(updated_group)
 
 # ── Notification Helper ─────────────────────────────────────────────────────────
 async def send_notification_to_role(role: str, title: str, body: str, data: dict = None):
