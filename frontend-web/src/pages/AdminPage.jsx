@@ -1537,9 +1537,13 @@ export default function AdminPage() {
                 <button onClick={() => setSelectedEmployee(null)} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-500 shadow-sm">✕</button>
               </div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                  <span className="text-indigo-600 font-bold text-2xl">{(selectedEmployee.name || '?')[0].toUpperCase()}</span>
-                </div>
+                {selectedEmployee.photo ? (
+                  <img src={selectedEmployee.photo} alt={selectedEmployee.name} className="w-16 h-16 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                    <span className="text-indigo-600 font-bold text-2xl">{(selectedEmployee.name || '?')[0].toUpperCase()}</span>
+                  </div>
+                )}
                 <div>
                   <p className="text-xl font-bold text-gray-800">{selectedEmployee.name}</p>
                   <p className="text-sm text-gray-600">{selectedEmployee.totalTransactions} transaksi</p>
@@ -1587,7 +1591,10 @@ export default function AdminPage() {
                   <div className="space-y-2">
                     {empTxData.items.map((tx, idx) => (
                       <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                        <div className="flex justify-between items-start">
+                        <div className="flex gap-3">
+                          {tx.photo && (
+                            <img src={tx.photo} alt="Transaction photo" className="w-16 h-16 rounded-lg object-cover shrink-0" />
+                          )}
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-800 text-sm truncate">{tx.description || tx.material || tx.item_name || '-'}</p>
                             <p className="text-xs text-gray-400">{formatDate(tx.date || tx.created_at)} · {tx.payment_method || '-'}</p>
