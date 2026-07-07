@@ -8,6 +8,7 @@ import JobDetailModal from '../components/JobDetailModal'
 import CrewFormModal from '../components/CrewFormModal'
 import Toast from '../components/Toast'
 import FloatingButton from '../components/FloatingButton'
+import PiketModal from '../components/PiketModal'
 import { useToast } from '../hooks/useToast'
 
 const NAV_BUTTONS = [
@@ -102,6 +103,8 @@ export default function HomeScreen() {
 
   // Floating menu state
   const [menuItems, setMenuItems] = useState([])
+  const [showPiketModal, setShowPiketModal] = useState(false)
+  const [selectedPiketGroupId, setSelectedPiketGroupId] = useState(null)
   const [resetError, setResetError] = useState('')
 
   // Work Tracking state
@@ -237,8 +240,8 @@ export default function HomeScreen() {
     if (item.type === 'navigation' && item.target) {
       navigate(item.target)
     } else if (item.type === 'piket' && item.target) {
-      // TODO: Show piket modal
-      showToast('Fitur piket akan segera tersedia', 'info')
+      setSelectedPiketGroupId(item.target)
+      setShowPiketModal(true)
     }
   }
 
@@ -726,6 +729,15 @@ export default function HomeScreen() {
       
       {/* Floating Button */}
       <FloatingButton menuItems={menuItems} onItemClick={handleFloatingMenuItemClick} />
+      
+      {/* Piket Modal */}
+      {showPiketModal && (
+        <PiketModal
+          groupId={selectedPiketGroupId}
+          onClose={() => setShowPiketModal(false)}
+          showToast={showToast}
+        />
+      )}
     </div>
   )
 }

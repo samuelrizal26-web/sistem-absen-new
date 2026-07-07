@@ -6,6 +6,7 @@ import { buildPrintJobReceipt, triggerRawBTPrint, triggerBrowserPrint, openCashD
 import StaffPinModal from '../components/StaffPinModal'
 import Toast from '../components/Toast'
 import FloatingButton from '../components/FloatingButton'
+import PiketModal from '../components/PiketModal'
 import { useToast } from '../hooks/useToast'
 
 const MATERIALS_KEY = 'print'
@@ -43,6 +44,8 @@ export default function PrintJobPage() {
   const [cashier, setCashier] = useState(null)
   const [saving, setSaving] = useState(false)
   const [menuItems, setMenuItems] = useState([])
+  const [showPiketModal, setShowPiketModal] = useState(false)
+  const [selectedPiketGroupId, setSelectedPiketGroupId] = useState(null)
   const [editJob, setEditJob] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [keypadField, setKeypadField] = useState(null) // 'harga_normal' or 'harga_diskon' or null
@@ -194,7 +197,8 @@ export default function PrintJobPage() {
     if (item.type === 'navigation' && item.target) {
       navigate(item.target)
     } else if (item.type === 'piket' && item.target) {
-      showToast('Fitur piket akan segera tersedia', 'info')
+      setSelectedPiketGroupId(item.target)
+      setShowPiketModal(true)
     }
   }
 
@@ -947,6 +951,13 @@ export default function PrintJobPage() {
 
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}
       <FloatingButton menuItems={menuItems} onItemClick={handleFloatingMenuItemClick} />
+      {showPiketModal && (
+        <PiketModal
+          groupId={selectedPiketGroupId}
+          onClose={() => setShowPiketModal(false)}
+          showToast={showToast}
+        />
+      )}
     </div>
   )
 }
