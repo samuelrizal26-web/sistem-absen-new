@@ -90,7 +90,23 @@ export default function AdminPage() {
     setEmpTxLoading(true)
     try {
       let data
-      if (type === 'kasbon' || type === 'all') {
+      if (type === 'all') {
+        // Load all types and combine
+        const [kasbonData, printJobsData, cashflowData] = await Promise.all([
+          getKasbonByEmployeePaginated(empId, page),
+          getPrintJobsByEmployeePaginated(empId, page),
+          getCashflowByEmployeePaginated(empId, page)
+        ])
+        // Combine all transactions
+        const allTransactions = [
+          ...(kasbonData.data || []).map(item => ({ ...item, _source: 'kasbon' })),
+          ...(printJobsData.data || []).map(item => ({ ...item, _source: 'print_job' })),
+          ...(cashflowData.data || []).map(item => ({ ...item, _source: 'cashflow' }))
+        ]
+        // Sort by date descending
+        allTransactions.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
+        data = { data: allTransactions, total: (kasbonData.total || 0) + (printJobsData.total || 0) + (cashflowData.total || 0) }
+      } else if (type === 'kasbon') {
         data = await getKasbonByEmployeePaginated(empId, page)
       } else if (type === 'print_jobs') {
         data = await getPrintJobsByEmployeePaginated(empId, page)
