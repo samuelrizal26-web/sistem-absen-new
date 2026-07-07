@@ -496,19 +496,42 @@ export default function ProjectPage() {
                 </div>
               </div>
             ) : (
-              <div className="overflow-y-auto space-y-2">
-                {stocks.map(s => (
-                  <button key={s.id} onClick={() => setPickerStock(s)}
-                    className="w-full text-left p-3 rounded-2xl border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${s.usage_category === 'PRINT' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                        {s.usage_category}
-                      </span>
+              <div className="overflow-y-auto">
+                <div className="flex gap-3">
+                  {/* Left Column - Print */}
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-orange-600 mb-2 uppercase tracking-wide">Print</p>
+                    <div className="space-y-2">
+                      {stocks.filter(s => s.usage_category === 'PRINT').sort((a, b) => a.name.localeCompare(b.name)).map(s => (
+                        <button key={s.id} onClick={() => setPickerStock(s)}
+                          className="w-full text-left p-3 rounded-2xl border border-gray-100 hover:bg-orange-50 hover:border-orange-200 transition-all">
+                          <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
+                          <p className="text-xs text-gray-500">Stok: {s.quantity} {s.unit}</p>
+                        </button>
+                      ))}
+                      {stocks.filter(s => s.usage_category === 'PRINT').length === 0 && (
+                        <p className="text-xs text-gray-400 text-center py-4">Tidak ada stok</p>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-500">Stok: {s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/unit' : '-'}</p>
-                  </button>
-                ))}
+                  </div>
+                  
+                  {/* Right Column - Umum */}
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">Umum</p>
+                    <div className="space-y-2">
+                      {stocks.filter(s => s.usage_category !== 'PRINT').sort((a, b) => a.name.localeCompare(b.name)).map(s => (
+                        <button key={s.id} onClick={() => setPickerStock(s)}
+                          className="w-full text-left p-3 rounded-2xl border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all">
+                          <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
+                          <p className="text-xs text-gray-500">Stok: {s.quantity} {s.unit}</p>
+                        </button>
+                      ))}
+                      {stocks.filter(s => s.usage_category !== 'PRINT').length === 0 && (
+                        <p className="text-xs text-gray-400 text-center py-4">Tidak ada stok</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
