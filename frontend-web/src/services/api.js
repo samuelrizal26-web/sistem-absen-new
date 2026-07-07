@@ -159,3 +159,47 @@ export const getCashflowByEmployeePaginated = (empId, page = 1, limit = 50) =>
 // ─── Reset Database ───────────────────────────────────────────
 export const resetDatabase = () =>
   request('/reset-database', { method: 'DELETE' })
+
+// Floating Menu Config
+export const getFloatingMenu = () =>
+  request('/floating-menu')
+
+export const createFloatingMenuItem = (item) =>
+  request('/floating-menu', {
+    method: 'POST',
+    body: JSON.stringify(item)
+  })
+
+export const updateFloatingMenuItem = (itemId, item) =>
+  request(`/floating-menu/${itemId}`, {
+    method: 'PUT',
+    body: JSON.stringify(item)
+  })
+
+export const deleteFloatingMenuItem = (itemId) =>
+  request(`/floating-menu/${itemId}`, { method: 'DELETE' })
+
+// Piket Groups
+export const getPiketGroups = () =>
+  request('/piket-groups')
+
+export const getPiketGroup = (groupId) =>
+  request(`/piket-groups/${groupId}`)
+
+export const createPiketGroup = (group) =>
+  request('/piket-groups', {
+    method: 'POST',
+    body: JSON.stringify(group)
+  })
+
+export const updatePiketGroup = (groupId, group) =>
+  request(`/piket-groups/${groupId}`, {
+    method: 'PUT',
+    body: JSON.stringify(group)
+  })
+
+export const deletePiketGroup = (groupId) =>
+  request(`/piket-groups/${groupId}`, { method: 'DELETE' })
+
+export const rotatePiket = (groupId) =>
+  request(`/piket-groups/${groupId}/rotate`, { method: 'POST' })

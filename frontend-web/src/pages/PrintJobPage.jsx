@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getPrintJobsSummary, getPrintJobs, createPrintJob, updatePrintJob, deletePrintJob, getStock } from '../services/api'
+import { getPrintJobsSummary, getPrintJobs, createPrintJob, updatePrintJob, deletePrintJob, getStock, getFloatingMenu } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { buildPrintJobReceipt, triggerRawBTPrint, triggerBrowserPrint, openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
 import Toast from '../components/Toast'
+import FloatingButton from '../components/FloatingButton'
 import { useToast } from '../hooks/useToast'
 
 const MATERIALS_KEY = 'print'
@@ -41,6 +42,7 @@ export default function PrintJobPage() {
   const [savedJob, setSavedJob] = useState(null)
   const [cashier, setCashier] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [menuItems, setMenuItems] = useState([])
   const [editJob, setEditJob] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [keypadField, setKeypadField] = useState(null) // 'harga_normal' or 'harga_diskon' or null
@@ -174,6 +176,27 @@ export default function PrintJobPage() {
   }
 
   useEffect(() => { loadData() }, [searchMonth])
+
+  useEffect(() => {
+    loadFloatingMenu()
+  }, [])
+
+  const loadFloatingMenu = async () => {
+    try {
+      const data = await getFloatingMenu()
+      setMenuItems(data || [])
+    } catch {
+      setMenuItems([])
+    }
+  }
+
+  const handleFloatingMenuItemClick = (item) => {
+    if (item.type === 'navigation' && item.target) {
+      navigate(item.target)
+    } else if (item.type === 'piket' && item.target) {
+      showToast('Fitur piket akan segera tersedia', 'info')
+    }
+  }
 
   const handleFormChange = (field, value) => setForm(f => ({ ...f, [field]: value }))
 
@@ -923,6 +946,7 @@ export default function PrintJobPage() {
       )}
 
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}
+      <FloatingButton menuItems={menuItems} onItemClick={handleFloatingMenuItemClick} />
     </div>
   )
 }

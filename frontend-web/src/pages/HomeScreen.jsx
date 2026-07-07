@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu } from '../services/api'
 import { getInitials, formatRupiah, formatDate } from '../utils/format'
 import PinModal from '../components/PinModal'
 import JobFormModal from '../components/JobFormModal'
 import JobDetailModal from '../components/JobDetailModal'
 import CrewFormModal from '../components/CrewFormModal'
 import Toast from '../components/Toast'
+import FloatingButton from '../components/FloatingButton'
 import { useToast } from '../hooks/useToast'
 
 const NAV_BUTTONS = [
@@ -98,6 +99,9 @@ export default function HomeScreen() {
   const [newPin, setNewPin] = useState('')
   const [newPinConfirm, setNewPinConfirm] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
+
+  // Floating menu state
+  const [menuItems, setMenuItems] = useState([])
   const [resetError, setResetError] = useState('')
 
   // Work Tracking state
@@ -216,7 +220,27 @@ export default function HomeScreen() {
       .finally(() => setLoadingEmployees(false))
     loadJobs()
     loadWorkTracking()
+    loadFloatingMenu()
   }, [])
+
+  const loadFloatingMenu = async () => {
+    try {
+      const data = await getFloatingMenu()
+      setMenuItems(data || [])
+    } catch {
+      // If no menu items, set empty array
+      setMenuItems([])
+    }
+  }
+
+  const handleFloatingMenuItemClick = (item) => {
+    if (item.type === 'navigation' && item.target) {
+      navigate(item.target)
+    } else if (item.type === 'piket' && item.target) {
+      // TODO: Show piket modal
+      showToast('Fitur piket akan segera tersedia', 'info')
+    }
+  }
 
   const handleNavClick = (btn) => {
     if (btn.action === 'kasbon') setShowEmployeePicker(true)
@@ -699,6 +723,9 @@ export default function HomeScreen() {
       {toast && (
         <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />
       )}
+      
+      {/* Floating Button */}
+      <FloatingButton menuItems={menuItems} onItemClick={handleFloatingMenuItemClick} />
     </div>
   )
 }

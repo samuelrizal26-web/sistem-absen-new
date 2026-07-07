@@ -11,6 +11,7 @@ import {
   resetDatabase,
 } from '../services/api'
 import DeviceSettingsModal from '../components/DeviceSettingsModal'
+import FloatingMenuSettings from '../components/FloatingMenuSettings'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import { initNotifications, showNotification } from '../utils/notifications'
@@ -154,6 +155,7 @@ export default function AdminPage() {
   const [newPinB, setNewPinB] = useState('')
   const [pinChanging, setPinChanging] = useState(false)
   const [showDeviceSettings, setShowDeviceSettings] = useState(false)
+  const [showFloatingMenuSettings, setShowFloatingMenuSettings] = useState(false)
 
   // ─────────────────── AUTH ───────────────────
   const handlePinAuth = async (pinValue) => {
@@ -1265,6 +1267,16 @@ export default function AdminPage() {
           <div className="w-full md:w-1/2 flex flex-col gap-4">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
               <div className="flex justify-between items-center mb-4">
+                <p className="font-bold text-gray-800">Pengaturan Tombol Mengambang</p>
+                <button onClick={() => setShowFloatingMenuSettings(true)} className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+                  Kelola
+                </button>
+              </div>
+              <p className="text-sm text-gray-500">Kelola menu items dan jadwal piket untuk tombol mengambang</p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex justify-between items-center mb-4">
                 <p className="font-bold text-gray-800">Pengaturan Perangkat</p>
                 <button onClick={() => setShowDeviceSettings(true)} className="text-sm text-purple-600 hover:text-purple-700 font-medium">
                   Kelola
@@ -2049,6 +2061,7 @@ export default function AdminPage() {
 
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}
       {showDeviceSettings && <DeviceSettingsModal onClose={() => setShowDeviceSettings(false)} showToast={showToast} />}
+      {showFloatingMenuSettings && <FloatingMenuSettings onClose={() => setShowFloatingMenuSettings(false)} showToast={showToast} employees={employees} />}
     </div>
   )
 }
