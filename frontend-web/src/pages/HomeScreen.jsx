@@ -108,7 +108,7 @@ export default function HomeScreen() {
   const [selectedWorkItem, setSelectedWorkItem] = useState(null)
   const [workForm, setWorkForm] = useState({ item_name: '', initial_qty: '', description: '' })
   const [updateForm, setUpdateForm] = useState({ completed_qty: '' })
-  const [editForm, setEditForm] = useState({ item_name: '', initial_qty: '' })
+  const [editForm, setEditForm] = useState({ completed_qty: '' })
   const [isAdmin, setIsAdmin] = useState(false)
 
   const loadJobs = () => {
@@ -174,27 +174,26 @@ export default function HomeScreen() {
 
   const handleEditWorkItem = (item) => {
     setSelectedWorkItem(item)
-    setEditForm({ item_name: item.item_name, initial_qty: item.initial_qty })
+    setEditForm({ completed_qty: item.completed_qty })
     setShowEditModal(true)
   }
 
   const handleSaveEdit = () => {
-    if (!editForm.item_name || !editForm.initial_qty) {
-      showToast('Nama item dan jumlah awal wajib diisi', 'error')
+    if (!editForm.completed_qty) {
+      showToast('Jumlah selesai wajib diisi', 'error')
       return
     }
     updateWorkTracking(selectedWorkItem.id, {
-      item_name: editForm.item_name,
-      initial_qty: parseFloat(editForm.initial_qty)
+      completed_qty: parseFloat(editForm.completed_qty)
     })
       .then(() => {
-        showToast('Work item berhasil diupdate', 'success')
+        showToast('Progress berhasil diupdate', 'success')
         setShowEditModal(false)
         setSelectedWorkItem(null)
-        setEditForm({ item_name: '', initial_qty: '' })
+        setEditForm({ completed_qty: '' })
         loadWorkTracking()
       })
-      .catch((e) => showToast(e.message || 'Gagal mengupdate work item', 'error'))
+      .catch((e) => showToast(e.message || 'Gagal mengupdate progress', 'error'))
   }
 
   // Combine and filter jobs/projects based on tab
@@ -657,13 +656,13 @@ export default function HomeScreen() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
             <div className="flex justify-between items-center mb-4">
-              <p className="font-bold text-gray-800">Edit Work Item</p>
-              <button onClick={() => { setShowEditModal(false); setSelectedWorkItem(null); setEditForm({ item_name: '', initial_qty: '' }) }} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+              <p className="font-bold text-gray-800">Edit Progress</p>
+              <button onClick={() => { setShowEditModal(false); setSelectedWorkItem(null); setEditForm({ completed_qty: '' }) }} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
             </div>
             <div className="space-y-3">
-              <input type="text" value={editForm.item_name} onChange={e => setEditForm(f => ({ ...f, item_name: e.target.value }))} placeholder="Nama Item *"
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30" />
-              <input type="number" value={editForm.initial_qty} onChange={e => setEditForm(f => ({ ...f, initial_qty: e.target.value }))} placeholder="Jumlah Awal *"
+              <p className="text-sm text-gray-600">{selectedWorkItem.item_name}</p>
+              <p className="text-xs text-gray-500">Total: {selectedWorkItem.initial_qty} pcs</p>
+              <input type="number" value={editForm.completed_qty} onChange={e => setEditForm(f => ({ ...f, completed_qty: e.target.value }))} placeholder="Jumlah Selesai *"
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30" />
               <button onClick={handleSaveEdit}
                 className="w-full py-3.5 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark active:scale-95 transition-all">
