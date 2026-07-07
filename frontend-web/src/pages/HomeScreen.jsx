@@ -158,7 +158,8 @@ export default function HomeScreen() {
       showToast('Jumlah selesai wajib diisi', 'error')
       return
     }
-    updateWorkTracking(selectedWorkItem.id, { completed_qty: parseFloat(updateForm.completed_qty) })
+    const newCompletedQty = (selectedWorkItem.completed_qty || 0) + parseFloat(updateForm.completed_qty)
+    updateWorkTracking(selectedWorkItem.id, { completed_qty: newCompletedQty })
       .then(() => {
         showToast('Progress berhasil diupdate', 'success')
         setUpdateForm({ completed_qty: '' })
@@ -237,14 +238,11 @@ export default function HomeScreen() {
   }
 
   const handleFloatingMenuItemClick = (item) => {
-    console.log('Menu item clicked:', item)
     if (item.type === 'navigation' && item.target) {
       navigate(item.target)
     } else if (item.type === 'piket' && item.target) {
-      console.log('Opening piket modal for group:', item.target)
       setSelectedPiketGroupId(item.target)
       setShowPiketModal(true)
-      console.log('showPiketModal set to true')
     }
   }
 

@@ -6,10 +6,7 @@ export default function PiketModal({ groupId, onClose, showToast }) {
   const [loading, setLoading] = useState(true)
   const [rotating, setRotating] = useState(false)
 
-  console.log('PiketModal rendered with groupId:', groupId)
-
   useEffect(() => {
-    console.log('PiketModal useEffect triggered, loading data for groupId:', groupId)
     loadGroupData()
   }, [groupId])
 
