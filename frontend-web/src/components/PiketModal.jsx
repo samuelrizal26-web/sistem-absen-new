@@ -6,7 +6,10 @@ export default function PiketModal({ groupId, onClose, showToast }) {
   const [loading, setLoading] = useState(true)
   const [rotating, setRotating] = useState(false)
 
+  console.log('PiketModal rendered with groupId:', groupId)
+
   useEffect(() => {
+    console.log('PiketModal useEffect triggered, loading data for groupId:', groupId)
     loadGroupData()
   }, [groupId])
 
@@ -43,7 +46,7 @@ export default function PiketModal({ groupId, onClose, showToast }) {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
         <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6">
           <p className="text-center text-gray-500">Loading...</p>
         </div>
@@ -58,7 +61,7 @@ export default function PiketModal({ groupId, onClose, showToast }) {
   const currentEmployee = getCurrentEmployee()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold text-gray-800">{groupData.title}</h2>

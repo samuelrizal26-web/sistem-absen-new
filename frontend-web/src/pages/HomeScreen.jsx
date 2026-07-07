@@ -237,11 +237,14 @@ export default function HomeScreen() {
   }
 
   const handleFloatingMenuItemClick = (item) => {
+    console.log('Menu item clicked:', item)
     if (item.type === 'navigation' && item.target) {
       navigate(item.target)
     } else if (item.type === 'piket' && item.target) {
+      console.log('Opening piket modal for group:', item.target)
       setSelectedPiketGroupId(item.target)
       setShowPiketModal(true)
+      console.log('showPiketModal set to true')
     }
   }
 
