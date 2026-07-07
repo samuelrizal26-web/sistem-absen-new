@@ -46,3 +46,9 @@ app.*.map.json
 # temp / local test files
 temp_*.json
 test_post.py
+
+# APK build outputs
+*.apk
+
+# Firebase secrets
+**/firebase-adminsdk.json
