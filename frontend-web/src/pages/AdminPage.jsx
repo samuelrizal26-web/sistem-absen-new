@@ -134,6 +134,7 @@ export default function AdminPage() {
   const [archivedJobs, setArchivedJobs] = useState([])
   const [archivedProjects, setArchivedProjects] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [viewHistoryItem, setViewHistoryItem] = useState(null)
 
   // ── Settings state ──
   const [oldPin, setOldPin] = useState('')
@@ -1328,7 +1329,7 @@ export default function AdminPage() {
                   ) : (
                     <div className="space-y-2">
                       {archivedJobs.map(job => (
-                        <div key={job.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <div key={job.id} onClick={() => setViewHistoryItem({ ...job, type: 'job' })} className="bg-gray-50 rounded-xl p-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all">
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="font-semibold text-gray-800 text-sm">{job.job_name}</p>
@@ -1349,7 +1350,7 @@ export default function AdminPage() {
                   ) : (
                     <div className="space-y-2">
                       {archivedProjects.map(project => (
-                        <div key={project.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <div key={project.id} onClick={() => setViewHistoryItem({ ...project, type: 'project' })} className="bg-gray-50 rounded-xl p-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all">
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="font-semibold text-gray-800 text-sm">{project.project_name}</p>
@@ -1949,6 +1950,85 @@ export default function AdminPage() {
             <button onClick={() => setKeypadField(null)} className="w-full py-3 rounded-xl bg-teal-500 text-white font-semibold text-sm">
               Selesai
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* History Item Detail Modal */}
+      {viewHistoryItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setViewHistoryItem(null)}>
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">{viewHistoryItem.type === 'job' ? 'Detail Job' : 'Detail Project'}</h2>
+              <button onClick={() => setViewHistoryItem(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Nama</p>
+                <p className="text-sm font-semibold text-gray-800">{viewHistoryItem.job_name || viewHistoryItem.project_name || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Customer</p>
+                <p className="text-sm text-gray-700">{viewHistoryItem.customer_name || '-'}</p>
+              </div>
+              {viewHistoryItem.type === 'job' ? (
+                <>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Material</p>
+                    <p className="text-sm text-gray-700">{viewHistoryItem.material || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Jumlah</p>
+                    <p className="text-sm text-gray-700">{viewHistoryItem.quantity || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Harga Normal</p>
+                    <p className="text-sm text-gray-700">{formatRupiah(viewHistoryItem.harga_normal || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Harga Diskon</p>
+                    <p className="text-sm text-gray-700">{viewHistoryItem.harga_diskon ? formatRupiah(viewHistoryItem.harga_diskon) : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Total Harga</p>
+                    <p className="text-sm font-bold text-gray-800">{formatRupiah(viewHistoryItem.total_price || 0)}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Tanggal</p>
+                    <p className="text-sm text-gray-700">{formatDate(viewHistoryItem.date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Metode Pembayaran</p>
+                    <p className="text-sm text-gray-700">{viewHistoryItem.payment_method || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Status</p>
+                    <p className="text-sm text-gray-700">{viewHistoryItem.progress_status || viewHistoryItem.status || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Harga Jual</p>
+                    <p className="text-sm font-bold text-gray-800">{formatRupiah(viewHistoryItem.selling_price || viewHistoryItem.total_project_value || 0)}</p>
+                  </div>
+                  {viewHistoryItem.dp_amount && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">DP</p>
+                      <p className="text-sm text-gray-700">{formatRupiah(viewHistoryItem.dp_amount)}</p>
+                    </div>
+                  )}
+                </>
+              )}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Catatan</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{viewHistoryItem.notes || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Diarsipkan pada</p>
+                <p className="text-sm text-gray-500">{formatDate(viewHistoryItem.archived_at)}</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
