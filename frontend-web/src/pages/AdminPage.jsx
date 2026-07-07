@@ -99,13 +99,13 @@ export default function AdminPage() {
         ])
         // Combine all transactions
         const allTransactions = [
-          ...(kasbonData.data || []).map(item => ({ ...item, _source: 'kasbon' })),
-          ...(printJobsData.data || []).map(item => ({ ...item, _source: 'print_job' })),
-          ...(cashflowData.data || []).map(item => ({ ...item, _source: 'cashflow' }))
+          ...(kasbonData.items || []).map(item => ({ ...item, _source: 'kasbon' })),
+          ...(printJobsData.items || []).map(item => ({ ...item, _source: 'print_job' })),
+          ...(cashflowData.items || []).map(item => ({ ...item, _source: 'cashflow' }))
         ]
         // Sort by date descending
         allTransactions.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
-        data = { data: allTransactions, total: (kasbonData.total || 0) + (printJobsData.total || 0) + (cashflowData.total || 0) }
+        data = { items: allTransactions, total: (kasbonData.total || 0) + (printJobsData.total || 0) + (cashflowData.total || 0), page: 1, limit: 50, total_pages: 1 }
       } else if (type === 'kasbon') {
         data = await getKasbonByEmployeePaginated(empId, page)
       } else if (type === 'print_jobs') {
