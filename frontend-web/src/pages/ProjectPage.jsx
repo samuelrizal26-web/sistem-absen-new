@@ -1,22 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getProjects, createProject, updateProject, deleteProject, getStock, verifyAdminPin, verifyAdminPassword } from '../services/api'
+import { getProjects, createProject, updateProject, deleteProject, getStock } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
-const STEP = { PIN: 'pin', DASHBOARD: 'dashboard', FORM: 'form', EDIT: 'edit' }
+const STEP = { DASHBOARD: 'dashboard', FORM: 'form', EDIT: 'edit' }
 
 export default function ProjectPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { toast, showToast, clearToast } = useToast()
 
-  const [step, setStep] = useState(STEP.PIN)
-  const [pin, setPin] = useState('')
-  const [pinError, setPinError] = useState('')
-  const [pinLoading, setPinLoading] = useState(false)
-  const [shake, setShake] = useState(false)
+  const [step, setStep] = useState(STEP.DASHBOARD)
 
   const [projects, setProjects] = useState([])
   const [stocks, setStocks] = useState([])
@@ -71,8 +67,7 @@ export default function ProjectPage() {
 
   // Handle navigation state from HomeScreen for editing
   useEffect(() => {
-    if (location.state?.editingProject && step === STEP.PIN) {
-      // Auto-enter PIN mode then navigate to edit
+    if (location.state?.editingProject) {
       setEditingId(location.state.editingProject.id)
       setForm({
         date: location.state.editingProject.date || new Date().toISOString().split('T')[0],
@@ -89,31 +84,7 @@ export default function ProjectPage() {
       // Clear the state to avoid re-triggering
       navigate('/project', { replace: true, state: {} })
     }
-  }, [location.state, step, navigate])
-
-  const handlePinSubmit = async (pinValue) => {
-    const pinToUse = pinValue || pin
-    if (!pinToUse) return
-    setPinLoading(true)
-    setPinError('')
-    try {
-      await verifyAdminPin(pinToUse)
-      setStep(STEP.DASHBOARD)
-    } catch {
-      try {
-        await verifyAdminPassword('admin', pinToUse)
-        setStep(STEP.DASHBOARD)
-      } catch {
-        setPinError('PIN Admin salah')
-        setPin('')
-        setShake(true)
-        if (navigator.vibrate) navigator.vibrate(200)
-        setTimeout(() => setShake(false), 500)
-      }
-    } finally {
-      setPinLoading(false)
-    }
-  }
+  }, [location.state, navigate])
 
   const resetForm = () => {
     setForm({ date: new Date().toISOString().split('T')[0], project_name: '', customer_name: '', payment_method: 'transfer', selling_price_raw: '', dp_amount_raw: '', progress_status: 'pending', notes: '' })
@@ -242,56 +213,9 @@ export default function ProjectPage() {
           </svg>
         </button>
         <h1 className="text-white text-lg font-bold">
-          {step === STEP.PIN ? 'Verifikasi Admin' : step === STEP.FORM ? (editingId ? 'Edit Pekerjaan' : 'Tambah Pekerjaan') : 'Project'}
+          {step === STEP.FORM ? (editingId ? 'Edit Pekerjaan' : 'Tambah Pekerjaan') : 'Project'}
         </h1>
       </div>
-
-      {/* ── PIN STEP ── */}
-      {step === STEP.PIN && (
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className={`bg-white rounded-3xl shadow-lg p-7 w-full max-w-sm transition-transform ${shake ? 'animate-shake' : ''}`}>
-            <div className="text-center mb-6">
-              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
-                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h2 className="font-bold text-gray-800">Masuk Admin</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Masukkan PIN Admin untuk lanjut</p>
-            </div>
-            <div className="flex justify-center gap-3 mb-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className={`w-3.5 h-3.5 rounded-full transition-all ${i < pin.length ? 'bg-blue-600 scale-110' : 'bg-gray-300'}`} />
-              ))}
-            </div>
-            {pinError && <p className="text-red-500 text-center text-sm mb-3">{pinError}</p>}
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) => {
-                if (d === '') return <div key={i} />
-                const isBack = d === '⌫'
-                return (
-                  <button key={i}
-                    onClick={() => {
-                      if (isBack) {
-                        setPin(p => p.slice(0, -1))
-                      } else if (pin.length < 6 && !pinLoading) {
-                        const newPin = pin + d
-                        setPin(newPin)
-                        if (newPin.length === 6) handlePinSubmit(newPin)
-                      }
-                    }}
-                    className={`h-13 py-3.5 rounded-2xl text-xl font-semibold transition-all active:scale-95 ${isBack ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-800 hover:bg-blue-50 hover:text-blue-600'}`}>
-                    {d}
-                  </button>
-                )
-              })}
-            </div>
-            <button onClick={() => navigate('/home')} className="w-full py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-all">
-              Batal
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── DASHBOARD ── */}
       {step === STEP.DASHBOARD && (
