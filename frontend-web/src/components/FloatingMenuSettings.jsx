@@ -215,19 +215,33 @@ export default function FloatingMenuSettings({ onClose, showToast, employees }) 
                 />
                 <select
                   value={menuItemForm.type}
-                  onChange={e => setMenuItemForm(prev => ({ ...prev, type: e.target.value }))}
+                  onChange={e => setMenuItemForm(prev => ({ ...prev, type: e.target.value, target: '' }))}
                   className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 >
                   <option value="navigation">Navigasi</option>
                   <option value="piket">Jadwal Piket</option>
                 </select>
-                <input
-                  type="text"
-                  value={menuItemForm.target}
-                  onChange={e => setMenuItemForm(prev => ({ ...prev, target: e.target.value }))}
-                  placeholder="Target (halaman atau piket group ID)"
-                  className="col-span-2 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                />
+                {menuItemForm.type === 'navigation' && (
+                  <input
+                    type="text"
+                    value={menuItemForm.target}
+                    onChange={e => setMenuItemForm(prev => ({ ...prev, target: e.target.value }))}
+                    placeholder="Target halaman (misal: /print)"
+                    className="col-span-2 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  />
+                )}
+                {menuItemForm.type === 'piket' && (
+                  <select
+                    value={menuItemForm.target}
+                    onChange={e => setMenuItemForm(prev => ({ ...prev, target: e.target.value }))}
+                    className="col-span-2 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  >
+                    <option value="">Pilih Jadwal Piket</option>
+                    {piketGroups.map(group => (
+                      <option key={group.id} value={group.id}>{group.title}</option>
+                    ))}
+                  </select>
+                )}
                 <input
                   type="number"
                   value={menuItemForm.order}
@@ -239,7 +253,8 @@ export default function FloatingMenuSettings({ onClose, showToast, employees }) 
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={editingMenuItem ? handleUpdateMenuItem : handleCreateMenuItem}
-                  className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700"
+                  disabled={!menuItemForm.title || !menuItemForm.type || (menuItemForm.type === 'piket' && !menuItemForm.target)}
+                  className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:opacity-40"
                 >
                   {editingMenuItem ? 'Update' : 'Tambah'}
                 </button>
