@@ -328,7 +328,7 @@ export default function HomeScreen() {
                   + Tambah
                 </button>
               </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2 max-h-80 overflow-y-auto">
                 {workTracking.map((item) => {
                   const progress = (item.completed_qty / item.initial_qty) * 100
                   let bgColor = 'bg-green-500'
