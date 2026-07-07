@@ -246,7 +246,7 @@ export function triggerBrowserPrint(text) {
             web: 'Website',
             email: 'Email'
           }
-          return `<div class="center" style="gap: 5px; display: flex; align-items: center; justify-content: center;">
+          return `<div class="line" style="gap: 5px; display: flex; align-items: center; justify-content: flex-start;">
             <img src="${logoUrls[line.platform]}" alt="${iconLabels[line.platform]}" style="width: 16px; height: 16px;" />
             <span style="font-size: 11px;">${line.value}</span>
           </div>`
