@@ -177,7 +177,7 @@ export default function FloatingButton({ menuItems, onItemClick }) {
             fontSize: '10px',
             fontWeight: 'bold',
             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            animation: `fadeIn 0.2s ease-out ${index * 0.05}s both`,
+            animation: `walkmanRotate 0.4s ease-out ${index * 0.08}s both`,
             transition: 'transform 0.2s'
           }}
           onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
@@ -215,14 +215,18 @@ export default function FloatingButton({ menuItems, onItemClick }) {
       </button>
 
       <style>{`
-        @keyframes fadeIn {
-          from {
+        @keyframes walkmanRotate {
+          0% {
             opacity: 0;
-            transform: scale(0.5);
+            transform: rotate(0deg) translate(0, 0) scale(0.3);
           }
-          to {
+          50% {
             opacity: 1;
-            transform: scale(1);
+            transform: rotate(180deg) translate(40px, 0) scale(0.8);
+          }
+          100% {
+            opacity: 1;
+            transform: rotate(360deg) translate(0, 0) scale(1);
           }
         }
       `}</style>
