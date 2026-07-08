@@ -1360,6 +1360,7 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5">
+              <p className="font-bold text-gray-800 mb-3">TEST: Bluetooth Settings UI Loaded</p>
               <p className="font-bold text-gray-800 mb-3">Pengaturan Printer Bluetooth</p>
               <p className="text-xs text-gray-500 mb-3">Scan dan pilih printer thermal KASSEN BTP-299</p>
               <button onClick={handleScanBluetooth} disabled={scanningBluetooth}
@@ -1369,7 +1370,7 @@ export default function AdminPage() {
               {bluetoothDevices.length > 0 && (
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {bluetoothDevices.map((dev, idx) => (
-                    <div key={idx} 
+                    <div key={idx}
                       onClick={() => setSelectedPrinterMAC(dev.address)}
                       className={`p-3 rounded-xl border cursor-pointer transition-colors ${selectedPrinterMAC === dev.address ? 'bg-blue-50 border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}>
                       <p className="font-semibold text-sm text-gray-800">{dev.name}</p>
