@@ -7,7 +7,7 @@ export default function FloatingButton({ menuItems, onItemClick }) {
   const buttonRef = useRef(null)
   const dragOffset = useRef({ x: 0, y: 0 })
 
-  // Handle drag start
+  // Handle drag start (mouse)
   const handleMouseDown = (e) => {
     if (e.button !== 0) return // Left click only
     setIsDragging(true)
@@ -18,7 +18,18 @@ export default function FloatingButton({ menuItems, onItemClick }) {
     e.preventDefault()
   }
 
-  // Handle drag move
+  // Handle drag start (touch)
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0]
+    setIsDragging(true)
+    dragOffset.current = {
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y
+    }
+    e.preventDefault()
+  }
+
+  // Handle drag move (mouse)
   const handleMouseMove = (e) => {
     if (!isDragging) return
     
@@ -37,8 +48,33 @@ export default function FloatingButton({ menuItems, onItemClick }) {
     })
   }
 
+  // Handle drag move (touch)
+  const handleTouchMove = (e) => {
+    if (!isDragging) return
+    
+    const touch = e.touches[0]
+    const newPosition = {
+      x: touch.clientX - dragOffset.current.x,
+      y: touch.clientY - dragOffset.current.y
+    }
+
+    // Keep button within viewport
+    const maxX = window.innerWidth - 60
+    const maxY = window.innerHeight - 60
+    
+    setPosition({
+      x: Math.max(0, Math.min(newPosition.x, maxX)),
+      y: Math.max(0, Math.min(newPosition.y, maxY))
+    })
+    e.preventDefault()
+  }
+
   // Handle drag end
   const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleTouchEnd = () => {
     setIsDragging(false)
   }
 
@@ -55,7 +91,7 @@ export default function FloatingButton({ menuItems, onItemClick }) {
     onItemClick(item)
   }
 
-  // Add/remove event listeners for drag
+  // Add/remove event listeners for drag (mouse)
   useEffect(() => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove)
@@ -67,6 +103,21 @@ export default function FloatingButton({ menuItems, onItemClick }) {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  // Add/remove event listeners for drag (touch)
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('touchmove', handleTouchMove, { passive: false })
+      window.addEventListener('touchend', handleTouchEnd)
+    } else {
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
     }
   }, [isDragging])
 
@@ -141,6 +192,7 @@ export default function FloatingButton({ menuItems, onItemClick }) {
       {/* Main Button */}
       <button
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         onClick={handleToggle}
         style={{
           width: 60,
