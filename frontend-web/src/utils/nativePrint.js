@@ -93,10 +93,10 @@ export async function buildEscPosReceipt({ job, cashier, change = 0, openDrawer 
   parts.push(textLine('- LB.ADV -'))
   parts.push(cmd(CMD.LINE_FEED))
   parts.push(textLine('Follow Us:'))
-  parts.push(textLine(CONTACT_INSTAGRAM))
-  parts.push(textLine(CONTACT_WHATSAPP))
-  parts.push(textLine(CONTACT_WEB))
-  parts.push(textLine(CONTACT_EMAIL))
+  parts.push(textLine(`📸 ${CONTACT_INSTAGRAM}`))
+  parts.push(textLine(`📱 ${CONTACT_WHATSAPP}`))
+  parts.push(textLine(`🌐 ${CONTACT_WEB}`))
+  parts.push(textLine(`📧 ${CONTACT_EMAIL}`))
   parts.push(cmd(CMD.FEED_LINES(4)))
 
   if (openDrawer) {
