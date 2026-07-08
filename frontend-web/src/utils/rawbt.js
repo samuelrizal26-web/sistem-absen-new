@@ -297,9 +297,17 @@ export function triggerBrowserPrint(text) {
 }
 
 export function openCashDrawerOnly() {
-  const drawerCmd = '\x1B\x70\x00\x19\xFA'
-  const uri = `rawbt://print?text=${encodeURIComponent(drawerCmd)}`
-  const a = document.createElement('a')
-  a.href = uri
-  a.click()
+  import('@capacitor/core').then(({ Capacitor }) => {
+    if (Capacitor.isNativePlatform()) {
+      import('./nativePrint').then(({ openCashDrawerNative }) => {
+        openCashDrawerNative().catch((e) => console.error('Gagal buka laci:', e))
+      })
+      return
+    }
+    const drawerCmd = '\x1B\x70\x00\x19\xFA'
+    const uri = `rawbt://print?text=${encodeURIComponent(drawerCmd)}`
+    const a = document.createElement('a')
+    a.href = uri
+    a.click()
+  })
 }

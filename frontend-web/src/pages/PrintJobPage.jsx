@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { getPrintJobsSummary, getPrintJobs, createPrintJob, updatePrintJob, deletePrintJob, getStock, getFloatingMenu } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
-import { buildPrintJobReceipt, triggerRawBTPrint, triggerBrowserPrint, openCashDrawerOnly } from '../utils/rawbt'
+import { buildPrintJobReceipt, triggerBrowserPrint } from '../utils/rawbt'
+import { printReceiptNative } from '../utils/nativePrint'
 import StaffPinModal from '../components/StaffPinModal'
 import Toast from '../components/Toast'
 import FloatingButton from '../components/FloatingButton'
@@ -293,16 +295,21 @@ export default function PrintJobPage() {
     setStep(STEP.LIST)
   }
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!savedJob) return
-    const receipt = buildPrintJobReceipt({ job: { ...savedJob, cashier }, cashier, change })
-    const isAndroid = /Android/i.test(navigator.userAgent)
-    if (isAndroid) {
-      triggerRawBTPrint(receipt, savedJob.payment_method === 'cash')
+    const isNative = Capacitor.isNativePlatform()
+    if (isNative) {
+      try {
+        await printReceiptNative({ job: { ...savedJob, cashier }, cashier, change, openDrawer: savedJob.payment_method === 'cash' })
+        showToast('Struk dicetak!', 'success')
+      } catch (e) {
+        showToast(e.message || 'Gagal mencetak. Cek koneksi Bluetooth printer.', 'error')
+      }
     } else {
+      const receipt = buildPrintJobReceipt({ job: { ...savedJob, cashier }, cashier, change })
       triggerBrowserPrint(receipt)
+      showToast('Struk dicetak!', 'success')
     }
-    showToast('Struk dicetak!', 'success')
     setForm({ date: new Date().toISOString().split('T')[0], material: '', payment_method: 'cash', quantity: '', harga_normal: '', harga_diskon: '', customer_name: '', notes: '', customer_cash: '' })
   }
 
