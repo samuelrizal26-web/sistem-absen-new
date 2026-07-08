@@ -1362,9 +1362,31 @@ export default function AdminPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5">
               <p className="font-bold text-gray-800 mb-3">Pengaturan Printer Bluetooth</p>
               <p className="text-xs text-gray-500 mb-3">Koneksi printer thermal KASSEN BTP-299</p>
-              <button className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700">
-                Pairing Bluetooth Printer
+              <button onClick={handleScanBluetooth} disabled={scanningBluetooth}
+                className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-40">
+                {scanningBluetooth ? 'Scanning...' : 'Scan Bluetooth'}
               </button>
+              {bluetoothDevices.length > 0 && (
+                <div className="space-y-2 max-h-40 overflow-y-auto mt-3">
+                  {bluetoothDevices.map((dev, idx) => (
+                    <div key={idx}
+                      onClick={() => setSelectedPrinterMAC(dev.address)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-colors ${selectedPrinterMAC === dev.address ? 'bg-blue-50 border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}>
+                      <p className="font-semibold text-sm text-gray-800">{dev.name}</p>
+                      <p className="text-xs text-gray-500">{dev.address}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedPrinterMAC && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2">Printer terpilih: <span className="font-mono text-blue-600">{selectedPrinterMAC}</span></p>
+                  <button onClick={handleSavePrinterMAC}
+                    className="w-full py-2.5 rounded-2xl bg-green-600 text-white font-bold hover:bg-green-700">
+                    Simpan Printer
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
