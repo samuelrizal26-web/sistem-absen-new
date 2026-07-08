@@ -702,9 +702,7 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      setSelectedPrinterMAC(getPrinterMAC())
-    }
+    setSelectedPrinterMAC(getPrinterMAC())
   }, [])
 
   // ─────────────────── RENDER ───────────────────
