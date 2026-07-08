@@ -1,6 +1,6 @@
 import logoPrint from '../assets/NEW LOGO.png'
 import BluetoothPrinter from '../plugins/bluetoothPrinter'
-import { PRINTER_MAC_ADDRESS } from '../config/printer'
+import { getPrinterMAC } from '../config/printer'
 import { CMD, cmd, concatBytes, textLine, imageToRaster, loadImage } from './escpos'
 
 const STORE_NAME = 'LABALABA ADVERTISING'
@@ -116,14 +116,16 @@ function bytesToBase64(bytes) {
   return btoa(binary)
 }
 
-export async function printReceiptNative({ job, cashier, change = 0, openDrawer = false, address = PRINTER_MAC_ADDRESS }) {
+export async function printReceiptNative({ job, cashier, change = 0, openDrawer = false, address }) {
+  const printerAddress = address || getPrinterMAC()
   const bytes = await buildEscPosReceipt({ job, cashier, change, openDrawer })
   const base64 = bytesToBase64(bytes)
-  return BluetoothPrinter.printRaw({ address, data: base64 })
+  return BluetoothPrinter.printRaw({ address: printerAddress, data: base64 })
 }
 
-export async function openCashDrawerNative(address = PRINTER_MAC_ADDRESS) {
+export async function openCashDrawerNative(address) {
+  const printerAddress = address || getPrinterMAC()
   const bytes = cmd(CMD.DRAWER_KICK)
   const base64 = bytesToBase64(bytes)
-  return BluetoothPrinter.printRaw({ address, data: base64 })
+  return BluetoothPrinter.printRaw({ address: printerAddress, data: base64 })
 }

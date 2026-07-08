@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import {
   getEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee,
   getStock, createStock, updateStock, deleteStock,
@@ -15,6 +16,8 @@ import FloatingMenuSettings from '../components/FloatingMenuSettings'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import { initNotifications, showNotification } from '../utils/notifications'
+import BluetoothPrinter from '../plugins/bluetoothPrinter'
+import { getPrinterMAC, setPrinterMAC } from '../config/printer'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
@@ -156,6 +159,9 @@ export default function AdminPage() {
   const [pinChanging, setPinChanging] = useState(false)
   const [showDeviceSettings, setShowDeviceSettings] = useState(false)
   const [showFloatingMenuSettings, setShowFloatingMenuSettings] = useState(false)
+  const [bluetoothDevices, setBluetoothDevices] = useState([])
+  const [scanningBluetooth, setScanningBluetooth] = useState(false)
+  const [selectedPrinterMAC, setSelectedPrinterMAC] = useState('')
 
   // ─────────────────── AUTH ───────────────────
   const handlePinAuth = async (pinValue) => {
@@ -666,6 +672,40 @@ export default function AdminPage() {
     acc[key].push(c)
     return acc
   }, {})
+
+  // ── Bluetooth handlers (native only) ──
+  const handleScanBluetooth = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      showToast('Fitur ini hanya tersedia di APK', 'error')
+      return
+    }
+    setScanningBluetooth(true)
+    try {
+      const result = await BluetoothPrinter.scanDevices()
+      setBluetoothDevices(result.devices || [])
+      setSelectedPrinterMAC(getPrinterMAC())
+      showToast(`Ditemukan ${result.devices?.length || 0} perangkat Bluetooth`, 'success')
+    } catch (e) {
+      showToast(e.message || 'Gagal scan Bluetooth', 'error')
+    } finally {
+      setScanningBluetooth(false)
+    }
+  }
+
+  const handleSavePrinterMAC = () => {
+    if (!selectedPrinterMAC) {
+      showToast('Pilih printer terlebih dahulu', 'error')
+      return
+    }
+    setPrinterMAC(selectedPrinterMAC)
+    showToast('Alamat printer tersimpan', 'success')
+  }
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      setSelectedPrinterMAC(getPrinterMAC())
+    }
+  }, [])
 
   // ─────────────────── RENDER ───────────────────
   if (!authed) {
@@ -1320,6 +1360,38 @@ export default function AdminPage() {
                 Setup PIN Admin
               </button>
             </div>
+
+            {Capacitor.isNativePlatform() && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5">
+                <p className="font-bold text-gray-800 mb-3">Pengaturan Printer Bluetooth</p>
+                <p className="text-xs text-gray-500 mb-3">Scan dan pilih printer thermal KASSEN BTP-299</p>
+                <button onClick={handleScanBluetooth} disabled={scanningBluetooth}
+                  className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-40 mb-3">
+                  {scanningBluetooth ? 'Scanning...' : 'Scan Bluetooth'}
+                </button>
+                {bluetoothDevices.length > 0 && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {bluetoothDevices.map((dev, idx) => (
+                      <div key={idx} 
+                        onClick={() => setSelectedPrinterMAC(dev.address)}
+                        className={`p-3 rounded-xl border cursor-pointer transition-colors ${selectedPrinterMAC === dev.address ? 'bg-blue-50 border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}>
+                        <p className="font-semibold text-sm text-gray-800">{dev.name}</p>
+                        <p className="text-xs text-gray-500">{dev.address}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedPrinterMAC && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-500 mb-2">Printer terpilih: <span className="font-mono text-blue-600">{selectedPrinterMAC}</span></p>
+                    <button onClick={handleSavePrinterMAC}
+                      className="w-full py-2.5 rounded-2xl bg-green-600 text-white font-bold hover:bg-green-700">
+                      Simpan Printer
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
               <p className="font-bold text-red-600 mb-3">Reset Database</p>

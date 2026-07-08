@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.util.Base64;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -16,21 +17,79 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.OutputStream;
+import java.util.Set;
 import java.util.UUID;
 
 @CapacitorPlugin(
     name = "BluetoothPrinter",
     permissions = {
-        @Permission(strings = { Manifest.permission.BLUETOOTH_CONNECT }, alias = "bluetooth")
+        @Permission(strings = { Manifest.permission.BLUETOOTH_SCAN }, alias = "scan"),
+        @Permission(strings = { Manifest.permission.BLUETOOTH_CONNECT }, alias = "connect")
     }
 )
 public class BluetoothPrinterPlugin extends Plugin {
     private static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     @PluginMethod
+    public void scanDevices(PluginCall call) {
+        if (getPermissionState("scan") != PermissionState.GRANTED) {
+            requestPermissionForAlias("scan", call, "scanPermsCallback");
+            return;
+        }
+        doScan(call);
+    }
+
+    @PermissionCallback
+    private void scanPermsCallback(PluginCall call) {
+        if (getPermissionState("scan") == PermissionState.GRANTED) {
+            doScan(call);
+        } else {
+            call.reject("Izin Bluetooth scan ditolak");
+        }
+    }
+
+    private void doScan(PluginCall call) {
+        new Thread(() -> {
+            try {
+                BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                if (adapter == null) {
+                    call.reject("Bluetooth tidak didukung pada perangkat ini");
+                    return;
+                }
+                if (!adapter.isEnabled()) {
+                    call.reject("Bluetooth tidak aktif");
+                    return;
+                }
+
+                adapter.cancelDiscovery();
+                adapter.startDiscovery();
+
+                Thread.sleep(3000);
+
+                Set<BluetoothDevice> devices = adapter.getBondedDevices();
+                JSArray devicesArray = new JSArray();
+                for (BluetoothDevice device : devices) {
+                    JSObject devObj = new JSObject();
+                    devObj.put("name", device.getName() != null ? device.getName() : "Unknown");
+                    devObj.put("address", device.getAddress());
+                    devicesArray.put(devObj);
+                }
+
+                adapter.cancelDiscovery();
+
+                JSObject ret = new JSObject();
+                ret.put("devices", devicesArray);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Gagal scan: " + e.getMessage(), e);
+            }
+        }).start();
+    }
+
+    @PluginMethod
     public void printRaw(PluginCall call) {
-        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
-            requestPermissionForAlias("bluetooth", call, "printPermsCallback");
+        if (getPermissionState("connect") != PermissionState.GRANTED) {
+            requestPermissionForAlias("connect", call, "printPermsCallback");
             return;
         }
         doPrint(call);
@@ -38,10 +97,10 @@ public class BluetoothPrinterPlugin extends Plugin {
 
     @PermissionCallback
     private void printPermsCallback(PluginCall call) {
-        if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
+        if (getPermissionState("connect") == PermissionState.GRANTED) {
             doPrint(call);
         } else {
-            call.reject("Izin Bluetooth ditolak");
+            call.reject("Izin Bluetooth connect ditolak");
         }
     }
 
