@@ -267,6 +267,10 @@ export default function HomeScreen() {
   }
 
   const handleEmployeeClick = (emp) => {
+    if (emp.status === 'inactive') {
+      showToast('Akun anggota ini sedang nonaktif', 'error')
+      return
+    }
     setShowEmployeePicker(false)
     setSelectedEmployee(emp)
     setPinError('')
@@ -566,11 +570,11 @@ export default function HomeScreen() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
               </div>
-            ) : employees.length === 0 ? (
-              <p className="text-center text-gray-400 py-10">Belum ada data karyawan.</p>
+            ) : employees.filter((emp) => emp.status !== 'inactive').length === 0 ? (
+              <p className="text-center text-gray-400 py-10">Belum ada anggota aktif untuk kasbon.</p>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                {employees.map((emp) => (
+                {employees.filter((emp) => emp.status !== 'inactive').map((emp) => (
                   <button key={emp.id} onClick={() => handleEmployeeClick(emp)}
                     className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-center gap-2 active:scale-95 transition-all hover:shadow-md border border-gray-100">
                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">

@@ -292,6 +292,17 @@ export default function AdminPage() {
     catch (e) { showToast(e.message || 'Gagal menghapus', 'error') }
   }
 
+  const handleEmployeeStatusToggle = async (emp) => {
+    const status = emp.status === 'inactive' ? 'active' : 'inactive'
+    try {
+      await updateEmployee(emp.id, { status })
+      showToast(status === 'active' ? `${emp.name} tampil di pilihan Kasbon` : `${emp.name} disembunyikan dari pilihan Kasbon`, 'success')
+      await loadEmployees()
+    } catch (e) {
+      showToast(e.message || 'Gagal mengubah status anggota', 'error')
+    }
+  }
+
   const handleEditEmployee = (emp) => {
     setEmpForm({ name: emp.name, whatsapp: emp.whatsapp, pin: emp.pin || '', birthdate: emp.birthdate || '', birthplace: emp.birthplace || '', position: emp.position || '', status_crew: emp.status_crew || 'Tetap', monthly_salary: emp.monthly_salary || 0, monthly_salary_raw: formatRupiahInput(String(emp.monthly_salary || 0)), work_hours_per_day: emp.work_hours_per_day || 8, photo: emp.photo || '' })
     // If employee doesn't have position (Step 2 not filled), start from Step 2
@@ -846,7 +857,17 @@ export default function AdminPage() {
                         <p className="text-xs text-gray-400">{emp.position} · {emp.whatsapp}</p>
                         <p className="text-xs text-gray-400">{emp.status_crew || '-'}</p>
                       </div>
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={emp.status !== 'inactive'}
+                          onClick={() => handleEmployeeStatusToggle(emp)}
+                          className={`relative w-10 h-6 rounded-full transition-colors ${emp.status !== 'inactive' ? 'bg-green-500' : 'bg-gray-300'}`}
+                          title={emp.status !== 'inactive' ? 'Aktif: tampil di pilihan Kasbon' : 'Nonaktif: sembunyikan dari pilihan Kasbon'}
+                        >
+                          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${emp.status !== 'inactive' ? 'translate-x-5' : 'translate-x-1'}`} />
+                        </button>
                         <button onClick={() => handleViewEmployee(emp)} className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center hover:bg-indigo-100" title="Lihat Transaksi">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                         </button>
