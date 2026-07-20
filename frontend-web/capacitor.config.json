@@ -1,5 +1,9 @@
 {
   "appId": "com.labalaba.advertising",
   "appName": "LB.ADV",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "url": "https://sistem-absen-new.samuelrizal26.workers.dev",
+    "cleartext": false
+  }
 }
