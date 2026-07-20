@@ -467,6 +467,10 @@ async def create_print_job(body: PrintJobCreate):
            'customer_name': body.customer_name or '', 'notes': body.notes or '',
            'cashier': body.cashier or '', 'cashier_id': body.cashier_id or '',
            'created_at': now_str()}
+    # Reduce stock when creating print job
+    stock = await db.stock.find_one({'name': body.material, 'usage_category': 'PRINT'})
+    if stock:
+        await db.stock.update_one({'id': stock['id']}, {'$inc': {'quantity': -qty}})
     await db.print_jobs.insert_one(doc)
     return clean(doc)
 
@@ -544,8 +548,15 @@ async def update_project(project_id: str, body: ProjectUpdate):
 
 @api.delete('/projects/{project_id}')
 async def delete_project(project_id: str):
-    result = await db.projects.delete_one({'id': project_id})
-    if result.deleted_count == 0: raise HTTPException(status_code=404, detail='Project tidak ditemukan')
+    project = await db.projects.find_one({'id': project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail='Project tidak ditemukan')
+    # Return stock when deleting project
+    materials = project.get('materials', [])
+    for m in materials:
+        if m.get('stock_id'):
+            await db.stock.update_one({'id': m['stock_id']}, {'$inc': {'quantity': m.get('quantity', 0)}})
+    await db.projects.delete_one({'id': project_id})
     return {'message': 'Project dihapus'}
 
 # ── Cashflow ─────────────────────────────────────────────────────────────────
