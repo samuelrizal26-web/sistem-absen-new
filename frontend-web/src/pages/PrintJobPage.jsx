@@ -73,7 +73,7 @@ export default function PrintJobPage() {
       setForm(f => ({ ...f, materials: newMaterials }))
     } else if (keypadField.startsWith('harga_normal_')) {
       const idx = parseInt(keypadField.split('_')[2])
-      const currentRaw = form.materials[idx]?.harga_normal_raw || ''
+      const currentRaw = form.materials[idx]?.harga_normal_raw || 'Rp 0'
       const currentNum = parseRupiahInput(currentRaw) || 0
       let newNum = num === 1000 ? currentNum * 1000 : currentNum * 10 + num
       const newRaw = formatRupiahInput(String(newNum))
@@ -82,7 +82,7 @@ export default function PrintJobPage() {
       setForm(f => ({ ...f, materials: newMaterials }))
     } else if (keypadField.startsWith('harga_diskon_')) {
       const idx = parseInt(keypadField.split('_')[2])
-      const currentRaw = form.materials[idx]?.harga_diskon_raw || ''
+      const currentRaw = form.materials[idx]?.harga_diskon_raw || 'Rp 0'
       const currentNum = parseRupiahInput(currentRaw) || 0
       let newNum = num === 1000 ? currentNum * 1000 : currentNum * 10 + num
       const newRaw = formatRupiahInput(String(newNum))
@@ -128,7 +128,7 @@ export default function PrintJobPage() {
     } else if (keypadField.startsWith('harga_normal_') || keypadField.startsWith('harga_diskon_')) {
       const idx = parseInt(keypadField.split('_')[2])
       const field = keypadField.split('_')[1]
-      const currentRaw = form.materials[idx]?.[`${field}_raw`] || ''
+      const currentRaw = form.materials[idx]?.[`${field}_raw`] || 'Rp 0'
       const currentNum = parseRupiahInput(currentRaw) || 0
       const newNum = Math.floor(currentNum / 10)
       const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
