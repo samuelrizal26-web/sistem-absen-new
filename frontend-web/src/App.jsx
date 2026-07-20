@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import { App } from '@capacitor/app'
+import { Capacitor } from '@capacitor/core'
 import SplashScreen from './pages/SplashScreen'
 import HomeScreen from './pages/HomeScreen'
 import PrintJobPage from './pages/PrintJobPage'
@@ -10,23 +12,52 @@ import KasbonDashboard from './pages/KasbonDashboard'
 import ScreenSaver from './components/ScreenSaver'
 import { initFCM } from './utils/fcm'
 
-export default function App() {
+function AppContent() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
   useEffect(() => {
     initFCM()
   }, [])
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+
+    const handleBackButton = () => {
+      if (location.pathname === '/') {
+        App.exitApp()
+      } else if (location.pathname === '/home') {
+        App.exitApp()
+      } else {
+        navigate(-1)
+      }
+    }
+
+    const listener = App.addListener('backButton', handleBackButton)
+
+    return () => {
+      listener.then(f => f.remove())
+    }
+  }, [location, navigate])
+
+  return (
+    <Routes>
+      <Route path="/" element={<SplashScreen />} />
+      <Route path="/home" element={<HomeScreen />} />
+      <Route path="/print" element={<PrintJobPage />} />
+      <Route path="/cashflow" element={<CashflowPage />} />
+      <Route path="/project" element={<ProjectPage />} />
+      <Route path="/admin" element={<AdminPage />} />
+      <Route path="/kasbon-dashboard" element={<KasbonDashboard />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<SplashScreen />} />
-        <Route path="/home" element={<HomeScreen />} />
-        <Route path="/print" element={<PrintJobPage />} />
-        <Route path="/cashflow" element={<CashflowPage />} />
-        <Route path="/project" element={<ProjectPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/kasbon-dashboard" element={<KasbonDashboard />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AppContent />
       <ScreenSaver />
     </BrowserRouter>
   )
