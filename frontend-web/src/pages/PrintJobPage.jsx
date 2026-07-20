@@ -302,6 +302,7 @@ export default function PrintJobPage() {
       try {
         await printReceiptNative({ job: { ...savedJob, cashier }, cashier, change, openDrawer: savedJob.payment_method === 'cash' })
         showToast('Struk dicetak!', 'success')
+        setStep(STEP.LIST)
       } catch (e) {
         showToast(e.message || 'Gagal mencetak. Cek koneksi Bluetooth printer.', 'error')
       }
@@ -309,6 +310,7 @@ export default function PrintJobPage() {
       const receipt = buildPrintJobReceipt({ job: { ...savedJob, cashier }, cashier, change })
       triggerBrowserPrint(receipt)
       showToast('Struk dicetak!', 'success')
+      setStep(STEP.LIST)
     }
     setForm({ date: new Date().toISOString().split('T')[0], material: '', payment_method: 'cash', quantity: '', harga_normal: '', harga_diskon: '', customer_name: '', notes: '', customer_cash: '' })
   }
