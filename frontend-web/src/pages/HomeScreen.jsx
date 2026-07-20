@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, deleteJob, deleteProject, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu } from '../services/api'
 import { getInitials, formatRupiah, formatDate } from '../utils/format'
 import PinModal from '../components/PinModal'
 import JobFormModal from '../components/JobFormModal'
@@ -202,6 +202,21 @@ export default function HomeScreen() {
         loadWorkTracking()
       })
       .catch((e) => showToast(e.message || 'Gagal mengupdate progress', 'error'))
+  }
+
+  const handleDeleteJob = async (job) => {
+    if (!window.confirm(`Hapus pekerjaan "${job.job_name || job.project_name}"?`)) return
+    try {
+      if (job._source === 'job') {
+        await deleteJob(job.id)
+      } else if (job._source === 'project') {
+        await deleteProject(job.id)
+      }
+      showToast('Pekerjaan dihapus', 'success')
+      loadJobs()
+    } catch (e) {
+      showToast(e.message || 'Gagal menghapus', 'error')
+    }
   }
 
   // Combine and filter jobs/projects based on tab
@@ -487,13 +502,12 @@ export default function HomeScreen() {
                   }
 
                   return (
-                    <button
+                    <div
                       key={job.id}
-                      onClick={() => setSelectedJob(job)}
-                      className={`w-full text-left rounded-xl shadow-sm p-4 active:scale-[0.98] transition-all border-l-4 ${bgColor} ${borderColor}`}
+                      className={`w-full rounded-xl shadow-sm p-4 transition-all border-l-4 ${bgColor} ${borderColor}`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
+                        <button onClick={() => setSelectedJob(job)} className="flex-1 text-left min-w-0">
                           <div className="flex items-center gap-1.5 mb-0.5">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${isProject ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
                               {isProject ? 'PROJECT' : 'JOB'}
@@ -501,10 +515,13 @@ export default function HomeScreen() {
                             <p className="font-bold text-gray-800 leading-tight truncate">{jobName}</p>
                           </div>
                           <p className="text-sm text-gray-500 truncate">{customerName}</p>
-                        </div>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${isSelesai ? 'bg-gray-400 text-white' : isLunas ? 'bg-green-500 text-white' : 'bg-orange-500 text-white'}`}>
-                          {statusText}
-                        </span>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteJob(job) }}
+                          className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center text-red-400 hover:bg-red-100 hover:text-red-600 shrink-0">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
                       <div className="flex items-center justify-between mt-2 text-xs">
                         <span className="text-gray-400">
@@ -513,7 +530,7 @@ export default function HomeScreen() {
                         </span>
                         <span className="font-semibold text-gray-700">{formatRupiah(totalPrice)}</span>
                       </div>
-                    </button>
+                    </div>
                   )
                 })}
               </div>
