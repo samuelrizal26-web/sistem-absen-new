@@ -29,7 +29,8 @@ export default function StaffPinModal({ title = 'Verifikasi Karyawan', onConfirm
       const res = await identifyByPin(pinToSubmit)
       onConfirm(res.employee)
     } catch (e) {
-      setError(e.message || 'PIN tidak dikenali')
+      const errorMsg = typeof e === 'string' ? e : (e.message || e.detail || 'PIN tidak dikenali')
+      setError(errorMsg)
       setPin('')
       setShake(true)
       if (navigator.vibrate) navigator.vibrate(200)
