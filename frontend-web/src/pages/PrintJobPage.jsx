@@ -80,7 +80,6 @@ export default function PrintJobPage() {
       const newMaterials = [...form.materials]
       newMaterials[idx] = { ...newMaterials[idx], harga_normal_raw: newRaw, harga_normal: String(newNum) }
       setForm(f => ({ ...f, materials: newMaterials }))
-      console.log('harga_normal input:', { idx, currentRaw, currentNum, newNum, newRaw })
     } else if (keypadField.startsWith('harga_diskon_')) {
       const idx = parseInt(keypadField.split('_')[2])
       const currentRaw = form.materials[idx]?.harga_diskon_raw || ''
@@ -90,7 +89,6 @@ export default function PrintJobPage() {
       const newMaterials = [...form.materials]
       newMaterials[idx] = { ...newMaterials[idx], harga_diskon_raw: newRaw, harga_diskon: String(newNum) }
       setForm(f => ({ ...f, materials: newMaterials }))
-      console.log('harga_diskon input:', { idx, currentRaw, currentNum, newNum, newRaw })
     } else if (keypadField === 'lain_lain_harga') {
       const currentRaw = lainLainForm.harga_raw || ''
       const currentNum = parseRupiahInput(currentRaw) || 0

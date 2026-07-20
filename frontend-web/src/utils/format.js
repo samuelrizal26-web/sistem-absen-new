@@ -31,13 +31,13 @@ export function formatDateTime(dateStr) {
 }
 
 export function parseRupiahInput(val) {
-  return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0
+  return parseFloat(String(val).replace(/Rp /g, '').replace(/\./g, '').replace(',', '.')) || 0
 }
 
 export function formatRupiahInput(val) {
   const num = String(val).replace(/\D/g, '')
   if (!num) return ''
-  return new Intl.NumberFormat('id-ID').format(parseInt(num, 10))
+  return 'Rp ' + new Intl.NumberFormat('id-ID').format(parseInt(num, 10))
 }
 
 export function getInitials(name) {
