@@ -166,75 +166,74 @@ export default function FloatingButton({ menuItems, onItemClick }) {
       {/* Menu Items with S Pen Branching Effect */}
       {isOpen && menuItemsWithPositions.map((item, index) => (
         <div key={item.id || index} style={{ position: 'absolute' }}>
-          {/* Gel/Bubble Connecting Line */}
+          {/* Metaball/Liquid Connecting Line */}
           <svg
             style={{
               position: 'absolute',
-              left: 32,
-              top: 32,
-              width: Math.max(100, Math.abs(item.x) + 50),
-              height: Math.max(100, Math.abs(item.y) + 50),
+              left: 0,
+              top: 0,
+              width: Math.max(200, Math.abs(item.x) + 100),
+              height: Math.max(200, Math.abs(item.y) + 100),
               pointerEvents: 'none',
               overflow: 'visible',
               zIndex: 1
             }}
           >
             <defs>
-              <linearGradient id={`gelGradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: 'rgba(255, 255, 255, 0.95)', stopOpacity: 1 }} />
-                <stop offset="50%" style={{ stopColor: 'rgba(255, 255, 255, 0.75)', stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: 'rgba(255, 255, 255, 0.55)', stopOpacity: 1 }} />
-              </linearGradient>
-              <filter id={`bubble-${index}`}>
-                <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="blur" />
-                <feSpecularLighting in="blur" surfaceScale="3" specularConstant="0.9" specularExponent="18" lightingColor="white" result="specular">
-                  <fePointLight x="-5000" y="-10000" z="15000" />
-                </feSpecularLighting>
-                <feComposite in="specular" in2="SourceAlpha" operator="in" result="specular" />
-                <feOffset in="blur" dx="3" dy="4" result="offsetBlur" />
-                <feFlood floodColor="rgba(0, 0, 0, 0.15)" result="offsetColor" />
-                <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetBlur" />
-                <feMerge>
-                  <feMergeNode in="offsetBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                  <feMergeNode in="specular" />
-                </feMerge>
+              <filter id={`metaball-${index}`}>
+                <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+                <feColorMatrix
+                  in="blur"
+                  mode="matrix"
+                  values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9"
+                  result="goo"
+                />
+                <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
               </filter>
             </defs>
-            <path
-              d={`M 32 32 Q ${32 + item.x * 0.4} ${32 + item.y * 0.15} ${32 + item.x} ${32 + item.y}`}
-              stroke={`url(#gelGradient-${index})`}
-              strokeWidth="10"
-              fill="none"
-              strokeLinecap="round"
-              filter={`url(#bubble-${index})`}
-              style={{
-                strokeDasharray: 1000,
-                strokeDashoffset: isOpen ? 0 : 1000,
-                transition: `stroke-dashoffset 0.5s ease-out ${index * 0.08}s`
-              }}
-            />
-            {/* Bubble beads along the line */}
-            <circle
-              cx={32 + item.x * 0.25}
-              cy={32 + item.y * 0.08}
-              r="5"
-              fill="rgba(255, 255, 255, 0.9)"
-              filter={`url(#bubble-${index})`}
-              style={{
-                animation: `bubblePop 0.35s ease-out ${index * 0.08 + 0.2}s both`
-              }}
-            />
-            <circle
-              cx={32 + item.x * 0.55}
-              cy={32 + item.y * 0.18}
-              r="4"
-              fill="rgba(255, 255, 255, 0.75)"
-              filter={`url(#bubble-${index})`}
-              style={{
-                animation: `bubblePop 0.35s ease-out ${index * 0.08 + 0.32}s both`
-              }}
-            />
+            <g filter={`url(#metaball-${index})`}>
+              {/* Main connecting path with variable width */}
+              <path
+                d={`M 32 32 Q ${32 + item.x * 0.5} ${32 + item.y * 0.2} ${32 + item.x} ${32 + item.y}`}
+                stroke="rgba(255, 255, 255, 0.35)"
+                strokeWidth="20"
+                fill="none"
+                strokeLinecap="round"
+                style={{
+                  strokeDasharray: 1000,
+                  strokeDashoffset: isOpen ? 0 : 1000,
+                  transition: `stroke-dashoffset 0.5s ease-out ${index * 0.08}s`
+                }}
+              />
+              {/* Liquid droplets along the path */}
+              <circle
+                cx={32 + item.x * 0.3}
+                cy={32 + item.y * 0.1}
+                r="12"
+                fill="rgba(255, 255, 255, 0.25)"
+                style={{
+                  animation: `dropletPulse 1.5s ease-in-out ${index * 0.08}s infinite`
+                }}
+              />
+              <circle
+                cx={32 + item.x * 0.6}
+                cy={32 + item.y * 0.15}
+                r="10"
+                fill="rgba(255, 255, 255, 0.2)"
+                style={{
+                  animation: `dropletPulse 1.5s ease-in-out ${index * 0.08 + 0.3}s infinite`
+                }}
+              />
+              <circle
+                cx={32 + item.x * 0.85}
+                cy={32 + item.y * 0.2}
+                r="8"
+                fill="rgba(255, 255, 255, 0.18)"
+                style={{
+                  animation: `dropletPulse 1.5s ease-in-out ${index * 0.08 + 0.6}s infinite`
+                }}
+              />
+            </g>
           </svg>
 
           {/* Action Button */}
@@ -342,18 +341,14 @@ export default function FloatingButton({ menuItems, onItemClick }) {
       </button>
 
       <style>{`
-        @keyframes bubblePop {
-          0% {
-            transform: scale(0);
-            opacity: 0;
-          }
-          60% {
-            transform: scale(1.35);
-            opacity: 1;
-          }
-          100% {
+        @keyframes dropletPulse {
+          0%, 100% {
             transform: scale(1);
-            opacity: 0.85;
+            opacity: 0.25;
+          }
+          50% {
+            transform: scale(1.2);
+            opacity: 0.35;
           }
         }
         @keyframes scaleIn {
