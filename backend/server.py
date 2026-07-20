@@ -85,13 +85,19 @@ class StockUpdate(BaseModel):
     notes: Optional[str] = None
     usage_category: Optional[str] = None
 
+class PrintJobMaterialIn(BaseModel):
+    name: str
+    quantity: float = 0
+    unit: str = 'pcs'
+    harga_normal: float = 0
+    harga_diskon: Optional[float] = None
+    stock_id: Optional[str] = None
+    is_custom: bool = False
+
 class PrintJobCreate(BaseModel):
     date: str
-    material: str
+    materials: list[PrintJobMaterialIn]
     payment_method: str = 'cash'
-    quantity: float
-    harga_normal: float
-    harga_diskon: Optional[float] = None
     customer_name: Optional[str] = ''
     notes: Optional[str] = ''
     cashier: Optional[str] = ''
@@ -454,23 +460,27 @@ async def get_print_jobs_by_employee_paginated(emp_id: str, page: int = 1, limit
 
 @api.post('/print-jobs')
 async def create_print_job(body: PrintJobCreate):
-    qty = body.quantity
-    hn = body.harga_normal
-    hd = body.harga_diskon
-    dapat_diskon = hd is not None and hd > 0 and hd < hn and qty >= 10
-    doc = {'id': new_id(), 'date': body.date, 'material': body.material,
-           'payment_method': body.payment_method, 'quantity': qty,
-           'harga_normal': hn, 'harga_diskon': hd, 'dapat_diskon': dapat_diskon,
-           'diskon_nominal': (hd * qty) if dapat_diskon else 0,
-           'price_per_unit': hd if dapat_diskon else hn,
-           'total_price': (hd * qty) if dapat_diskon else (hn * qty),
+    materials_data = [m.model_dump() for m in body.materials]
+    total_price = 0
+    for m in materials_data:
+        hn = m.get('harga_normal', 0)
+        hd = m.get('harga_diskon')
+        qty = m.get('quantity', 0)
+        dapat_diskon = hd is not None and hd > 0 and hd < hn and qty >= 10
+        price_per_unit = hd if dapat_diskon else hn
+        diskon_nominal = (hd * qty) if dapat_diskon else 0
+        m['price_per_unit'] = price_per_unit
+        m['dapat_diskon'] = dapat_diskon
+        m['diskon_nominal'] = diskon_nominal
+        total_price += price_per_unit * qty
+        # Reduce stock for non-custom materials
+        if not m.get('is_custom') and m.get('stock_id'):
+            await db.stock.update_one({'id': m['stock_id']}, {'$inc': {'quantity': -qty}})
+    doc = {'id': new_id(), 'date': body.date, 'materials': materials_data,
+           'payment_method': body.payment_method, 'total_price': total_price,
            'customer_name': body.customer_name or '', 'notes': body.notes or '',
            'cashier': body.cashier or '', 'cashier_id': body.cashier_id or '',
            'created_at': now_str()}
-    # Reduce stock when creating print job
-    stock = await db.stock.find_one({'name': body.material, 'usage_category': 'PRINT'})
-    if stock:
-        await db.stock.update_one({'id': stock['id']}, {'$inc': {'quantity': -qty}})
     await db.print_jobs.insert_one(doc)
     return clean(doc)
 
@@ -487,9 +497,11 @@ async def update_print_job(job_id: str, request: Request):
 async def delete_print_job(job_id: str):
     job = await db.print_jobs.find_one({'id': job_id})
     if not job: raise HTTPException(status_code=404, detail='Print job tidak ditemukan')
-    stock = await db.stock.find_one({'name': job.get('material'), 'usage_category': 'PRINT'})
-    if stock:
-        await db.stock.update_one({'id': stock['id']}, {'$inc': {'quantity': job.get('quantity', 0)}})
+    # Return stock for all materials
+    materials = job.get('materials', [])
+    for m in materials:
+        if not m.get('is_custom') and m.get('stock_id'):
+            await db.stock.update_one({'id': m['stock_id']}, {'$inc': {'quantity': m.get('quantity', 0)}})
     await db.print_jobs.delete_one({'id': job_id})
     return {'message': 'Print job dihapus'}
 
