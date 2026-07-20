@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
-import { App } from '@capacitor/app'
+import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import SplashScreen from './pages/SplashScreen'
 import HomeScreen from './pages/HomeScreen'
@@ -25,15 +25,15 @@ function AppContent() {
 
     const handleBackButton = () => {
       if (location.pathname === '/') {
-        App.exitApp()
+        CapacitorApp.exitApp()
       } else if (location.pathname === '/home') {
-        App.exitApp()
+        CapacitorApp.exitApp()
       } else {
         navigate(-1)
       }
     }
 
-    const listener = App.addListener('backButton', handleBackButton)
+    const listener = CapacitorApp.addListener('backButton', handleBackButton)
 
     return () => {
       listener.then(f => f.remove())
