@@ -132,14 +132,15 @@ export default function FloatingButton({ menuItems, onItemClick }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Calculate menu item positions (circular)
-  const menuRadius = 80
+  // S Pen style menu positions (branching pattern)
   const menuItemsWithPositions = menuItems.map((item, index) => {
-    const angle = (index * 45 - 90) * (Math.PI / 180) // Start from top
+    const branchAngle = (index * 30 - 90) * (Math.PI / 180)
+    const branchLength = 70 + (index * 15)
     return {
       ...item,
-      x: Math.cos(angle) * menuRadius,
-      y: Math.sin(angle) * menuRadius
+      x: Math.cos(branchAngle) * branchLength,
+      y: Math.sin(branchAngle) * branchLength,
+      angle: branchAngle
     }
   })
 
@@ -155,78 +156,236 @@ export default function FloatingButton({ menuItems, onItemClick }) {
         userSelect: 'none'
       }}
     >
-      {/* Menu Items */}
-      {isOpen && menuItemsWithPositions.map((item, index) => (
-        <button
-          key={item.id || index}
-          onClick={() => handleItemClick(item)}
+      {/* Backdrop Blur Overlay */}
+      {isOpen && (
+        <div
           style={{
-            position: 'absolute',
-            left: 30 + item.x - 25,
-            top: 30 + item.y - 25,
-            width: 50,
-            height: 50,
-            borderRadius: '50%',
-            backgroundColor: 'rgba(99, 102, 241, 0.85)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '10px',
-            fontWeight: 'bold',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            animation: `walkmanRotate 0.4s ease-out ${index * 0.08}s both`,
-            transition: 'transform 0.2s'
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            zIndex: 9998,
+            animation: 'fadeIn 0.3s ease-out'
           }}
-          onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-          onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-        >
-          <span style={{ textAlign: 'center', lineHeight: 1.2 }}>
-            {item.title}
-          </span>
-        </button>
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Menu Items with S Pen Branching Effect */}
+      {isOpen && menuItemsWithPositions.map((item, index) => (
+        <div key={item.id || index} style={{ position: 'absolute' }}>
+          {/* Gel/Bubble Connecting Line */}
+          <svg
+            style={{
+              position: 'absolute',
+              left: 30,
+              top: 30,
+              width: Math.abs(item.x) + 30,
+              height: Math.abs(item.y) + 30,
+              pointerEvents: 'none',
+              overflow: 'visible'
+            }}
+          >
+            <defs>
+              <linearGradient id={`gelGradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{ stopColor: 'rgba(255, 255, 255, 0.9)', stopOpacity: 1 }} />
+                <stop offset="50%" style={{ stopColor: 'rgba(255, 255, 255, 0.7)', stopOpacity: 1 }} />
+                <stop offset="100%" style={{ stopColor: 'rgba(255, 255, 255, 0.5)', stopOpacity: 1 }} />
+              </linearGradient>
+              <filter id={`bubble-${index}`}>
+                <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
+                <feOffset in="blur" dx="2" dy="3" result="offsetBlur" />
+                <feFlood floodColor="rgba(0, 0, 0, 0.2)" result="offsetColor" />
+                <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetBlur" />
+                <feMerge>
+                  <feMergeNode in="offsetBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <path
+              d={`M 30 30 Q ${30 + item.x * 0.5} ${30 + item.y * 0.5} ${30 + item.x} ${30 + item.y}`}
+              stroke={`url(#gelGradient-${index})`}
+              strokeWidth="8"
+              fill="none"
+              strokeLinecap="round"
+              filter={`url(#bubble-${index})`}
+              style={{
+                animation: `drawLine 0.4s ease-out ${index * 0.1}s both`
+              }}
+            />
+            {/* Bubble effect along the line */}
+            <circle
+              cx={30 + item.x * 0.3}
+              cy={30 + item.y * 0.3}
+              r="4"
+              fill="rgba(255, 255, 255, 0.8)"
+              filter={`url(#bubble-${index})`}
+              style={{
+                animation: `bubblePop 0.3s ease-out ${index * 0.1 + 0.2}s both`
+              }}
+            />
+            <circle
+              cx={30 + item.x * 0.6}
+              cy={30 + item.y * 0.6}
+              r="3"
+              fill="rgba(255, 255, 255, 0.6)"
+              filter={`url(#bubble-${index})`}
+              style={{
+                animation: `bubblePop 0.3s ease-out ${index * 0.1 + 0.3}s both`
+              }}
+            />
+          </svg>
+
+          {/* Action Button */}
+          <button
+            onClick={() => handleItemClick(item)}
+            style={{
+              position: 'absolute',
+              left: 30 + item.x - 28,
+              top: 30 + item.y - 28,
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+              color: 'white',
+              border: '2px solid rgba(255, 255, 255, 0.6)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '9px',
+              fontWeight: 'bold',
+              boxShadow: `
+                0 8px 20px rgba(59, 130, 246, 0.4),
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.1)
+              `,
+              animation: `scaleIn 0.4s ease-out ${index * 0.1}s both`,
+              transition: 'transform 0.2s, box-shadow 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'scale(1.15)'
+              e.target.style.boxShadow = `
+                0 12px 28px rgba(59, 130, 246, 0.5),
+                inset 0 2px 4px rgba(255, 255, 255, 0.4),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.1)
+              `
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'scale(1)'
+              e.target.style.boxShadow = `
+                0 8px 20px rgba(59, 130, 246, 0.4),
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.1)
+              `
+            }}
+          >
+            <span style={{ textAlign: 'center', lineHeight: 1.1 }}>
+              {item.title}
+            </span>
+          </button>
+        </div>
       ))}
 
-      {/* Main Button */}
+      {/* Main Red Button */}
       <button
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
         onClick={handleToggle}
         style={{
-          width: 60,
-          height: 60,
+          width: 64,
+          height: 64,
           borderRadius: '50%',
-          backgroundColor: isOpen ? 'rgba(239, 68, 68, 0.85)' : 'rgba(99, 102, 241, 0.85)',
+          background: isOpen 
+            ? 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)' 
+            : 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
           color: 'white',
-          border: 'none',
+          border: '3px solid rgba(255, 255, 255, 0.8)',
           cursor: 'grab',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '24px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          transition: 'transform 0.2s, background-color 0.2s',
-          transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)'
+          fontSize: '28px',
+          fontWeight: 'bold',
+          boxShadow: `
+            0 10px 30px rgba(220, 38, 38, 0.5),
+            inset 0 3px 6px rgba(255, 255, 255, 0.4),
+            inset 0 -3px 6px rgba(0, 0, 0, 0.2)
+          `,
+          transition: 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.3s',
+          transform: isOpen ? 'rotate(135deg) scale(1.1)' : 'rotate(0deg) scale(1)'
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen) {
+            e.target.style.boxShadow = `
+              0 14px 40px rgba(220, 38, 38, 0.6),
+              inset 0 3px 6px rgba(255, 255, 255, 0.5),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.2)
+            `
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen) {
+            e.target.style.boxShadow = `
+              0 10px 30px rgba(220, 38, 38, 0.5),
+              inset 0 3px 6px rgba(255, 255, 255, 0.4),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.2)
+            `
+          }
         }}
       >
-        {isOpen ? '✕' : '≡'}
+        {isOpen ? '✕' : '✚'}
       </button>
 
       <style>{`
-        @keyframes walkmanRotate {
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes drawLine {
           0% {
+            strokeDasharray: '0, 1000';
             opacity: 0;
-            transform: rotate(0deg) translate(0, 0) scale(0.3);
           }
           50% {
             opacity: 1;
-            transform: rotate(180deg) translate(40px, 0) scale(0.8);
           }
           100% {
+            strokeDasharray: '1000, 0';
             opacity: 1;
-            transform: rotate(360deg) translate(0, 0) scale(1);
+          }
+        }
+        @keyframes bubblePop {
+          0% {
+            transform: scale(0);
+            opacity: 0;
+          }
+          50% {
+            transform: scale(1.3);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 0.8;
+          }
+        }
+        @keyframes scaleIn {
+          0% {
+            transform: scale(0);
+            opacity: 0;
+          }
+          70% {
+            transform: scale(1.1);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
           }
         }
       `}</style>
