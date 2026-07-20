@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { useEffect } from 'react'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
+import { Device } from '@capacitor/device'
 import SplashScreen from './pages/SplashScreen'
 import HomeScreen from './pages/HomeScreen'
 import PrintJobPage from './pages/PrintJobPage'
@@ -10,14 +11,30 @@ import ProjectPage from './pages/ProjectPage'
 import AdminPage from './pages/AdminPage'
 import KasbonDashboard from './pages/KasbonDashboard'
 import ScreenSaver from './components/ScreenSaver'
-import { initFCM } from './utils/fcm'
+import { initFCM, registerFCMTokenToBackend } from './utils/fcm'
+import { registerDevice } from './services/api'
 
 function AppContent() {
   const location = useLocation()
   const navigate = useNavigate()
 
   useEffect(() => {
-    initFCM()
+    const initFCMAndRegister = async () => {
+      try {
+        const token = await initFCM()
+        if (token && Capacitor.isNativePlatform()) {
+          const info = await Device.getInfo()
+          const deviceId = info.uuid || info.deviceId
+          if (deviceId) {
+            await registerDevice({ device_id: deviceId, device_name: info.model, role: 'STORE_TABLET' })
+            await registerFCMTokenToBackend(deviceId, token)
+          }
+        }
+      } catch (error) {
+        console.error('[App] FCM initialization error:', error)
+      }
+    }
+    initFCMAndRegister()
   }, [])
 
   useEffect(() => {
