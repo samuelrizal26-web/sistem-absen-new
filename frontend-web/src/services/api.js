@@ -10,7 +10,7 @@ async function request(path, options = {}) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    console.error('[API] Error response:', err)
+    console.error('[API] Error response:', JSON.stringify(err, null, 2))
     throw new Error(err.detail || `HTTP ${res.status}`)
   }
   return res.json()
