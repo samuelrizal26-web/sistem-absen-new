@@ -43,10 +43,8 @@ function formatDate(dateStr) {
 }
 
 export async function buildEscPosReceipt({ job, cashier, change = 0, openDrawer = false }) {
-  const hargaNormal = job.harga_normal || job.price_per_unit || 0
-  const dapat_diskon = job.dapat_diskon && job.diskon_nominal > 0
-  const subtotal = hargaNormal * job.quantity
-  const diskon = job.diskon_nominal || 0
+  const materials = job.materials || []
+  const hasMultipleMaterials = materials.length > 0
 
   const parts = []
   parts.push(cmd(CMD.INIT))
@@ -69,16 +67,44 @@ export async function buildEscPosReceipt({ job, cashier, change = 0, openDrawer 
   parts.push(textLine(row('Kasir:', cashier)))
   if (job.customer_name) parts.push(textLine(row('Cust :', job.customer_name)))
   parts.push(textLine(divider('-')))
-  parts.push(textLine(row('Bahan:', job.material)))
-  parts.push(textLine(row('Qty  :', `${job.quantity} pcs`)))
-  parts.push(textLine(divider('-')))
-  parts.push(textLine(row('Subtot:', formatRp(subtotal))))
-  if (dapat_diskon) parts.push(textLine(row('Diskon:', '-' + formatRp(diskon))))
-  if (dapat_diskon) {
-    parts.push(cmd(CMD.ALIGN_CENTER))
-    parts.push(textLine('* Hemat cetak minimal 10 pcs *'))
-    parts.push(cmd(CMD.ALIGN_LEFT))
+
+  // Show materials
+  if (hasMultipleMaterials) {
+    materials.forEach((m, idx) => {
+      const hn = m.harga_normal || 0
+      const hd = m.harga_diskon || 0
+      const qty = m.quantity || 0
+      const dapat_diskon = m.dapat_diskon && m.diskon_nominal > 0
+      const subtotal = hn * qty
+      const diskon = m.diskon_nominal || 0
+      const price_per_unit = dapat_diskon ? hd : hn
+
+      parts.push(textLine(row(`${idx + 1}. ${m.name}:`, '')))
+      parts.push(textLine(row('   Qty:', `${qty} ${m.unit || 'pcs'}`)))
+      parts.push(textLine(row('   Harga:', formatRp(price_per_unit))))
+      parts.push(textLine(row('   Subtot:', formatRp(subtotal))))
+      if (dapat_diskon) {
+        parts.push(textLine(row('   Diskon:', '-' + formatRp(diskon))))
+      }
+    })
+  } else {
+    // Legacy single material support
+    const hargaNormal = job.harga_normal || job.price_per_unit || 0
+    const dapat_diskon = job.dapat_diskon && job.diskon_nominal > 0
+    const subtotal = hargaNormal * job.quantity
+    const diskon = job.diskon_nominal || 0
+    parts.push(textLine(row('Bahan:', job.material)))
+    parts.push(textLine(row('Qty  :', `${job.quantity} pcs`)))
+    parts.push(textLine(divider('-')))
+    parts.push(textLine(row('Subtot:', formatRp(subtotal))))
+    if (dapat_diskon) parts.push(textLine(row('Diskon:', '-' + formatRp(diskon))))
+    if (dapat_diskon) {
+      parts.push(cmd(CMD.ALIGN_CENTER))
+      parts.push(textLine('* Hemat cetak minimal 10 pcs *'))
+      parts.push(cmd(CMD.ALIGN_LEFT))
+    }
   }
+
   parts.push(textLine(divider('-')))
   parts.push(cmd(CMD.BOLD_ON))
   parts.push(textLine(row('TOTAL:', formatRp(job.total_price))))

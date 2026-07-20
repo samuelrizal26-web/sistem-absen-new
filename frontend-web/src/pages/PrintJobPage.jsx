@@ -30,16 +30,11 @@ export default function PrintJobPage() {
   // Form state
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    material: '',
+    materials: [], // Array of { name, quantity, harga_normal, harga_diskon, harga_normal_raw, harga_diskon_raw, stock_id, is_custom, unit }
     payment_method: 'cash',
-    quantity: '',
-    harga_normal: '',   // harga satuan tanpa diskon (< 10 pcs)
-    harga_diskon: '',   // harga satuan jika qty >= 10 (opsional)
     customer_name: '',
     notes: '',
     customer_cash: '',
-    harga_normal_raw: '',
-    harga_diskon_raw: '',
     customer_cash_raw: ''
   })
   const [savedJob, setSavedJob] = useState(null)
@@ -52,106 +47,112 @@ export default function PrintJobPage() {
   const [editForm, setEditForm] = useState(null)
   const [keypadField, setKeypadField] = useState(null) // 'harga_normal' or 'harga_diskon' or null
   const [isEditMode, setIsEditMode] = useState(false)
+  const [showLainLainModal, setShowLainLainModal] = useState(false)
+  const [lainLainForm, setLainLainForm] = useState({ name: '', harga: '', harga_raw: '', quantity: '' })
 
-  const qty = parseFloat(form.quantity) || 0
-  const hargaNormal = parseRupiahInput(form.harga_normal_raw) || parseFloat(form.harga_normal) || 0
-  const hargaDiskon = parseRupiahInput(form.harga_diskon_raw) || parseFloat(form.harga_diskon) || 0
-  const stockAvailable = stocks.find(s => s.name === form.material)
-
-  // Tentukan harga yang berlaku
-  const hasDiskon = hargaDiskon > 0 && hargaDiskon < hargaNormal
-  const getDiskon = qty >= 10 && hasDiskon
-  const hargaBerlaku = getDiskon ? hargaDiskon : hargaNormal
-  const totalPrice = qty * hargaBerlaku
-  const diskonNominal = getDiskon ? qty * (hargaNormal - hargaDiskon) : 0
+  const totalPrice = form.materials.reduce((sum, m) => {
+    const hn = parseRupiahInput(m.harga_normal_raw) || parseFloat(m.harga_normal) || 0
+    const hd = parseRupiahInput(m.harga_diskon_raw) || parseFloat(m.harga_diskon) || 0
+    const qty = parseFloat(m.quantity) || 0
+    const hasDiskon = hd > 0 && hd < hn
+    const getDiskon = qty >= 10 && hasDiskon
+    const hargaBerlaku = getDiskon ? hd : hn
+    return sum + qty * hargaBerlaku
+  }, 0)
   const change = Math.max(0, (parseRupiahInput(form.customer_cash_raw) || parseFloat(form.customer_cash) || 0) - totalPrice)
 
   const handleKeypadInput = (num) => {
     if (!keypadField) return
-    
-    if (keypadField === 'quantity') {
-      // Handle quantity input (no Rupiah formatting)
-      const currentQty = isEditMode ? (parseFloat(editForm.quantity) || 0) : (parseFloat(form.quantity) || 0)
-      let newQty
-      if (num === 1000) {
-        newQty = currentQty * 1000
-      } else {
-        newQty = currentQty * 10 + num
-      }
-      
-      if (isEditMode) {
-        setEditForm(f => ({ ...f, quantity: String(newQty) }))
-      } else {
-        handleFormChange('quantity', String(newQty))
-      }
-    } else {
-      // Handle harga input (with Rupiah formatting)
-      const currentRaw = keypadField === 'harga_normal' ? (isEditMode ? editForm.harga_normal_raw : form.harga_normal_raw) : (isEditMode ? editForm.harga_diskon_raw : form.harga_diskon_raw)
+
+    if (keypadField.startsWith('quantity_')) {
+      const idx = parseInt(keypadField.split('_')[1])
+      const currentQty = parseFloat(form.materials[idx]?.quantity || 0)
+      let newQty = num === 1000 ? currentQty * 1000 : currentQty * 10 + num
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], quantity: String(newQty) }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField.startsWith('harga_normal_')) {
+      const idx = parseInt(keypadField.split('_')[2])
+      const currentRaw = form.materials[idx]?.harga_normal_raw || ''
       const currentNum = parseRupiahInput(currentRaw) || 0
-      let newNum
-      if (num === 1000) {
-        newNum = currentNum * 1000
-      } else {
-        newNum = currentNum * 10 + num
-      }
+      let newNum = num === 1000 ? currentNum * 1000 : currentNum * 10 + num
       const newRaw = formatRupiahInput(String(newNum))
-      
-      if (isEditMode) {
-        setEditForm(f => ({ ...f, [keypadField + '_raw']: newRaw }))
-      } else {
-        handleFormChange(keypadField + '_raw', newRaw)
-        handleFormChange(keypadField, String(newNum))
-      }
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], harga_normal_raw: newRaw, harga_normal: String(newNum) }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField.startsWith('harga_diskon_')) {
+      const idx = parseInt(keypadField.split('_')[2])
+      const currentRaw = form.materials[idx]?.harga_diskon_raw || ''
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      let newNum = num === 1000 ? currentNum * 1000 : currentNum * 10 + num
+      const newRaw = formatRupiahInput(String(newNum))
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], harga_diskon_raw: newRaw, harga_diskon: String(newNum) }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField === 'lain_lain_harga') {
+      const currentRaw = lainLainForm.harga_raw || ''
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      let newNum = num === 1000 ? currentNum * 1000 : currentNum * 10 + num
+      const newRaw = formatRupiahInput(String(newNum))
+      setLainLainForm(f => ({ ...f, harga_raw: newRaw, harga: String(newNum) }))
+    } else if (keypadField === 'lain_lain_qty') {
+      const currentQty = parseFloat(lainLainForm.quantity || 0)
+      let newQty = num === 1000 ? currentQty * 1000 : currentQty * 10 + num
+      setLainLainForm(f => ({ ...f, quantity: String(newQty) }))
     }
   }
 
   const handleKeypadBackspace = () => {
     if (!keypadField) return
-    
-    if (keypadField === 'quantity') {
-      // Handle quantity input
-      const currentQty = isEditMode ? (parseFloat(editForm.quantity) || 0) : (parseFloat(form.quantity) || 0)
+
+    if (keypadField.startsWith('quantity_')) {
+      const idx = parseInt(keypadField.split('_')[1])
+      const currentQty = parseFloat(form.materials[idx]?.quantity || 0)
       const newQty = Math.floor(currentQty / 10)
-      
-      if (isEditMode) {
-        setEditForm(f => ({ ...f, quantity: String(newQty) }))
-      } else {
-        handleFormChange('quantity', String(newQty))
-      }
-    } else {
-      // Handle harga input
-      const currentRaw = keypadField === 'harga_normal' ? (isEditMode ? editForm.harga_normal_raw : form.harga_normal_raw) : (isEditMode ? editForm.harga_diskon_raw : form.harga_diskon_raw)
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], quantity: String(newQty) }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField.startsWith('harga_normal_') || keypadField.startsWith('harga_diskon_')) {
+      const idx = parseInt(keypadField.split('_')[2])
+      const field = keypadField.split('_')[1]
+      const currentRaw = form.materials[idx]?.[`${field}_raw`] || ''
       const currentNum = parseRupiahInput(currentRaw) || 0
       const newNum = Math.floor(currentNum / 10)
       const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
-      
-      if (isEditMode) {
-        setEditForm(f => ({ ...f, [keypadField + '_raw']: newRaw }))
-      } else {
-        handleFormChange(keypadField + '_raw', newRaw)
-        handleFormChange(keypadField, String(newNum))
-      }
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], [`${field}_raw`]: newRaw, [field]: String(newNum) }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField === 'lain_lain_harga') {
+      const currentRaw = lainLainForm.harga_raw || ''
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      const newNum = Math.floor(currentNum / 10)
+      const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
+      setLainLainForm(f => ({ ...f, harga_raw: newRaw, harga: String(newNum) }))
+    } else if (keypadField === 'lain_lain_qty') {
+      const currentQty = parseFloat(lainLainForm.quantity || 0)
+      const newQty = Math.floor(currentQty / 10)
+      setLainLainForm(f => ({ ...f, quantity: String(newQty) }))
     }
   }
 
   const handleKeypadClear = () => {
     if (!keypadField) return
-    
-    if (keypadField === 'quantity') {
-      // Handle quantity input
-      if (isEditMode) {
-        setEditForm(f => ({ ...f, quantity: '' }))
-      } else {
-        handleFormChange('quantity', '')
-      }
-    } else {
-      // Handle harga input
-      if (isEditMode) {
-        setEditForm(f => ({ ...f, [keypadField + '_raw']: '' }))
-      } else {
-        handleFormChange(keypadField + '_raw', '')
-        handleFormChange(keypadField, '')
-      }
+
+    if (keypadField.startsWith('quantity_')) {
+      const idx = parseInt(keypadField.split('_')[1])
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], quantity: '' }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField.startsWith('harga_normal_') || keypadField.startsWith('harga_diskon_')) {
+      const idx = parseInt(keypadField.split('_')[2])
+      const field = keypadField.split('_')[1]
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], [`${field}_raw`]: '', [field]: '' }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField === 'lain_lain_harga') {
+      setLainLainForm(f => ({ ...f, harga_raw: '', harga: '' }))
+    } else if (keypadField === 'lain_lain_qty') {
+      setLainLainForm(f => ({ ...f, quantity: '' }))
     }
   }
 
@@ -206,6 +207,47 @@ export default function PrintJobPage() {
 
   const handleFormChange = (field, value) => setForm(f => ({ ...f, [field]: value }))
 
+  const handleAddMaterial = (materialName) => {
+    const stock = stocks.find(s => s.name === materialName)
+    const newMaterial = {
+      name: materialName,
+      quantity: '',
+      harga_normal: '',
+      harga_normal_raw: '',
+      harga_diskon: '',
+      harga_diskon_raw: '',
+      stock_id: stock?.id,
+      is_custom: false,
+      unit: stock?.unit || 'pcs'
+    }
+    setForm(f => ({ ...f, materials: [...f.materials, newMaterial] }))
+  }
+
+  const handleRemoveMaterial = (index) => {
+    setForm(f => ({ ...f, materials: f.materials.filter((_, i) => i !== index) }))
+  }
+
+  const handleAddLainLain = () => {
+    if (!lainLainForm.name || !lainLainForm.harga || !lainLainForm.quantity) {
+      showToast('Lengkapi nama, harga dan jumlah', 'error')
+      return
+    }
+    const newMaterial = {
+      name: lainLainForm.name,
+      quantity: lainLainForm.quantity,
+      harga_normal: lainLainForm.harga,
+      harga_normal_raw: lainLainForm.harga_raw,
+      harga_diskon: '',
+      harga_diskon_raw: '',
+      stock_id: null,
+      is_custom: true,
+      unit: 'pcs'
+    }
+    setForm(f => ({ ...f, materials: [...f.materials, newMaterial] }))
+    setLainLainForm({ name: '', harga: '', harga_raw: '', quantity: '' })
+    setShowLainLainModal(false)
+  }
+
   const handleDeleteJob = async (id) => {
     if (!window.confirm('Hapus pekerjaan ini?')) return
     try { await deletePrintJob(id); showToast('Dihapus', 'info'); await loadData() }
@@ -250,8 +292,15 @@ export default function PrintJobPage() {
   }
 
   const handleSaveJob = async () => {
-    if (!form.material || !form.quantity || !form.harga_normal_raw) {
-      showToast('Lengkapi semua field wajib', 'error'); return
+    if (form.materials.length === 0) {
+      showToast('Tambah minimal 1 bahan', 'error'); return
+    }
+    // Validate all materials have required fields
+    for (let i = 0; i < form.materials.length; i++) {
+      const m = form.materials[i]
+      if (!m.name || !m.quantity || !m.harga_normal_raw) {
+        showToast(`Lengkapi field bahan #${i + 1}`, 'error'); return
+      }
     }
     // Show PIN modal to capture cashier info
     setStep(STEP.PIN_SAVE)
@@ -262,17 +311,19 @@ export default function PrintJobPage() {
     setCashier(employee.name)
     console.log('Employee dari PIN:', JSON.stringify(employee))
     try {
+      const materialsPayload = form.materials.map(m => ({
+        name: m.name,
+        quantity: parseFloat(m.quantity) || 0,
+        unit: m.unit || 'pcs',
+        harga_normal: parseRupiahInput(m.harga_normal_raw) || parseFloat(m.harga_normal) || 0,
+        harga_diskon: parseRupiahInput(m.harga_diskon_raw) || parseFloat(m.harga_diskon) || null,
+        stock_id: m.stock_id,
+        is_custom: m.is_custom || false
+      }))
       const payload = {
         date: form.date,
-        material: form.material,
+        materials: materialsPayload,
         payment_method: form.payment_method,
-        quantity: qty,
-        price_per_unit: hargaBerlaku,
-        harga_normal: hargaNormal,
-        harga_diskon: hasDiskon ? hargaDiskon : null,
-        diskon_nominal: diskonNominal,
-        dapat_diskon: getDiskon,
-        total_price: totalPrice,
         customer_name: form.customer_name || null,
         notes: form.notes || null,
         cashier: employee.name,
@@ -281,7 +332,7 @@ export default function PrintJobPage() {
       console.log('Payload yang dikirim:', JSON.stringify(payload))
       const res = await createPrintJob(payload)
       console.log('Response dari backend:', JSON.stringify(res))
-      setSavedJob({ ...payload, id: res.id || res._id })
+      setSavedJob({ ...payload, id: res.id || res._id, total_price: totalPrice })
       setStep(STEP.SUMMARY)
       await loadData()
     } catch (e) {
@@ -312,7 +363,7 @@ export default function PrintJobPage() {
       showToast('Struk dicetak!', 'success')
       setStep(STEP.LIST)
     }
-    setForm({ date: new Date().toISOString().split('T')[0], material: '', payment_method: 'cash', quantity: '', harga_normal: '', harga_diskon: '', customer_name: '', notes: '', customer_cash: '' })
+    setForm({ date: new Date().toISOString().split('T')[0], materials: [], payment_method: 'cash', customer_name: '', notes: '', customer_cash: '', customer_cash_raw: '' })
   }
 
   // Group jobs by month
@@ -407,19 +458,74 @@ export default function PrintJobPage() {
                     <input type="date" value={form.date} onChange={e => handleFormChange('date', e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
                   </div>
+
+                  {/* Materials List */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Bahan *</label>
-                    <select value={form.material} onChange={e => handleFormChange('material', e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">-- Pilih Bahan --</option>
-                      {stocks.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))}
-                    </select>
-                    {stockAvailable && (
-                      <p className="text-xs text-green-600 mt-1 ml-1">✓ Stok tersedia: {stockAvailable.quantity} {stockAvailable.unit}</p>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-medium text-gray-700">Bahan *</label>
+                      <div className="flex gap-1">
+                        <select value="" onChange={e => { if (e.target.value) handleAddMaterial(e.target.value) }}
+                          className="px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/30">
+                          <option value="">+ Tambah</option>
+                          {stocks.map(s => (
+                            <option key={s.id} value={s.name}>{s.name}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => setShowLainLainModal(true)}
+                          className="px-2 py-1 rounded-lg bg-purple-100 text-purple-700 text-xs font-semibold hover:bg-purple-200">
+                          + Lain Lain
+                        </button>
+                      </div>
+                    </div>
+                    {form.materials.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic mt-1">Belum ada bahan ditambahkan</p>
+                    ) : (
+                      <div className="space-y-2 mt-2 max-h-48 overflow-y-auto">
+                        {form.materials.map((m, idx) => (
+                          <div key={idx} className="bg-gray-50 rounded-xl p-2 border border-gray-200">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="text-xs font-semibold text-gray-700">{m.name}</span>
+                              <button onClick={() => handleRemoveMaterial(idx)} className="text-red-400 hover:text-red-600">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] text-gray-500 mb-1">Jumlah</label>
+                                <input type="text" readOnly value={m.quantity}
+                                  onClick={() => { setIsEditMode(false); setKeypadField(`quantity_${idx}`) }}
+                                  placeholder="0"
+                                  className="w-full px-2 py-1 rounded-lg border border-gray-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-gray-500 mb-1">Harga Normal</label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Rp</span>
+                                  <input type="text" readOnly value={m.harga_normal_raw}
+                                    onClick={() => { setIsEditMode(false); setKeypadField(`harga_normal_${idx}`) }}
+                                    placeholder="30.000"
+                                    className="w-full pl-6 pr-2 py-1 rounded-lg border border-gray-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-1">
+                              <label className="block text-[10px] text-gray-500 mb-1">Harga Diskon (≥10 pcs)</label>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Rp</span>
+                                <input type="text" readOnly value={m.harga_diskon_raw}
+                                  onClick={() => { setIsEditMode(false); setKeypadField(`harga_diskon_${idx}`) }}
+                                  placeholder="Opsional"
+                                  className="w-full pl-6 pr-2 py-1 rounded-lg border border-gray-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
+
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Metode Pembayaran *</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -431,67 +537,16 @@ export default function PrintJobPage() {
                       ))}
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Jumlah (pcs) *</label>
-                    <input type="text" readOnly value={form.quantity}
-                      onClick={() => { setIsEditMode(false); setKeypadField('quantity') }}
-                      placeholder="0"
-                      className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
-                  </div>
 
-                  {/* Harga */}
-                  <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-                    <p className="text-xs font-semibold text-gray-700">Harga Satuan</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Harga Normal *</label>
-                        <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Rp</span>
-                          <input type="text" readOnly value={form.harga_normal_raw}
-                            onClick={() => { setIsEditMode(false); setKeypadField('harga_normal') }}
-                            placeholder="30.000"
-                            className="w-full pl-6 pr-2 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs cursor-pointer" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1">Harga Diskon ≥10</label>
-                        <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Rp</span>
-                          <input type="text" readOnly value={form.harga_diskon_raw}
-                            onClick={() => { setIsEditMode(false); setKeypadField('harga_diskon') }}
-                            placeholder="20.000"
-                            className="w-full pl-6 pr-2 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs cursor-pointer" />
-                        </div>
+                  {/* Total harga semua materials */}
+                  {form.materials.length > 0 && (
+                    <div className="bg-primary/5 rounded-xl p-3 border border-primary/20">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-gray-700">Total Harga</span>
+                        <span className="text-lg font-bold text-primary">{formatRupiah(totalPrice)}</span>
                       </div>
                     </div>
-
-                    {/* Preview harga berlaku */}
-                    {hargaNormal > 0 && qty > 0 && (
-                      <div className={`rounded-lg px-2 py-2 ${getDiskon ? 'bg-green-50 border border-green-200' : 'bg-primary/5'}`}>
-                        {getDiskon ? (
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[10px] text-gray-500">
-                              <span>Harga normal: {formatRupiah(hargaNormal)} × {qty}</span>
-                              <span className="line-through">{formatRupiah(hargaNormal * qty)}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-green-600 font-medium">
-                              <span>🎉 Diskon ≥10 pcs: -{formatRupiah(hargaNormal - hargaDiskon)}/pcs</span>
-                              <span>-{formatRupiah(diskonNominal)}</span>
-                            </div>
-                            <div className="flex justify-between font-bold text-green-700 text-xs">
-                              <span>Total</span>
-                              <span>{formatRupiah(totalPrice)}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600">Total</span>
-                            <span className="font-bold text-primary text-sm">{formatRupiah(totalPrice)}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  )}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Nama Customer</label>
                     <input type="text" value={form.customer_name} onChange={e => handleFormChange('customer_name', e.target.value)} placeholder="Nama customer..."
@@ -502,7 +557,7 @@ export default function PrintJobPage() {
                     <input type="text" value={form.notes} onChange={e => handleFormChange('notes', e.target.value)} placeholder="Catatan tambahan..."
                       className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
                   </div>
-                  <button onClick={handleSaveJob} disabled={saving || !form.material || !form.quantity || !form.harga_normal}
+                  <button onClick={handleSaveJob} disabled={saving || form.materials.length === 0}
                     className="w-full py-3 rounded-xl bg-amber-400 text-white font-bold text-sm shadow hover:bg-amber-500 disabled:opacity-40 active:scale-95 transition-all">
                     {saving ? 'Menyimpan...' : 'Simpan Pekerjaan'}
                   </button>
@@ -515,7 +570,12 @@ export default function PrintJobPage() {
                   <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-sm font-semibold text-gray-700">
-                        {keypadField === 'quantity' ? 'Jumlah Pcs' : (keypadField === 'harga_normal' ? 'Harga Normal' : 'Harga Diskon')}
+                        {keypadField.startsWith('quantity_') ? 'Jumlah Pcs' :
+                         keypadField.startsWith('harga_normal_') ? 'Harga Normal' :
+                         keypadField.startsWith('harga_diskon_') ? 'Harga Diskon' :
+                         keypadField === 'lain_lain_harga' ? 'Harga Item' :
+                         keypadField === 'lain_lain_qty' ? 'Jumlah Item' :
+                         'Input'}
                       </span>
                       <button onClick={() => setKeypadField(null)} className="text-gray-400 hover:text-gray-600">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -526,9 +586,23 @@ export default function PrintJobPage() {
                     {/* Display current value */}
                     <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
                       <span className="text-xl font-bold text-gray-800">
-                        {keypadField === 'quantity' 
-                          ? (form.quantity || '0') 
-                          : (keypadField === 'harga_normal' ? (form.harga_normal_raw || 'Rp 0') : (form.harga_diskon_raw || 'Rp 0'))}
+                        {(() => {
+                          if (keypadField.startsWith('quantity_')) {
+                            const idx = parseInt(keypadField.split('_')[1])
+                            return form.materials[idx]?.quantity || '0'
+                          } else if (keypadField.startsWith('harga_normal_')) {
+                            const idx = parseInt(keypadField.split('_')[2])
+                            return form.materials[idx]?.harga_normal_raw || 'Rp 0'
+                          } else if (keypadField.startsWith('harga_diskon_')) {
+                            const idx = parseInt(keypadField.split('_')[2])
+                            return form.materials[idx]?.harga_diskon_raw || 'Rp 0'
+                          } else if (keypadField === 'lain_lain_harga') {
+                            return lainLainForm.harga_raw || 'Rp 0'
+                          } else if (keypadField === 'lain_lain_qty') {
+                            return lainLainForm.quantity || '0'
+                          }
+                          return '0'
+                        })()}
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 mb-2">
@@ -810,6 +884,50 @@ export default function PrintJobPage() {
           <button onClick={() => setStep(STEP.LIST)} className="w-full py-3 rounded-2xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50">
             ← Kembali ke Daftar
           </button>
+        </div>
+      )}
+
+      {/* Lain Lain Modal */}
+      {showLainLainModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-5">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Tambah Item Lain-Lain</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nama Item *</label>
+                <input type="text" value={lainLainForm.name} onChange={e => setLainLainForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Contoh: Jasa desain"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Harga *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">Rp</span>
+                  <input type="text" readOnly value={lainLainForm.harga_raw}
+                    onClick={() => setKeypadField('lain_lain_harga')}
+                    placeholder="0"
+                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Jumlah *</label>
+                <input type="text" readOnly value={lainLainForm.quantity}
+                  onClick={() => setKeypadField('lain_lain_qty')}
+                  placeholder="0"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => { setShowLainLainModal(false); setLainLainForm({ name: '', harga: '', harga_raw: '', quantity: '' }) }}
+                  className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50">
+                  Batal
+                </button>
+                <button onClick={handleAddLainLain}
+                  className="flex-1 py-2 rounded-xl bg-purple-500 text-white font-semibold text-sm hover:bg-purple-600">
+                  Tambah
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

@@ -54,13 +54,11 @@ function formatDate(dateStr) {
 }
 
 export function buildPrintJobReceipt({ job, cashier, change = 0 }) {
-  const hargaNormal = job.harga_normal || job.price_per_unit || 0
-  const dapat_diskon = job.dapat_diskon && job.diskon_nominal > 0
-  const subtotal = hargaNormal * job.quantity
-  const diskon = job.diskon_nominal || 0
+  const materials = job.materials || []
+  const hasMultipleMaterials = materials.length > 0
 
   const lines = []
-  
+
   // Add logo if available
   if (logoBase64) {
     lines.push('[IMAGE]' + logoBase64)
@@ -68,18 +66,46 @@ export function buildPrintJobReceipt({ job, cashier, change = 0 }) {
     lines.push(center(STORE_NAME))
     lines.push(center(STORE_TAGLINE))
   }
-  
+
   lines.push(divider('='))
   lines.push(row('Tgl  :', formatDate(job.date)))
   lines.push(row('Kasir:', cashier))
   if (job.customer_name) lines.push(row('Cust :', job.customer_name))
   lines.push(divider('-'))
-  lines.push(row('Bahan:', job.material))
-  lines.push(row('Qty  :', `${job.quantity} pcs`))
-  lines.push(divider('-'))
-  lines.push(row('Subtot:', formatRp(subtotal)))
-  if (dapat_diskon) lines.push(row('Diskon:', '-' + formatRp(diskon)))
-  if (dapat_diskon) lines.push(center('* Hemat cetak minimal 10 pcs *'))
+
+  // Show materials
+  if (hasMultipleMaterials) {
+    materials.forEach((m, idx) => {
+      const hn = m.harga_normal || 0
+      const hd = m.harga_diskon || 0
+      const qty = m.quantity || 0
+      const dapat_diskon = m.dapat_diskon && m.diskon_nominal > 0
+      const subtotal = hn * qty
+      const diskon = m.diskon_nominal || 0
+      const price_per_unit = dapat_diskon ? hd : hn
+
+      lines.push(row(`${idx + 1}. ${m.name}:`, ''))
+      lines.push(row('   Qty:', `${qty} ${m.unit || 'pcs'}`))
+      lines.push(row('   Harga:', formatRp(price_per_unit)))
+      lines.push(row('   Subtot:', formatRp(subtotal)))
+      if (dapat_diskon) {
+        lines.push(row('   Diskon:', '-' + formatRp(diskon)))
+      }
+    })
+  } else {
+    // Legacy single material support
+    const hargaNormal = job.harga_normal || job.price_per_unit || 0
+    const dapat_diskon = job.dapat_diskon && job.diskon_nominal > 0
+    const subtotal = hargaNormal * job.quantity
+    const diskon = job.diskon_nominal || 0
+    lines.push(row('Bahan:', job.material))
+    lines.push(row('Qty  :', `${job.quantity} pcs`))
+    lines.push(divider('-'))
+    lines.push(row('Subtot:', formatRp(subtotal)))
+    if (dapat_diskon) lines.push(row('Diskon:', '-' + formatRp(diskon)))
+    if (dapat_diskon) lines.push(center('* Hemat cetak minimal 10 pcs *'))
+  }
+
   lines.push(divider('-'))
   lines.push(row('TOTAL:', formatRp(job.total_price)))
   lines.push(row('Bayar:', job.payment_method === 'cash' ? 'Cash' : 'Transfer'))
