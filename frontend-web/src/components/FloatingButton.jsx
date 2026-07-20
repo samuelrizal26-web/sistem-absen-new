@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function FloatingButton({ menuItems, onItemClick }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -132,19 +133,25 @@ export default function FloatingButton({ menuItems, onItemClick }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // S Pen style menu positions (branching pattern)
+  // S Pen style menu positions (wide fan branching to upper-left)
+  const menuCount = menuItems.length
+  const startAngle = -160 * (Math.PI / 180)
+  const totalSpread = Math.min(140, menuCount * 50) * (Math.PI / 180)
+  const angleStep = menuCount > 1 ? totalSpread / (menuCount - 1) : 0
+  const menuRadius = 130
+
   const menuItemsWithPositions = menuItems.map((item, index) => {
-    const branchAngle = (index * 30 - 90) * (Math.PI / 180)
-    const branchLength = 70 + (index * 15)
+    const angle = startAngle + (index * angleStep)
+    const radius = menuRadius + (index % 2 === 0 ? 0 : 18)
     return {
       ...item,
-      x: Math.cos(branchAngle) * branchLength,
-      y: Math.sin(branchAngle) * branchLength,
-      angle: branchAngle
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+      angle
     }
   })
 
-  return (
+  const buttonContent = (
     <div
       ref={buttonRef}
       style={{
@@ -156,25 +163,6 @@ export default function FloatingButton({ menuItems, onItemClick }) {
         userSelect: 'none'
       }}
     >
-      {/* Backdrop Blur Overlay */}
-      {isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            zIndex: 9998,
-            animation: 'fadeIn 0.3s ease-out'
-          }}
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
       {/* Menu Items with S Pen Branching Effect */}
       {isOpen && menuItemsWithPositions.map((item, index) => (
         <div key={item.id || index} style={{ position: 'absolute' }}>
@@ -182,61 +170,69 @@ export default function FloatingButton({ menuItems, onItemClick }) {
           <svg
             style={{
               position: 'absolute',
-              left: 30,
-              top: 30,
-              width: Math.abs(item.x) + 30,
-              height: Math.abs(item.y) + 30,
+              left: 32,
+              top: 32,
+              width: Math.max(100, Math.abs(item.x) + 50),
+              height: Math.max(100, Math.abs(item.y) + 50),
               pointerEvents: 'none',
-              overflow: 'visible'
+              overflow: 'visible',
+              zIndex: 1
             }}
           >
             <defs>
               <linearGradient id={`gelGradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: 'rgba(255, 255, 255, 0.9)', stopOpacity: 1 }} />
-                <stop offset="50%" style={{ stopColor: 'rgba(255, 255, 255, 0.7)', stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: 'rgba(255, 255, 255, 0.5)', stopOpacity: 1 }} />
+                <stop offset="0%" style={{ stopColor: 'rgba(255, 255, 255, 0.95)', stopOpacity: 1 }} />
+                <stop offset="50%" style={{ stopColor: 'rgba(255, 255, 255, 0.75)', stopOpacity: 1 }} />
+                <stop offset="100%" style={{ stopColor: 'rgba(255, 255, 255, 0.55)', stopOpacity: 1 }} />
               </linearGradient>
               <filter id={`bubble-${index}`}>
-                <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
-                <feOffset in="blur" dx="2" dy="3" result="offsetBlur" />
-                <feFlood floodColor="rgba(0, 0, 0, 0.2)" result="offsetColor" />
+                <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="blur" />
+                <feSpecularLighting in="blur" surfaceScale="3" specularConstant="0.9" specularExponent="18" lightingColor="white" result="specular">
+                  <fePointLight x="-5000" y="-10000" z="15000" />
+                </feSpecularLighting>
+                <feComposite in="specular" in2="SourceAlpha" operator="in" result="specular" />
+                <feOffset in="blur" dx="3" dy="4" result="offsetBlur" />
+                <feFlood floodColor="rgba(0, 0, 0, 0.15)" result="offsetColor" />
                 <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetBlur" />
                 <feMerge>
                   <feMergeNode in="offsetBlur" />
                   <feMergeNode in="SourceGraphic" />
+                  <feMergeNode in="specular" />
                 </feMerge>
               </filter>
             </defs>
             <path
-              d={`M 30 30 Q ${30 + item.x * 0.5} ${30 + item.y * 0.5} ${30 + item.x} ${30 + item.y}`}
+              d={`M 32 32 Q ${32 + item.x * 0.4} ${32 + item.y * 0.15} ${32 + item.x} ${32 + item.y}`}
               stroke={`url(#gelGradient-${index})`}
-              strokeWidth="8"
+              strokeWidth="10"
               fill="none"
               strokeLinecap="round"
               filter={`url(#bubble-${index})`}
               style={{
-                animation: `drawLine 0.4s ease-out ${index * 0.1}s both`
+                strokeDasharray: 1000,
+                strokeDashoffset: isOpen ? 0 : 1000,
+                transition: `stroke-dashoffset 0.5s ease-out ${index * 0.08}s`
               }}
             />
-            {/* Bubble effect along the line */}
+            {/* Bubble beads along the line */}
             <circle
-              cx={30 + item.x * 0.3}
-              cy={30 + item.y * 0.3}
+              cx={32 + item.x * 0.25}
+              cy={32 + item.y * 0.08}
+              r="5"
+              fill="rgba(255, 255, 255, 0.9)"
+              filter={`url(#bubble-${index})`}
+              style={{
+                animation: `bubblePop 0.35s ease-out ${index * 0.08 + 0.2}s both`
+              }}
+            />
+            <circle
+              cx={32 + item.x * 0.55}
+              cy={32 + item.y * 0.18}
               r="4"
-              fill="rgba(255, 255, 255, 0.8)"
+              fill="rgba(255, 255, 255, 0.75)"
               filter={`url(#bubble-${index})`}
               style={{
-                animation: `bubblePop 0.3s ease-out ${index * 0.1 + 0.2}s both`
-              }}
-            />
-            <circle
-              cx={30 + item.x * 0.6}
-              cy={30 + item.y * 0.6}
-              r="3"
-              fill="rgba(255, 255, 255, 0.6)"
-              filter={`url(#bubble-${index})`}
-              style={{
-                animation: `bubblePop 0.3s ease-out ${index * 0.1 + 0.3}s both`
+                animation: `bubblePop 0.35s ease-out ${index * 0.08 + 0.32}s both`
               }}
             />
           </svg>
@@ -246,42 +242,43 @@ export default function FloatingButton({ menuItems, onItemClick }) {
             onClick={() => handleItemClick(item)}
             style={{
               position: 'absolute',
-              left: 30 + item.x - 28,
-              top: 30 + item.y - 28,
+              left: 32 + item.x - 28,
+              top: 32 + item.y - 28,
               width: 56,
               height: 56,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+              background: 'linear-gradient(145deg, #3B82F6 0%, #1D4ED8 100%)',
               color: 'white',
-              border: '2px solid rgba(255, 255, 255, 0.6)',
+              border: '2px solid rgba(255, 255, 255, 0.7)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '9px',
               fontWeight: 'bold',
+              zIndex: 2,
               boxShadow: `
-                0 8px 20px rgba(59, 130, 246, 0.4),
-                inset 0 2px 4px rgba(255, 255, 255, 0.3),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.1)
+                0 10px 25px rgba(37, 99, 235, 0.45),
+                inset 0 3px 6px rgba(255, 255, 255, 0.35),
+                inset 0 -3px 6px rgba(0, 0, 0, 0.15)
               `,
-              animation: `scaleIn 0.4s ease-out ${index * 0.1}s both`,
+              animation: `scaleIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) ${index * 0.08}s both`,
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
             onMouseEnter={(e) => {
               e.target.style.transform = 'scale(1.15)'
               e.target.style.boxShadow = `
-                0 12px 28px rgba(59, 130, 246, 0.5),
-                inset 0 2px 4px rgba(255, 255, 255, 0.4),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.1)
+                0 14px 32px rgba(37, 99, 235, 0.55),
+                inset 0 3px 6px rgba(255, 255, 255, 0.45),
+                inset 0 -3px 6px rgba(0, 0, 0, 0.15)
               `
             }}
             onMouseLeave={(e) => {
               e.target.style.transform = 'scale(1)'
               e.target.style.boxShadow = `
-                0 8px 20px rgba(59, 130, 246, 0.4),
-                inset 0 2px 4px rgba(255, 255, 255, 0.3),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.1)
+                0 10px 25px rgba(37, 99, 235, 0.45),
+                inset 0 3px 6px rgba(255, 255, 255, 0.35),
+                inset 0 -3px 6px rgba(0, 0, 0, 0.15)
               `
             }}
           >
@@ -301,21 +298,23 @@ export default function FloatingButton({ menuItems, onItemClick }) {
           width: 64,
           height: 64,
           borderRadius: '50%',
-          background: isOpen 
-            ? 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)' 
-            : 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
+          background: isOpen
+            ? 'linear-gradient(145deg, #EF4444 0%, #B91C1C 100%)'
+            : 'linear-gradient(145deg, #DC2626 0%, #991B1B 100%)',
           color: 'white',
-          border: '3px solid rgba(255, 255, 255, 0.8)',
+          border: '3px solid rgba(255, 255, 255, 0.85)',
           cursor: 'grab',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '28px',
           fontWeight: 'bold',
+          position: 'relative',
+          zIndex: 3,
           boxShadow: `
-            0 10px 30px rgba(220, 38, 38, 0.5),
-            inset 0 3px 6px rgba(255, 255, 255, 0.4),
-            inset 0 -3px 6px rgba(0, 0, 0, 0.2)
+            0 12px 35px rgba(220, 38, 38, 0.55),
+            inset 0 4px 8px rgba(255, 255, 255, 0.4),
+            inset 0 -4px 8px rgba(0, 0, 0, 0.2)
           `,
           transition: 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.3s',
           transform: isOpen ? 'rotate(135deg) scale(1.1)' : 'rotate(0deg) scale(1)'
@@ -323,18 +322,18 @@ export default function FloatingButton({ menuItems, onItemClick }) {
         onMouseEnter={(e) => {
           if (!isOpen) {
             e.target.style.boxShadow = `
-              0 14px 40px rgba(220, 38, 38, 0.6),
-              inset 0 3px 6px rgba(255, 255, 255, 0.5),
-              inset 0 -3px 6px rgba(0, 0, 0, 0.2)
+              0 16px 45px rgba(220, 38, 38, 0.65),
+              inset 0 4px 8px rgba(255, 255, 255, 0.5),
+              inset 0 -4px 8px rgba(0, 0, 0, 0.2)
             `
           }
         }}
         onMouseLeave={(e) => {
           if (!isOpen) {
             e.target.style.boxShadow = `
-              0 10px 30px rgba(220, 38, 38, 0.5),
-              inset 0 3px 6px rgba(255, 255, 255, 0.4),
-              inset 0 -3px 6px rgba(0, 0, 0, 0.2)
+              0 12px 35px rgba(220, 38, 38, 0.55),
+              inset 0 4px 8px rgba(255, 255, 255, 0.4),
+              inset 0 -4px 8px rgba(0, 0, 0, 0.2)
             `
           }
         }}
@@ -343,35 +342,18 @@ export default function FloatingButton({ menuItems, onItemClick }) {
       </button>
 
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes drawLine {
-          0% {
-            strokeDasharray: '0, 1000';
-            opacity: 0;
-          }
-          50% {
-            opacity: 1;
-          }
-          100% {
-            strokeDasharray: '1000, 0';
-            opacity: 1;
-          }
-        }
         @keyframes bubblePop {
           0% {
             transform: scale(0);
             opacity: 0;
           }
-          50% {
-            transform: scale(1.3);
+          60% {
+            transform: scale(1.35);
             opacity: 1;
           }
           100% {
             transform: scale(1);
-            opacity: 0.8;
+            opacity: 0.85;
           }
         }
         @keyframes scaleIn {
@@ -380,7 +362,7 @@ export default function FloatingButton({ menuItems, onItemClick }) {
             opacity: 0;
           }
           70% {
-            transform: scale(1.1);
+            transform: scale(1.12);
             opacity: 1;
           }
           100% {
@@ -390,5 +372,38 @@ export default function FloatingButton({ menuItems, onItemClick }) {
         }
       `}</style>
     </div>
+  )
+
+  const backdropOverlay = isOpen && createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.25)',
+        backdropFilter: 'blur(5px)',
+        WebkitBackdropFilter: 'blur(5px)',
+        zIndex: 9998,
+        animation: 'fadeIn 0.25s ease-out'
+      }}
+      onClick={() => setIsOpen(false)}
+    >
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
+    </div>,
+    document.body
+  )
+
+  return (
+    <>
+      {buttonContent}
+      {backdropOverlay}
+    </>
   )
 }
