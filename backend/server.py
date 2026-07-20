@@ -563,9 +563,11 @@ async def get_cashflow_summary():
     print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
     project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
     project_transfer = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or '').lower() == 'transfer')
-    total_kasbon = sum(float(k.get('amount') or 0) for k in kasbon_docs)
+    kasbon_cash = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or 'cash').lower() == 'cash')
+    kasbon_transfer = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or '').lower() == 'transfer')
+    total_kasbon = kasbon_cash + kasbon_transfer
     total_income = manual_income + print_cash + print_transfer + project_cash + project_transfer
-    total_expense = manual_expense + total_kasbon
+    total_expense = manual_expense + kasbon_cash
     manual_balance = manual_income - manual_expense
     return {
         'total_income': total_income,
@@ -581,6 +583,8 @@ async def get_cashflow_summary():
         'project_transfer': project_transfer,
         'project_total': project_cash + project_transfer,
         'total_kasbon': total_kasbon,
+        'kasbon_cash': kasbon_cash,
+        'kasbon_transfer': kasbon_transfer,
     }
 
 @api.get('/cashflow')
@@ -664,14 +668,15 @@ async def create_kasbon(body: KasbonCreate):
            'notes': body.notes or '', 'settled': False,
            'date': now_str()[:10], 'created_at': now_str()}
     await db.kasbon.insert_one(doc)
-    
-    # Send notification to OWNER when kasbon is submitted
-    await send_notification_to_role(
-        role='OWNER',
-        title='Permintaan Kasbon Baru',
-        body=f'{emp.get("name", "Karyawan")} meminta kasbon Rp {body.amount:,}',
-        data={'type': 'kasbon_request', 'kasbon_id': doc['id']}
-    )
+
+    # Send notification to OWNER only when kasbon is via transfer
+    if doc.get('payment_method') == 'transfer':
+        await send_notification_to_role(
+            role='OWNER',
+            title='Permintaan Kasbon Transfer Baru',
+            body=f'{emp.get("name", "Karyawan")} meminta kasbon transfer Rp {body.amount:,}',
+            data={'type': 'kasbon_transfer_request', 'kasbon_id': doc['id']}
+        )
     
     return clean(doc)
 

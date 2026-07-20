@@ -538,27 +538,6 @@ export default function AdminPage() {
     finally { setEmpTxLoading(false) }
   }
 
-  // Laci kasir
-  const handleTaruhModal = () => {
-    const amount = prompt('Jumlah modal yang ditaruh (Rp):')
-    const ket = prompt('Keterangan:')
-    if (!amount || !ket) return
-    openCashDrawerOnly()
-    createCashflow({ type: 'modal_masuk', amount: parseFloat(amount), description: ket, payment_method: 'cash', date: new Date().toISOString().split('T')[0], handled_by: 'Admin' })
-      .then(() => { showToast('Modal dicatat. Laci terbuka.', 'success'); loadCashflow() })
-      .catch(e => showToast(e.message, 'error'))
-  }
-
-  const handleAmbilKas = () => {
-    const amount = prompt('Jumlah kas yang diambil (Rp):')
-    const ket = prompt('Keterangan:')
-    if (!amount || !ket) return
-    openCashDrawerOnly()
-    createCashflow({ type: 'kas_keluar', amount: parseFloat(amount), description: ket, payment_method: 'cash', date: new Date().toISOString().split('T')[0], handled_by: 'Admin' })
-      .then(() => { showToast('Kas tercatat. Laci terbuka.', 'success'); loadCashflow() })
-      .catch(e => showToast(e.message, 'error'))
-  }
-
   // Kalkulasi saldo laci (semua transaksi cash dari semua sumber)
   const saldoLaci = (() => {
     let balance = 0
@@ -594,9 +573,11 @@ export default function AdminPage() {
       }
     })
     
-    // Kasbon (always cash)
+    // Kasbon (only cash reduces drawer)
     advances.forEach(a => {
-      balance -= (a.amount || 0)
+      if (a.payment_method === 'cash' || !a.payment_method) {
+        balance -= (a.amount || 0)
+      }
     })
     
     return balance
@@ -1069,14 +1050,6 @@ export default function AdminPage() {
             <div className="bg-primary rounded-2xl p-4 text-white shadow">
               <p className="text-xs opacity-80">Uang Fisik Laci Kas (Audit)</p>
               <p className="text-2xl font-bold mt-0.5">{formatRupiah(saldoLaci)}</p>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <button onClick={handleTaruhModal} className="py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 active:scale-95 transition-all">
-                  + Taruh Modal
-                </button>
-                <button onClick={handleAmbilKas} className="py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 active:scale-95 transition-all">
-                  - Ambil Kas
-                </button>
-              </div>
             </div>
 
             {/* Margin per Division */}
