@@ -99,6 +99,19 @@ export default function PrintJobPage() {
       const currentQty = parseFloat(lainLainForm.quantity || 0)
       let newQty = num === 1000 ? currentQty * 1000 : currentQty * 10 + num
       setLainLainForm(f => ({ ...f, quantity: String(newQty) }))
+    } else if (isEditMode) {
+      // Handle edit mode fields
+      if (keypadField === 'quantity') {
+        const currentQty = parseFloat(editForm.quantity || 0)
+        let newQty = num === 1000 ? currentQty * 1000 : currentQty * 10 + num
+        setEditForm(f => ({ ...f, quantity: String(newQty) }))
+      } else if (keypadField === 'harga_normal' || keypadField === 'harga_diskon') {
+        const currentRaw = editForm[`${keypadField}_raw`] || ''
+        const currentNum = parseRupiahInput(currentRaw) || 0
+        let newNum = num === 1000 ? currentNum * 1000 : currentNum * 10 + num
+        const newRaw = formatRupiahInput(String(newNum))
+        setEditForm(f => ({ ...f, [`${keypadField}_raw`]: newRaw, [keypadField]: String(newNum) }))
+      }
     }
   }
 
@@ -138,6 +151,19 @@ export default function PrintJobPage() {
       const newNum = Math.floor(currentNum / 10)
       const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
       setForm(f => ({ ...f, customer_cash_raw: newRaw, customer_cash: String(newNum) }))
+    } else if (isEditMode) {
+      // Handle edit mode fields
+      if (keypadField === 'quantity') {
+        const currentQty = parseFloat(editForm.quantity || 0)
+        const newQty = Math.floor(currentQty / 10)
+        setEditForm(f => ({ ...f, quantity: String(newQty) }))
+      } else if (keypadField === 'harga_normal' || keypadField === 'harga_diskon') {
+        const currentRaw = editForm[`${keypadField}_raw`] || ''
+        const currentNum = parseRupiahInput(currentRaw) || 0
+        const newNum = Math.floor(currentNum / 10)
+        const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
+        setEditForm(f => ({ ...f, [`${keypadField}_raw`]: newRaw, [keypadField]: String(newNum) }))
+      }
     }
   }
 
@@ -161,6 +187,13 @@ export default function PrintJobPage() {
       setLainLainForm(f => ({ ...f, quantity: '' }))
     } else if (keypadField === 'customer_cash') {
       setForm(f => ({ ...f, customer_cash_raw: '', customer_cash: '' }))
+    } else if (isEditMode) {
+      // Handle edit mode fields
+      if (keypadField === 'quantity') {
+        setEditForm(f => ({ ...f, quantity: '' }))
+      } else if (keypadField === 'harga_normal' || keypadField === 'harga_diskon') {
+        setEditForm(f => ({ ...f, [`${keypadField}_raw`]: '', [keypadField]: '' }))
+      }
     }
   }
 
