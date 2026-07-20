@@ -128,7 +128,7 @@ export default function PrintJobPage() {
     } else if (keypadField.startsWith('harga_normal_') || keypadField.startsWith('harga_diskon_')) {
       const idx = parseInt(keypadField.split('_')[2])
       const field = keypadField.split('_')[1]
-      const currentRaw = form.materials[idx]?.[`${field}_raw`] || 'Rp 0'
+      const currentRaw = form.materials[idx]?.[`${field}_raw`] || ''
       const currentNum = parseRupiahInput(currentRaw) || 0
       const newNum = Math.floor(currentNum / 10)
       const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
