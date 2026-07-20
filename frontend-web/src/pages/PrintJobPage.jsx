@@ -126,15 +126,23 @@ export default function PrintJobPage() {
       const newMaterials = [...form.materials]
       newMaterials[idx] = { ...newMaterials[idx], quantity: String(newQty) }
       setForm(f => ({ ...f, materials: newMaterials }))
-    } else if (keypadField.startsWith('harga_normal_') || keypadField.startsWith('harga_diskon_')) {
+    } else if (keypadField.startsWith('harga_normal_')) {
       const idx = parseInt(keypadField.split('_')[2])
-      const field = keypadField.split('_')[1]
-      const currentRaw = form.materials[idx]?.[`${field}_raw`] || ''
+      const currentRaw = form.materials[idx]?.harga_normal_raw || ''
       const currentNum = parseRupiahInput(currentRaw) || 0
       const newNum = Math.floor(currentNum / 10)
       const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
       const newMaterials = [...form.materials]
-      newMaterials[idx] = { ...newMaterials[idx], [`${field}_raw`]: newRaw, [field]: String(newNum) }
+      newMaterials[idx] = { ...newMaterials[idx], harga_normal_raw: newRaw, harga_normal: String(newNum) }
+      setForm(f => ({ ...f, materials: newMaterials }))
+    } else if (keypadField.startsWith('harga_diskon_')) {
+      const idx = parseInt(keypadField.split('_')[2])
+      const currentRaw = form.materials[idx]?.harga_diskon_raw || ''
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      const newNum = Math.floor(currentNum / 10)
+      const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
+      const newMaterials = [...form.materials]
+      newMaterials[idx] = { ...newMaterials[idx], harga_diskon_raw: newRaw, harga_diskon: String(newNum) }
       setForm(f => ({ ...f, materials: newMaterials }))
     } else if (keypadField === 'lain_lain_harga') {
       const currentRaw = lainLainForm.harga_raw || ''
