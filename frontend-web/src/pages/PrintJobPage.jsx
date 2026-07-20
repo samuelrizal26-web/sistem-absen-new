@@ -132,6 +132,12 @@ export default function PrintJobPage() {
       const currentQty = parseFloat(lainLainForm.quantity || 0)
       const newQty = Math.floor(currentQty / 10)
       setLainLainForm(f => ({ ...f, quantity: String(newQty) }))
+    } else if (keypadField === 'customer_cash') {
+      const currentRaw = form.customer_cash_raw || ''
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      const newNum = Math.floor(currentNum / 10)
+      const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
+      setForm(f => ({ ...f, customer_cash_raw: newRaw, customer_cash: String(newNum) }))
     }
   }
 
@@ -153,6 +159,8 @@ export default function PrintJobPage() {
       setLainLainForm(f => ({ ...f, harga_raw: '', harga: '' }))
     } else if (keypadField === 'lain_lain_qty') {
       setLainLainForm(f => ({ ...f, quantity: '' }))
+    } else if (keypadField === 'customer_cash') {
+      setForm(f => ({ ...f, customer_cash_raw: '', customer_cash: '' }))
     }
   }
 
@@ -889,7 +897,7 @@ export default function PrintJobPage() {
 
       {/* Lain Lain Modal */}
       {showLainLainModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-5">
             <h3 className="text-lg font-bold text-gray-800 mb-4">Tambah Item Lain-Lain</h3>
             <div className="space-y-3">

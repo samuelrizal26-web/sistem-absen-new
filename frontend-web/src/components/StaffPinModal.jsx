@@ -40,7 +40,7 @@ export default function StaffPinModal({ title = 'Verifikasi Karyawan', onConfirm
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className={`bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8 transition-transform ${shake ? 'animate-shake' : ''}`}>
         <div className="text-center mb-5">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
