@@ -116,6 +116,7 @@ export default function PrintJobPage() {
   }
 
   const handleKeypadBackspace = () => {
+    console.log('Backspace button clicked, keypadField:', keypadField)
     if (!keypadField) return
 
     if (keypadField.startsWith('quantity_')) {
