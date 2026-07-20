@@ -452,10 +452,10 @@ export default function PrintJobPage() {
       {/* ── LIST VIEW ── */}
       {step === STEP.LIST && (
         <div className="flex-1 flex flex-col p-4 gap-4">
-          {/* Top 2-Column Layout */}
+          {/* 2-Column Layout */}
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Left Panel - Summary & Materials */}
-            <div className="w-full md:w-1/2 flex flex-col gap-4">
+            {/* Left Panel - Summary & Job List */}
+            <div className="w-full md:w-1/3 flex flex-col gap-4">
               {/* Summary Card */}
               {summary && (
                 <div className="bg-green-500 rounded-2xl p-4 text-white shadow">
@@ -480,25 +480,64 @@ export default function PrintJobPage() {
                 </div>
               )}
 
-              {/* Pendapatan Per Bahan */}
-              {pendapatanPerBahan.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                  <p className="text-sm font-semibold text-gray-600 mb-3">Pendapatan per Bahan</p>
-                  <div className="space-y-2">
-                    {pendapatanPerBahan.map(b => (
-                      <button key={b.name} onClick={() => setDetailBahan(b)}
-                        className="w-full bg-gray-50 rounded-xl p-3 text-left hover:bg-gray-100 active:scale-95 transition-all">
-                        <p className="text-xs text-gray-500 truncate">{b.name}</p>
-                        <p className="text-base font-bold text-primary mt-0.5">{formatRupiah(b.total)}</p>
-                      </button>
-                    ))}
+              {/* Job List - In Left Panel */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-gray-800 font-bold text-lg">Daftar Pekerjaan</h2>
+                  <div className="flex items-center gap-2">
+                    <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    {searchMonth && (
+                      <button onClick={() => setSearchMonth('')} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-500 text-xs">Reset</button>
+                    )}
                   </div>
                 </div>
-              )}
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                  </div>
+                ) : Object.keys(grouped).length === 0 ? (
+                  <p className="text-center text-gray-400 py-8">Belum ada pekerjaan.</p>
+                ) : (
+                  <div className="space-y-4 overflow-y-auto max-h-[50vh]">
+                    {Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, items]) => (
+                      <div key={month}>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                          {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                        </p>
+                        <div className="space-y-2">
+                          {items.map(j => (
+                            <div key={j.id} className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-center gap-2.5 border border-gray-100">
+                              <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17H7A2 2 0 015 15V9a2 2 0 012-2h10a2 2 0 012 2v6a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-800 text-xs truncate">{j.material} · {j.customer_name || '-'}</p>
+                                <p className="text-[10px] text-gray-400">{formatDate(j.date)} · {j.payment_method === 'cash' ? 'Cash' : 'Transfer'} · {j.quantity} pcs</p>
+                              </div>
+                              <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(j.total_price)}</p>
+                              <button onClick={() => handleDeleteJob(j.id)} className="text-red-400 hover:text-red-600 shrink-0">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Right Panel - Form */}
-            <div className="w-full md:w-1/2 flex flex-col">
+            {/* Right Panel - Form Only - 2/3 Width */}
+            <div className="w-full md:w-2/3 flex flex-col">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
                 <p className="text-sm font-semibold text-gray-600 mb-3">Tambah Pekerjaan Printing</p>
                 <div className="space-y-3">
@@ -686,8 +725,8 @@ export default function PrintJobPage() {
             </div>
           </div>
 
-          {/* Bottom - Full Width Job List */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          {/* Bottom - Full Width Job List - Hidden */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hidden">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-gray-800 font-bold text-lg">Daftar Pekerjaan</h2>
               <div className="flex items-center gap-2">
