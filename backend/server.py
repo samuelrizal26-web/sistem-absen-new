@@ -1040,14 +1040,13 @@ async def send_notification_to_role(role: str, title: str, body: str, data: dict
 
 @api.delete('/reset-database')
 async def reset_database():
-    """Hapus semua data dari semua collections untuk reset database"""
+    """Hapus semua data kecuali stock dan employees untuk reset database"""
     collections = [
-        'employees', 'stock', 'cashflow', 'kasbon', 'print_jobs',
-        'projects', 'jobs', 'work_tracking'
+        'cashflow', 'kasbon', 'print_jobs', 'projects', 'jobs', 'work_tracking'
     ]
     for collection_name in collections:
         await db[collection_name].delete_many({})
-    return {'message': 'Database berhasil di-reset. Semua data telah dihapus.'}
+    return {'message': 'Database berhasil di-reset. Data stok dan anggota dipertahankan.'}
 
 app.include_router(api)
 

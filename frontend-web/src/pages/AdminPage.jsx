@@ -1385,17 +1385,17 @@ export default function AdminPage() {
 
             <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
               <p className="font-bold text-red-600 mb-3">Reset Database</p>
-              <p className="text-xs text-gray-500 mb-3">Hapus semua data uji coba. Tindakan ini tidak dapat dibatalkan!</p>
+              <p className="text-xs text-gray-500 mb-3">Hapus data pekerjaan, cashflow, kasbon. Data stok dan anggota dipertahankan.</p>
               <button onClick={async () => {
-                if (!confirm('Apakah Anda yakin ingin menghapus SEMUA data? Tindakan ini tidak dapat dibatalkan!')) return
-                if (!confirm('Konfirmasi sekali lagi: Hapus semua data dari database?')) return
+                if (!confirm('Apakah Anda yakin ingin mereset database? Data pekerjaan, cashflow, dan kasbon akan dihapus. Data stok dan anggota dipertahankan.')) return
+                if (!confirm('Konfirmasi sekali lagi: Lanjutkan reset database?')) return
                 setResetLoading(true)
-                try { await resetDatabase(); showToast('Database berhasil di-reset. Semua data telah dihapus.', 'success') }
+                try { await resetDatabase(); showToast('Database berhasil di-reset. Data stok dan anggota dipertahankan.', 'success') }
                 catch (e) { showToast(e.message || 'Gagal reset database', 'error') }
                 finally { setResetLoading(false) }
               }} disabled={resetLoading}
                 className="w-full py-3 rounded-2xl border border-red-300 text-red-600 font-semibold hover:bg-red-50 disabled:opacity-40">
-                {resetLoading ? 'Menghapus data...' : 'Reset Database'}
+                {resetLoading ? 'Mereset data...' : 'Reset Database'}
               </button>
             </div>
           </div>
