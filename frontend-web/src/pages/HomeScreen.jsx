@@ -855,29 +855,39 @@ export default function HomeScreen() {
                   <div className="text-center py-8 text-gray-500">Belum ada stok</div>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {stockList.map((stock) => (
-                      <div
-                        key={stock.id}
-                        onClick={() => handleStockClick(stock)}
-                        className="p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 active:scale-98 transition-all"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-gray-800">{stock.name}</p>
-                            <p className="text-sm text-gray-600">
-                              {stock.quantity} {stock.unit}
-                            </p>
-                            {stock.harga_normal && (
-                              <p className="text-xs text-gray-500">
-                                Normal: {formatRupiah(stock.harga_normal)}
-                                {stock.harga_diskon && ` | Diskon: ${formatRupiah(stock.harga_diskon)}`}
+                    {stockList.map((stock) => {
+                      const isLowStock = stock.quantity <= 10 && stock.quantity > 1
+                      const isCriticalStock = stock.quantity <= 1
+                      return (
+                        <div
+                          key={stock.id}
+                          onClick={() => handleStockClick(stock)}
+                          className={`p-3 rounded-xl cursor-pointer hover:bg-gray-100 active:scale-98 transition-all ${
+                            isCriticalStock ? 'bg-red-100 border-2 border-red-300' :
+                            isLowStock ? 'bg-yellow-100 border-2 border-yellow-300' :
+                            'bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className={`font-semibold ${isCriticalStock ? 'text-red-800' : isLowStock ? 'text-yellow-800' : 'text-gray-800'}`}>
+                                {stock.name}
                               </p>
-                            )}
+                              <p className={`text-sm ${isCriticalStock ? 'text-red-600' : isLowStock ? 'text-yellow-600' : 'text-gray-600'}`}>
+                                {stock.quantity} {stock.unit}
+                              </p>
+                              {stock.harga_normal && (
+                                <p className="text-xs text-gray-500">
+                                  Normal: {formatRupiah(stock.harga_normal)}
+                                  {stock.harga_diskon && ` | Diskon: ${formatRupiah(stock.harga_diskon)}`}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-400">→</span>
                           </div>
-                          <span className="text-xs text-gray-400">→</span>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </>
