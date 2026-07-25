@@ -821,7 +821,7 @@ export default function HomeScreen() {
                 ) : stockList.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">Belum ada stok</div>
                 ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
                     {stockList.map((stock) => (
                       <div key={stock.id} className="p-3 bg-gray-50 rounded-xl">
                         <div className="flex justify-between items-start">
