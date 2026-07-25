@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, deleteJob, deleteProject, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, deleteJob, deleteProject, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu, getStock, createStock } from '../services/api'
 import { getInitials, formatRupiah, formatDate } from '../utils/format'
 import PinModal from '../components/PinModal'
 import JobFormModal from '../components/JobFormModal'
@@ -38,6 +38,17 @@ const NAV_BUTTONS = [
     label: 'Project',
     path: '/project',
     color: 'from-blue-500 to-blue-600',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Stok',
+    action: 'stok',
+    color: 'from-emerald-400 to-emerald-500',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -118,6 +129,14 @@ export default function HomeScreen() {
   const [editForm, setEditForm] = useState({ completed_qty: '' })
   const [isAdmin, setIsAdmin] = useState(false)
 
+  // Stock state
+  const [showStockModal, setShowStockModal] = useState(false)
+  const [stockList, setStockList] = useState([])
+  const [loadingStock, setLoadingStock] = useState(false)
+  const [showAddStockForm, setShowAddStockForm] = useState(false)
+  const [stockForm, setStockForm] = useState({ name: '', quantity: '', unit: 'pcs', harga_normal: '', harga_diskon: '' })
+  const [stockFormLoading, setStockFormLoading] = useState(false)
+
   const loadJobs = () => {
     setLoadingJobs(true)
     Promise.all([
@@ -136,6 +155,37 @@ export default function HomeScreen() {
     getWorkTracking()
       .then((data) => setWorkTracking(Array.isArray(data) ? data : []))
       .catch(() => showToast('Gagal memuat work tracking', 'error'))
+  }
+
+  const loadStock = () => {
+    setLoadingStock(true)
+    getStock()
+      .then((data) => setStockList(Array.isArray(data) ? data : []))
+      .catch(() => showToast('Gagal memuat daftar stok', 'error'))
+      .finally(() => setLoadingStock(false))
+  }
+
+  const handleAddStock = () => {
+    if (!stockForm.name || !stockForm.quantity) {
+      showToast('Nama stok dan jumlah wajib diisi', 'error')
+      return
+    }
+    setStockFormLoading(true)
+    createStock({
+      name: stockForm.name,
+      quantity: parseFloat(stockForm.quantity),
+      unit: stockForm.unit,
+      harga_normal: parseFloat(stockForm.harga_normal) || 0,
+      harga_diskon: stockForm.harga_diskon ? parseFloat(stockForm.harga_diskon) : null
+    })
+      .then(() => {
+        showToast('Stok berhasil ditambahkan', 'success')
+        setStockForm({ name: '', quantity: '', unit: 'pcs', harga_normal: '', harga_diskon: '' })
+        setShowAddStockForm(false)
+        loadStock()
+      })
+      .catch((e) => showToast(e.message || 'Gagal menambah stok', 'error'))
+      .finally(() => setStockFormLoading(false))
   }
 
   const handleCreateWorkItem = () => {
@@ -263,6 +313,10 @@ export default function HomeScreen() {
 
   const handleNavClick = (btn) => {
     if (btn.action === 'kasbon') setShowEmployeePicker(true)
+    else if (btn.action === 'stok') {
+      setShowStockModal(true)
+      loadStock()
+    }
     else if (btn.path) navigate(btn.path)
   }
 
@@ -740,6 +794,113 @@ export default function HomeScreen() {
                 Update Progress
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Modal */}
+      {showStockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 pb-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-bold text-gray-800 text-lg">Daftar Stok</p>
+              <button onClick={() => { setShowStockModal(false); setShowAddStockForm(false) }} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+            </div>
+
+            {!showAddStockForm ? (
+              <>
+                <button
+                  onClick={() => setShowAddStockForm(true)}
+                  className="w-full py-3 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all mb-4"
+                >
+                  + Tambah Stok
+                </button>
+
+                {loadingStock ? (
+                  <div className="text-center py-8 text-gray-500">Memuat...</div>
+                ) : stockList.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">Belum ada stok</div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {stockList.map((stock) => (
+                      <div key={stock.id} className="p-3 bg-gray-50 rounded-xl">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-semibold text-gray-800">{stock.name}</p>
+                            <p className="text-sm text-gray-600">
+                              {stock.quantity} {stock.unit}
+                            </p>
+                            {stock.harga_normal && (
+                              <p className="text-xs text-gray-500">
+                                Normal: {formatRupiah(stock.harga_normal)}
+                                {stock.harga_diskon && ` | Diskon: ${formatRupiah(stock.harga_diskon)}`}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowAddStockForm(false)}
+                  className="text-sm text-gray-600 hover:text-gray-800 mb-2"
+                >
+                  ← Kembali ke daftar
+                </button>
+                <input
+                  type="text"
+                  value={stockForm.name}
+                  onChange={e => setStockForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Nama Stok *"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={stockForm.quantity}
+                    onChange={e => setStockForm(f => ({ ...f, quantity: e.target.value }))}
+                    placeholder="Jumlah *"
+                    className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                  />
+                  <select
+                    value={stockForm.unit}
+                    onChange={e => setStockForm(f => ({ ...f, unit: e.target.value }))}
+                    className="px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                  >
+                    <option value="pcs">pcs</option>
+                    <option value="kg">kg</option>
+                    <option value="liter">liter</option>
+                    <option value="meter">meter</option>
+                    <option value="roll">roll</option>
+                  </select>
+                </div>
+                <input
+                  type="number"
+                  value={stockForm.harga_normal}
+                  onChange={e => setStockForm(f => ({ ...f, harga_normal: e.target.value }))}
+                  placeholder="Harga Normal (Opsional)"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                />
+                <input
+                  type="number"
+                  value={stockForm.harga_diskon}
+                  onChange={e => setStockForm(f => ({ ...f, harga_diskon: e.target.value }))}
+                  placeholder="Harga Diskon (Opsional)"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                />
+                <button
+                  onClick={handleAddStock}
+                  disabled={stockFormLoading}
+                  className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {stockFormLoading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
