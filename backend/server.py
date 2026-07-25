@@ -12,8 +12,16 @@ import os, uuid, bcrypt, asyncio
 try:
     from firebase_admin import credentials, messaging
     import firebase_admin
-    firebase_admin.initialize_app(credentials.Certificate('firebase-adminsdk.json'))
-    print('[INFO] Firebase Admin SDK initialized successfully')
+    # Try to initialize from environment variables or file
+    firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
+    if firebase_creds:
+        cred_dict = eval(firebase_creds)  # Parse JSON string from env
+        firebase_admin.initialize_app(credentials.Certificate(cred_dict))
+        print('[INFO] Firebase Admin SDK initialized from environment variables')
+    else:
+        # Fall back to file if env not set (for local development)
+        firebase_admin.initialize_app(credentials.Certificate('firebase-adminsdk.json'))
+        print('[INFO] Firebase Admin SDK initialized from file')
 except Exception as e:
     print(f'[WARNING] Firebase initialization failed: {e}')
     pass
