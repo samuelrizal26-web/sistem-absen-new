@@ -976,7 +976,7 @@ export default function HomeScreen() {
                 disabled={reduceLoading}
                 className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {reduceLoading ? 'Menyimpan...' : 'Simpan'}
+                {reduceLoading ? 'Memproses...' : 'AMBIL'}
               </button>
             </div>
           </div>
