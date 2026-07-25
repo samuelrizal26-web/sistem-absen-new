@@ -898,6 +898,22 @@ async def get_devices():
     devices = await db.devices.find({}, {'_id': 0}).to_list(None)
     return devices
 
+@api.get('/devices/debug/{device_id}')
+async def debug_device(device_id: str):
+    device = await db.devices.find_one({'device_id': device_id}, {'_id': 0})
+    if not device:
+        return {'error': 'Device not found'}
+    return {
+        'device_id': device.get('device_id'),
+        'device_name': device.get('device_name'),
+        'role': device.get('role'),
+        'fcm_token': device.get('fcm_token'),
+        'fcm_token_length': len(device.get('fcm_token', '')) if device.get('fcm_token') else 0,
+        'last_active': device.get('last_active'),
+        'created_at': device.get('created_at'),
+        'has_token': bool(device.get('fcm_token'))
+    }
+
 @api.put('/devices/{device_id}')
 async def update_device(device_id: str, body: DeviceUpdate):
     existing = await db.devices.find_one({'device_id': device_id})
