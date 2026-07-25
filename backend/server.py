@@ -886,7 +886,8 @@ async def delete_work_tracking(item_id: str):
 async def register_device(body: DeviceCreate):
     existing = await db.devices.find_one({'device_id': body.device_id})
     if existing:
-        await db.devices.update_one({'device_id': body.device_id}, {'$set': {'device_name': body.device_name, 'role': body.role, 'last_active': now_str()}})
+        # Preserve existing role, only update device_name and last_active
+        await db.devices.update_one({'device_id': body.device_id}, {'$set': {'device_name': body.device_name, 'last_active': now_str()}})
         return clean(await db.devices.find_one({'device_id': body.device_id}, {'_id': 0}))
     doc = {'id': new_id(), 'device_id': body.device_id, 'device_name': body.device_name, 'role': body.role, 'last_active': now_str(), 'created_at': now_str()}
     await db.devices.insert_one(doc)
