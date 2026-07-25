@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, deleteJob, deleteProject, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu, getStock, createStock } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, deleteJob, deleteProject, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu, getStock, createStock, updateStock } from '../services/api'
 import { getInitials, formatRupiah, formatDate } from '../utils/format'
 import PinModal from '../components/PinModal'
 import JobFormModal from '../components/JobFormModal'
@@ -136,6 +136,10 @@ export default function HomeScreen() {
   const [showAddStockForm, setShowAddStockForm] = useState(false)
   const [stockForm, setStockForm] = useState({ name: '', quantity: '', unit: 'pcs', harga_normal: '', harga_diskon: '' })
   const [stockFormLoading, setStockFormLoading] = useState(false)
+  const [showReduceStockModal, setShowReduceStockModal] = useState(false)
+  const [selectedStock, setSelectedStock] = useState(null)
+  const [reduceForm, setReduceForm] = useState({ quantity: '' })
+  const [reduceLoading, setReduceLoading] = useState(false)
 
   const loadJobs = () => {
     setLoadingJobs(true)
@@ -186,6 +190,35 @@ export default function HomeScreen() {
       })
       .catch((e) => showToast(e.message || 'Gagal menambah stok', 'error'))
       .finally(() => setStockFormLoading(false))
+  }
+
+  const handleStockClick = (stock) => {
+    setSelectedStock(stock)
+    setReduceForm({ quantity: '' })
+    setShowReduceStockModal(true)
+  }
+
+  const handleReduceStock = () => {
+    if (!reduceForm.quantity || parseFloat(reduceForm.quantity) <= 0) {
+      showToast('Jumlah pengambilan harus lebih dari 0', 'error')
+      return
+    }
+    const reduceQty = parseFloat(reduceForm.quantity)
+    if (reduceQty > selectedStock.quantity) {
+      showToast('Jumlah pengambilan melebihi stok tersedia', 'error')
+      return
+    }
+    setReduceLoading(true)
+    updateStock(selectedStock.id, { quantity: selectedStock.quantity - reduceQty })
+      .then(() => {
+        showToast('Stok berhasil dikurangi', 'success')
+        setShowReduceStockModal(false)
+        setSelectedStock(null)
+        setReduceForm({ quantity: '' })
+        loadStock()
+      })
+      .catch((e) => showToast(e.message || 'Gagal mengurangi stok', 'error'))
+      .finally(() => setReduceLoading(false))
   }
 
   const handleCreateWorkItem = () => {
@@ -823,7 +856,11 @@ export default function HomeScreen() {
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {stockList.map((stock) => (
-                      <div key={stock.id} className="p-3 bg-gray-50 rounded-xl">
+                      <div
+                        key={stock.id}
+                        onClick={() => handleStockClick(stock)}
+                        className="p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 active:scale-98 transition-all"
+                      >
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-semibold text-gray-800">{stock.name}</p>
@@ -837,6 +874,7 @@ export default function HomeScreen() {
                               </p>
                             )}
                           </div>
+                          <span className="text-xs text-gray-400">→</span>
                         </div>
                       </div>
                     ))}
@@ -901,6 +939,36 @@ export default function HomeScreen() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reduce Stock Modal */}
+      {showReduceStockModal && selectedStock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-bold text-gray-800">Ambil Stok</p>
+              <button onClick={() => { setShowReduceStockModal(false); setSelectedStock(null) }} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600 font-semibold">{selectedStock.name}</p>
+              <p className="text-xs text-gray-500">Tersedia: {selectedStock.quantity} {selectedStock.unit}</p>
+              <input
+                type="number"
+                value={reduceForm.quantity}
+                onChange={e => setReduceForm(f => ({ ...f, quantity: e.target.value }))}
+                placeholder="Jumlah diambil *"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              />
+              <button
+                onClick={handleReduceStock}
+                disabled={reduceLoading}
+                className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {reduceLoading ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
           </div>
         </div>
       )}
