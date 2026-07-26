@@ -3,7 +3,6 @@
   "appName": "LB.ADV",
   "webDir": "dist",
   "server": {
-    "url": "https://sistem-absen-new.samuelrizal26.workers.dev",
-    "cleartext": false
+    "url": "https://sistem-absen-new.samuelrizal26.workers.dev"
   }
 }

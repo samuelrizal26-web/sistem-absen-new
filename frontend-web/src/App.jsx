@@ -21,14 +21,28 @@ function AppContent() {
   useEffect(() => {
     const initFCMAndRegister = async () => {
       try {
+        console.log('[App] Starting FCM and device registration...')
+        console.log('[App] Is native platform:', Capacitor.isNativePlatform())
         const token = await initFCM()
-        if (token && Capacitor.isNativePlatform()) {
+        console.log('[App] FCM token received:', token ? 'YES' : 'NO')
+        if (token) {
           const info = await Device.getInfo()
-          const deviceId = info.uuid || info.deviceId
-          if (deviceId) {
-            await registerDevice({ device_id: deviceId, device_name: info.model, role: 'STORE_TABLET' })
-            await registerFCMTokenToBackend(deviceId, token)
+          // Generate or get device ID from localStorage
+          let deviceId = localStorage.getItem('device_id')
+          if (!deviceId) {
+            deviceId = crypto.randomUUID()
+            localStorage.setItem('device_id', deviceId)
           }
+          console.log('[App] Device ID:', deviceId)
+          console.log('[App] Device info:', JSON.stringify(info))
+          if (deviceId) {
+            await registerDevice({ device_id: deviceId, device_name: info.model, role: 'OWNER', fcm_token: token })
+            await registerFCMTokenToBackend(deviceId, token)
+          } else {
+            console.log('[App] No device ID, skipping registration')
+          }
+        } else {
+          console.log('[App] No FCM token received, skipping device registration')
         }
       } catch (error) {
         console.error('[App] FCM initialization error:', error)

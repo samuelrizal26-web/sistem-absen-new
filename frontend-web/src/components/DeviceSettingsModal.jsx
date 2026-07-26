@@ -176,6 +176,12 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
                           {ROLE_OPTIONS.find(r => r.value === device.role)?.label || device.role}
                         </span>
                       </div>
+                      <div className="mt-2">
+                        <p className="text-xs text-gray-500">FCM Token:</p>
+                        <p className={`text-xs font-mono ${device.fcm_token ? 'text-green-600' : 'text-red-500'}`}>
+                          {device.fcm_token ? 'Terdaftar ✓' : 'Tidak terdaftar ✗'}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button
