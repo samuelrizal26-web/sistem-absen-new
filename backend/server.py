@@ -241,6 +241,7 @@ class DeviceCreate(BaseModel):
     device_id: str
     device_name: Optional[str] = ''
     role: str = 'NONE'
+    fcm_token: Optional[str] = None
 
 class DeviceUpdate(BaseModel):
     device_name: Optional[str] = None
@@ -892,12 +893,35 @@ async def delete_work_tracking(item_id: str):
 # ── Device Management ───────────────────────────────────────────────────────────
 @api.post('/devices')
 async def register_device(body: DeviceCreate):
+    print(f'[REGISTER DEVICE] device_id={body.device_id}, device_name={body.device_name}, role={body.role}, fcm_token_present={bool(body.fcm_token)}')
+    # Check by device_id first
     existing = await db.devices.find_one({'device_id': body.device_id})
     if existing:
         # Preserve existing role, only update device_name and last_active
         await db.devices.update_one({'device_id': body.device_id}, {'$set': {'device_name': body.device_name, 'last_active': now_str()}})
         return clean(await db.devices.find_one({'device_id': body.device_id}, {'_id': 0}))
-    doc = {'id': new_id(), 'device_id': body.device_id, 'device_name': body.device_name, 'role': body.role, 'last_active': now_str(), 'created_at': now_str()}
+
+    # Deduplicate by fcm_token to avoid duplicate devices on app reinstall
+    if body.fcm_token:
+        existing_by_token = await db.devices.find_one({'fcm_token': body.fcm_token})
+        if existing_by_token:
+            # Update device_id and device_name, preserve role
+            await db.devices.update_one(
+                {'fcm_token': body.fcm_token},
+                {'$set': {'device_id': body.device_id, 'device_name': body.device_name, 'last_active': now_str()}}
+            )
+            return clean(await db.devices.find_one({'fcm_token': body.fcm_token}, {'_id': 0}))
+
+    # Deduplicate by device_name + role for same physical device reinstall
+    existing_by_name_role = await db.devices.find_one({'device_name': body.device_name, 'role': body.role})
+    if existing_by_name_role:
+        await db.devices.update_one(
+            {'device_name': body.device_name, 'role': body.role},
+            {'$set': {'device_id': body.device_id, 'fcm_token': body.fcm_token, 'last_active': now_str()}}
+        )
+        return clean(await db.devices.find_one({'device_name': body.device_name, 'role': body.role}, {'_id': 0}))
+
+    doc = {'id': new_id(), 'device_id': body.device_id, 'device_name': body.device_name, 'role': body.role, 'fcm_token': body.fcm_token, 'last_active': now_str(), 'created_at': now_str()}
     await db.devices.insert_one(doc)
     return clean(doc)
 
@@ -1042,11 +1066,14 @@ async def send_notification_to_role(role: str, title: str, body: str, data: dict
         if not devices:
             print(f'[NOTIFICATION] No devices found with role: {role}')
             return
-        
+
         # Send FCM notifications
         for device in devices:
             if device.get('fcm_token'):
                 try:
+                    # Use both notification and data payload
+                    # notification payload shows automatically when app is in background
+                    # data payload is handled by app when in foreground
                     message = messaging.Message(
                         notification=messaging.Notification(title=title, body=body),
                         data=data or {},
@@ -1058,7 +1085,7 @@ async def send_notification_to_role(role: str, title: str, body: str, data: dict
                     print(f'[NOTIFICATION ERROR] Failed to send to {device.get('device_name', device['device_id'])}: {e}')
             else:
                 print(f'[NOTIFICATION] Device {device.get('device_name', device['device_id'])} has no FCM token')
-        
+
         print(f'[NOTIFICATION] Sent to {len(devices)} devices with role {role}: {title} - {body}')
     except Exception as e:
         print(f'[NOTIFICATION ERROR] {e}')
