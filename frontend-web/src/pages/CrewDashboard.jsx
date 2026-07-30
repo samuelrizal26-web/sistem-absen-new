@@ -1,24 +1,48 @@
 import { useState } from 'react'
-import { createAdvance } from '../services/api'
+import { createAdvance, getAdvancesByEmployee } from '../services/api'
 import { formatRupiah, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
+const KASBON_LIMIT = 1500000
+
 export default function CrewDashboard({ employee, onClose }) {
   const { toast, showToast, clearToast } = useToast()
-  const [step, setStep] = useState('menu') // menu | method | form
+  const [step, setStep] = useState('menu') // menu | method | form | warning
   const [via, setVia] = useState('cash')
   const [amount, setAmount] = useState('')
   const [amountRaw, setAmountRaw] = useState('')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
+  const [currentTotal, setCurrentTotal] = useState(0)
 
   const parsedAmount = parseRupiahInput(amountRaw) || 0
 
   const handleSubmit = async () => {
     if (!parsedAmount) { showToast('Masukkan nominal kasbon', 'error'); return }
     setLoading(true)
+    try {
+      // Cek total kasbon saat ini
+      const advances = await getAdvancesByEmployee(employee.id)
+      const totalKasbon = (advances || []).reduce((sum, a) => sum + (a.amount || 0), 0)
+      const newTotal = totalKasbon + parsedAmount
+
+      if (newTotal >= KASBON_LIMIT) {
+        setCurrentTotal(newTotal)
+        setLoading(false)
+        setStep('warning')
+        return
+      }
+
+      await submitKasbon(totalKasbon)
+    } catch (e) {
+      showToast(e.message || 'Gagal mengecek kasbon', 'error')
+      setLoading(false)
+    }
+  }
+
+  const submitKasbon = async (totalKasbon) => {
     try {
       const noteText = note ? `${note} [via ${via}]` : `Kasbon via ${via}`
       // Trigger drawer immediately (still within user-gesture) before awaiting network call
@@ -39,6 +63,11 @@ export default function CrewDashboard({ employee, onClose }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleContinueAnyway = async () => {
+    setLoading(true)
+    await submitKasbon(currentTotal)
   }
 
   return (
@@ -139,6 +168,30 @@ export default function CrewDashboard({ employee, onClose }) {
               <button onClick={handleSubmit} disabled={!parsedAmount || loading}
                 className="flex-1 py-3 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark disabled:opacity-40 transition-all">
                 {loading ? 'Menyimpan...' : '▶ Ajukan'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Warning */}
+        {step === 'warning' && (
+          <div className="p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">⚠️</span>
+              </div>
+              <h3 className="font-bold text-gray-800 text-lg mb-2">KASBON KAMU SUDAH {formatRupiah(currentTotal)} LHO!!</h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                TAPI MASIH BISA KASBON LAGI KO, AMAAAN<br />
+                JANGAN BOROS BOROS, DI PAK BUAT YANG PENTING PENTING AJA,<br />
+                OKEEE, LOVE YOUUUU
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setStep('form')} className="flex-1 py-3 rounded-2xl border border-gray-200 text-gray-600 font-medium">← Kembali</button>
+              <button onClick={handleContinueAnyway} disabled={loading}
+                className="flex-1 py-3 rounded-2xl bg-amber-500 text-white font-bold hover:bg-amber-600 disabled:opacity-40 transition-all">
+                {loading ? 'Menyimpan...' : 'Lanjutkan Kasih'}
               </button>
             </div>
           </div>
