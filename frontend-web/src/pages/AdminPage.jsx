@@ -597,7 +597,7 @@ export default function AdminPage() {
   // Kalkulasi metrik cashflow baru
   const omzet = cfSummary?.total_income || 0
   const pengeluaran = cfSummary?.total_expense || 0
-  const totalGajiBulanan = employees.reduce((sum, emp) => sum + (emp.monthly_salary || 0), 0)
+  const totalGajiBulanan = employees.filter(emp => emp.status !== 'inactive').reduce((sum, emp) => sum + (emp.monthly_salary || 0), 0)
   const totalKasbon = advances.reduce((sum, a) => sum + (a.amount || 0), 0)
   const totalGajiDibayar = cashflows.filter(c => c.type === 'salary' || c.description?.toUpperCase().includes('GAJI')).reduce((sum, c) => sum + (c.amount || 0), 0)
   const sisaGajiHarusBayar = totalGajiBulanan - totalKasbon
