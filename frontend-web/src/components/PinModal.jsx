@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPin, loading = false, error = '' }) {
+export default function PinModal({ employeeName, employeePhoto, onConfirm, onCancel, onForgotPin, loading = false, error = '' }) {
   const [pin, setPin] = useState('')
   const [shake, setShake] = useState(false)
   const inputRef = useRef(null)
@@ -29,10 +29,14 @@ export default function PinModal({ employeeName, onConfirm, onCancel, onForgotPi
       <div className={`bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8 transition-transform ${shake ? 'animate-shake' : ''}`}>
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-            <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3 overflow-hidden">
+            {employeePhoto ? (
+              <img src={employeePhoto} alt={employeeName} className="w-full h-full object-cover" />
+            ) : (
+              <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            )}
           </div>
           <h2 className="text-lg font-bold text-gray-800">{employeeName}</h2>
           <p className="text-sm text-gray-500 mt-0.5">Masukkan PIN kamu</p>

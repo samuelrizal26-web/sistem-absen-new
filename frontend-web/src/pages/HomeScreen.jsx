@@ -634,6 +634,7 @@ export default function HomeScreen() {
       {step === 'pin' && selectedEmployee && (
         <PinModal
           employeeName={selectedEmployee.name}
+          employeePhoto={selectedEmployee.photo}
           onConfirm={handlePinConfirm}
           onCancel={closeModals}
           onForgotPin={handleForgotPin}
