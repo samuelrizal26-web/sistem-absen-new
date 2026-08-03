@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { getKasbonSummary, createKasbon } from '../services/api'
+import { getKasbonSummary, createKasbon, getKasbonByEmployee } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput, getInitials } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+
+const KASBON_LIMIT = 1500000
 
 export default function KasbonDashboard() {
   const navigate = useNavigate()
@@ -17,12 +19,13 @@ export default function KasbonDashboard() {
   const [loading, setLoading] = useState(true)
 
   // Ajukan kasbon flow
-  const [step, setStep] = useState(null) // null | 'method' | 'form'
+  const [step, setStep] = useState(null) // null | 'method' | 'form' | 'warning'
   const [via, setVia] = useState('cash')
   const [amountRaw, setAmountRaw] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [keypadField, setKeypadField] = useState(null) // 'amount' or null
+  const [currentTotal, setCurrentTotal] = useState(0)
 
   const parsedAmount = parseRupiahInput(amountRaw) || 0
 
@@ -57,6 +60,27 @@ export default function KasbonDashboard() {
     if (!parsedAmount) { showToast('Masukkan nominal kasbon', 'error'); return }
     setSaving(true)
     try {
+      // Cek total kasbon saat ini (hanya yang belum settled)
+      const kasbonList = await getKasbonByEmployee(employee.id, true)
+      const totalKasbon = (kasbonList || []).reduce((sum, k) => sum + (k.amount || 0), 0)
+      const newTotal = totalKasbon + parsedAmount
+
+      if (newTotal >= KASBON_LIMIT) {
+        setCurrentTotal(newTotal)
+        setSaving(false)
+        setStep('warning')
+        return
+      }
+
+      await submitKasbon()
+    } catch (e) {
+      showToast(e.message || 'Gagal mengecek kasbon', 'error')
+      setSaving(false)
+    }
+  }
+
+  const submitKasbon = async () => {
+    try {
       // Trigger drawer immediately (still within user-gesture) before awaiting network call
       if (via === 'cash') openCashDrawerOnly()
       await createKasbon({
@@ -77,6 +101,11 @@ export default function KasbonDashboard() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleContinueAnyway = async () => {
+    setSaving(true)
+    await submitKasbon()
   }
 
   const handleKeypadInput = (num) => {
@@ -269,6 +298,32 @@ export default function KasbonDashboard() {
               <button onClick={handleSubmit} disabled={!parsedAmount || saving}
                 className="flex-1 py-3 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark disabled:opacity-40 transition-all">
                 {saving ? 'Menyimpan...' : '▶ Ajukan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warning Modal */}
+      {step === 'warning' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">⚠️</span>
+              </div>
+              <h3 className="font-bold text-gray-800 text-lg mb-2">KASBON KAMU SUDAH {formatRupiah(currentTotal)} LHO!!</h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                TAPI MASIH BISA KASBON LAGI KO, AMAAAN<br />
+                JANGAN BOROS BOROS, DI PAK BUAT YANG PENTING PENTING AJA,<br />
+                OKEEE, LOVE YOUUUU
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setStep('form')} className="flex-1 py-3 rounded-2xl border border-gray-200 text-gray-600 font-medium">← Kembali</button>
+              <button onClick={handleContinueAnyway} disabled={saving}
+                className="flex-1 py-3 rounded-2xl bg-amber-500 text-white font-bold hover:bg-amber-600 disabled:opacity-40 transition-all">
+                {saving ? 'Menyimpan...' : 'Lanjutkan Kasih'}
               </button>
             </div>
           </div>
