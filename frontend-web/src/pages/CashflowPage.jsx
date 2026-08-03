@@ -79,7 +79,7 @@ export default function CashflowPage() {
 
   const handleKeypadInput = (num) => {
     if (!keypadField) return
-    const currentRaw = form.amount_raw || ''
+    const currentRaw = keypadField === 'customer_cash' ? (form.customer_cash || '') : (form.amount_raw || '')
     const currentNum = parseRupiahInput(currentRaw) || 0
     let newNum
     if (num === 1000) {
@@ -88,21 +88,33 @@ export default function CashflowPage() {
       newNum = currentNum * 10 + num
     }
     const newRaw = formatRupiahInput(String(newNum))
-    setForm(f => ({ ...f, amount_raw: newRaw, amount: String(newNum) }))
+    if (keypadField === 'customer_cash') {
+      setForm(f => ({ ...f, customer_cash: newRaw }))
+    } else {
+      setForm(f => ({ ...f, amount_raw: newRaw, amount: String(newNum) }))
+    }
   }
 
   const handleKeypadBackspace = () => {
     if (!keypadField) return
-    const currentRaw = form.amount_raw || ''
+    const currentRaw = keypadField === 'customer_cash' ? (form.customer_cash || '') : (form.amount_raw || '')
     const currentNum = parseRupiahInput(currentRaw) || 0
     const newNum = Math.floor(currentNum / 10)
     const newRaw = newNum > 0 ? formatRupiahInput(String(newNum)) : ''
-    setForm(f => ({ ...f, amount_raw: newRaw, amount: String(newNum) }))
+    if (keypadField === 'customer_cash') {
+      setForm(f => ({ ...f, customer_cash: newRaw }))
+    } else {
+      setForm(f => ({ ...f, amount_raw: newRaw, amount: String(newNum) }))
+    }
   }
 
   const handleKeypadClear = () => {
     if (!keypadField) return
-    setForm(f => ({ ...f, amount_raw: '', amount: '' }))
+    if (keypadField === 'customer_cash') {
+      setForm(f => ({ ...f, customer_cash: '' }))
+    } else {
+      setForm(f => ({ ...f, amount_raw: '', amount: '' }))
+    }
   }
 
   const handleFormSubmit = () => {
@@ -336,6 +348,30 @@ export default function CashflowPage() {
                     className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-lg font-semibold cursor-pointer" />
                 </div>
               </div>
+              {selectedType === TIPE.PEMASUKAN && form.payment_method === 'cash' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Uang Customer (Rp)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                      <input type="text" readOnly value={form.customer_cash}
+                        onClick={() => setKeypadField('customer_cash')}
+                        placeholder="0"
+                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 text-lg font-semibold cursor-pointer" />
+                    </div>
+                  </div>
+                  {form.customer_cash && form.amount && (
+                    <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-blue-700">Kembalian</span>
+                        <span className="text-lg font-bold text-blue-600">
+                          {formatRupiah(Math.max(0, parseRupiahInput(form.customer_cash) - parseRupiahInput(form.amount_raw)))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi *</label>
                 <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Keterangan transaksi..."
