@@ -23,8 +23,8 @@ export default function CrewDashboard({ employee, onClose }) {
     if (!parsedAmount) { showToast('Masukkan nominal kasbon', 'error'); return }
     setLoading(true)
     try {
-      // Cek total kasbon saat ini
-      const advances = await getAdvancesByEmployee(employee.id)
+      // Cek total kasbon saat ini (hanya yang belum settled)
+      const advances = await getAdvancesByEmployee(employee.id, true)
       const totalKasbon = (advances || []).reduce((sum, a) => sum + (a.amount || 0), 0)
       const newTotal = totalKasbon + parsedAmount
 
