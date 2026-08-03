@@ -413,6 +413,7 @@ export default function AdminPage() {
       setModalDenominations(Object.fromEntries(DENOMINATIONS.map(d => [d.value.toString(), 0])))
       setIsUpdatingModal(false)
       resetCfForm()
+      loadCashflow()
     } catch (e) {
       showToast(e.message || 'Gagal menyimpan modal', 'error')
     }
