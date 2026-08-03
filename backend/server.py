@@ -226,6 +226,9 @@ class AdminLogin(BaseModel):
 class IdentifyByPin(BaseModel):
     pin: str
 
+class CashDenominationCreate(BaseModel):
+    breakdown: Dict[str, int]  # {"100000": 5, "50000": 10, ...}
+
 class ResetPinByBirthdate(BaseModel):
     employee_id: str
     birthdate: str
@@ -662,6 +665,30 @@ async def delete_cashflow(cf_id: str):
     result = await db.cashflow.delete_one({'id': cf_id})
     if result.deleted_count == 0: raise HTTPException(status_code=404, detail='Cashflow tidak ditemukan')
     return {'message': 'Cashflow dihapus'}
+
+# ── Cash Denominations (Modal) ────────────────────────────────────────────────
+@api.post('/cash-denominations')
+async def create_cash_denomination(body: CashDenominationCreate):
+    # Calculate total from breakdown
+    total = 0
+    for denom, count in body.breakdown.items():
+        total += int(denom) * count
+
+    doc = {
+        'id': new_id(),
+        'breakdown': body.breakdown,
+        'total': total,
+        'created_at': now_str()
+    }
+    await db.cash_denominations.insert_one(doc)
+    return clean(doc)
+
+@api.get('/cash-denominations/latest')
+async def get_latest_cash_denomination():
+    doc = await db.cash_denominations.find_one({}, {'_id': 0}, sort=[('created_at', -1)])
+    if not doc:
+        return None
+    return doc
 
 # ── Kasbon ───────────────────────────────────────────────────────────────────
 @api.get('/kasbon')

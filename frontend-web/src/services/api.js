@@ -70,6 +70,12 @@ export const getKasbonByEmployee = (employeeId, activeOnly = false) =>
 export const settleKasbon = (employeeId) =>
   request(`/kasbon/settle/${employeeId}`, { method: 'POST' })
 
+// ─── Cash Denominations (Modal) ───────────────────────────────
+export const createCashDenomination = (data) =>
+  request('/cash-denominations', { method: 'POST', body: JSON.stringify(data) })
+export const getLatestCashDenomination = () =>
+  request('/cash-denominations/latest')
+
 // ─── Jobs (Pekerjaan) ─────────────────────────────────────────
 export const getJobs = (status = '') =>
   request(`/jobs${status ? `?status=${status}` : ''}`)
