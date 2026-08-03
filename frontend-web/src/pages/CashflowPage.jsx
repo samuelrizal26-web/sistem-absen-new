@@ -1,28 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow, createCashDenomination, getLatestCashDenomination } from '../services/api'
+import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
-const TIPE = { PEMASUKAN: 'income', PENGELUARAN: 'expense', MODAL: 'modal' }
+const TIPE = { PEMASUKAN: 'income', PENGELUARAN: 'expense' }
 const TAB = { CASH: 'cash', TRANSFER: 'transfer', PENGELUARAN: 'expense' }
-
-const DENOMINATIONS = [
-  { value: 100000, label: '100.000' },
-  { value: 50000, label: '50.000' },
-  { value: 20000, label: '20.000' },
-  { value: 10000, label: '10.000' },
-  { value: 5000, label: '5.000' },
-  { value: 2000, label: '2.000' },
-  { value: 1000, label: '1.000' },
-  { value: 500, label: '500', isCoin: true },
-  { value: 200, label: '200', isCoin: true },
-  { value: 100, label: '100', isCoin: true },
-  { value: 50, label: '50', isCoin: true },
-]
 
 export default function CashflowPage() {
   const navigate = useNavigate()
@@ -42,14 +28,6 @@ export default function CashflowPage() {
   const [pendingForm, setPendingForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [keypadField, setKeypadField] = useState(null) // 'amount' or null
-
-  // Modal denominations state
-  const [showModalInput, setShowModalInput] = useState(false)
-  const [showModalView, setShowModalView] = useState(false)
-  const [modalDenominations, setModalDenominations] = useState(
-    Object.fromEntries(DENOMINATIONS.map(d => [d.value.toString(), 0]))
-  )
-  const [latestModal, setLatestModal] = useState(null)
 
   const [form, setForm] = useState({
     amount: '',
@@ -95,38 +73,8 @@ export default function CashflowPage() {
   const handleTypeSelect = (type) => {
     setSelectedType(type)
     setShowTypePicker(false)
-    if (type === TIPE.MODAL) {
-      setShowModalInput(true)
-    } else {
-      setForm({ amount: '', amount_raw: '', payment_method: 'cash', customer_cash: '', description: '', notes: '' })
-      setShowForm(true)
-    }
-  }
-
-  const handleModalSubmit = async () => {
-    try {
-      const breakdown = modalDenominations
-      await createCashDenomination({ breakdown })
-      showToast('Modal berhasil disimpan', 'success')
-      setShowModalInput(false)
-      setModalDenominations(Object.fromEntries(DENOMINATIONS.map(d => [d.value.toString(), 0])))
-    } catch (e) {
-      showToast(e.message || 'Gagal menyimpan modal', 'error')
-    }
-  }
-
-  const handleViewModal = async () => {
-    try {
-      const modal = await getLatestCashDenomination()
-      if (modal) {
-        setLatestModal(modal)
-        setShowModalView(true)
-      } else {
-        showToast('Belum ada data modal', 'info')
-      }
-    } catch (e) {
-      showToast(e.message || 'Gagal memuat modal', 'error')
-    }
+    setForm({ amount: '', amount_raw: '', payment_method: 'cash', customer_cash: '', description: '', notes: '' })
+    setShowForm(true)
   }
 
   const handleKeypadInput = (num) => {
@@ -247,21 +195,13 @@ export default function CashflowPage() {
           </div>
 
           {/* Add Button */}
-          <div className="flex gap-2">
-            <button onClick={() => setShowTypePicker(true)}
-              className="flex-1 py-3.5 rounded-2xl bg-teal-500 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-teal-600 active:scale-95 transition-all">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Tambah Cashflow
-            </button>
-            <button onClick={handleViewModal}
-              className="py-3.5 px-4 rounded-2xl bg-amber-500 text-white font-semibold shadow hover:bg-amber-600 active:scale-95 transition-all">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-              </svg>
-            </button>
-          </div>
+          <button onClick={() => setShowTypePicker(true)}
+            className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-teal-600 active:scale-95 transition-all">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Tambah Cashflow
+          </button>
 
           {/* Tabs */}
           <div className="flex bg-gray-100 rounded-2xl p-1 gap-1">
@@ -351,18 +291,11 @@ export default function CashflowPage() {
                 Pemasukan
               </button>
               <button onClick={() => handleTypeSelect(TIPE.PENGELUARAN)}
-                className="flex flex-col items-center justify-center gap-2 py-6 rounded-2xl border-2 border-red-400 bg-red-50 text-red-500 font-bold hover:bg-red-100 active:scale-95 transition-all">
+                className="col-span-2 flex flex-col items-center justify-center gap-2 py-6 rounded-2xl border-2 border-red-400 bg-red-50 text-red-500 font-bold hover:bg-red-100 active:scale-95 transition-all">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
                 Pengeluaran
-              </button>
-              <button onClick={() => handleTypeSelect(TIPE.MODAL)}
-                className="col-span-2 flex flex-col items-center justify-center gap-2 py-6 rounded-2xl border-2 border-amber-400 bg-amber-50 text-amber-600 font-bold hover:bg-amber-100 active:scale-95 transition-all">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                </svg>
-                Taruh Modal
               </button>
             </div>
           </div>
@@ -429,115 +362,6 @@ export default function CashflowPage() {
 
       {showStaffPin && (
         <StaffPinModal title="Dicatat oleh siapa?" onConfirm={handleStaffConfirm} onCancel={() => { setShowStaffPin(false); setShowForm(true) }} />
-      )}
-
-      {/* Modal Input Denominations */}
-      {showModalInput && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="font-bold text-gray-800">Taruh Modal</h2>
-              <button onClick={() => setShowModalInput(false)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
-            </div>
-            <div className="space-y-3 mb-4">
-              {DENOMINATIONS.map(denom => (
-                <div key={denom.value} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">Rp {denom.label}</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const current = modalDenominations[denom.value.toString()] || 0
-                        if (current > 0) {
-                          setModalDenominations(prev => ({
-                            ...prev,
-                            [denom.value.toString()]: current - 1
-                          }))
-                        }
-                      }}
-                      className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 font-bold hover:bg-gray-200"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      value={modalDenominations[denom.value.toString()] || 0}
-                      onChange={e => {
-                        const val = parseInt(e.target.value) || 0
-                        setModalDenominations(prev => ({
-                          ...prev,
-                          [denom.value.toString()]: val
-                        }))
-                      }}
-                      className="w-16 text-center px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold"
-                    />
-                    <button
-                      onClick={() => {
-                        const current = modalDenominations[denom.value.toString()] || 0
-                        setModalDenominations(prev => ({
-                          ...prev,
-                          [denom.value.toString()]: current + 1
-                        }))
-                      }}
-                      className="w-8 h-8 rounded-lg bg-primary text-white font-bold hover:bg-primary-dark"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold text-gray-700">Total</span>
-                <span className="text-lg font-bold text-primary">
-                  {formatRupiah(DENOMINATIONS.reduce((sum, d) => {
-                    return sum + (d.value * (modalDenominations[d.value.toString()] || 0))
-                  }, 0))}
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowModalInput(false)} className="flex-1 py-3 rounded-2xl border border-gray-200 text-gray-600 font-medium">Batal</button>
-              <button onClick={handleModalSubmit} className="flex-1 py-3 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark">Simpan</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal View Denominations (Closing) */}
-      {showModalView && latestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="font-bold text-gray-800">Modal Awal</h2>
-              <button onClick={() => setShowModalView(false)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">
-              {formatDate(latestModal.created_at)}
-            </p>
-            <div className="space-y-2 mb-4">
-              {DENOMINATIONS.map(denom => {
-                const count = latestModal.breakdown[denom.value.toString()] || 0
-                if (count === 0) return null
-                return (
-                  <div key={denom.value} className="flex justify-between items-center">
-                    <span className="text-sm text-gray-700">Rp {denom.label}</span>
-                    <span className="text-sm font-semibold">{count} {denom.isCoin ? 'koin' : 'lembar'}</span>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold text-gray-700">Total</span>
-                <span className="text-lg font-bold text-primary">
-                  {formatRupiah(latestModal.total)}
-                </span>
-              </div>
-            </div>
-            <button onClick={() => setShowModalView(false)} className="w-full py-3 rounded-2xl bg-gray-100 text-gray-600 font-medium">Tutup</button>
-          </div>
-        </div>
       )}
 
       {/* Custom Numeric Keypad */}
