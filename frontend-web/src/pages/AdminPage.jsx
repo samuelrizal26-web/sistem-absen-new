@@ -620,7 +620,10 @@ export default function AdminPage() {
   // Kalkulasi saldo laci (semua transaksi cash dari semua sumber)
   const saldoLaci = (() => {
     let balance = 0
-    
+
+    // Modal (taruh modal awal)
+    balance += (cfSummary?.modal_total || 0)
+
     // Manual cashflow
     cashflows.forEach(c => {
       if (['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'cash') {
@@ -630,35 +633,35 @@ export default function AdminPage() {
         balance -= (c.amount || 0)
       }
     })
-    
+
     // Print Jobs (cash only)
     cfPrintJobs.forEach(j => {
       if (j.payment_method === 'cash') {
         balance += (j.total_price || 0)
       }
     })
-    
+
     // Projects (cash only)
     cfProjects.forEach(p => {
       if (p.payment_method === 'cash') {
         balance += (p.selling_price || p.total_project_value || 0)
       }
     })
-    
+
     // Jobs (cash only)
     cfJobs.forEach(j => {
       if (j.payment_method === 'cash') {
         balance += (j.total_price || 0)
       }
     })
-    
+
     // Kasbon (only cash reduces drawer)
     advances.forEach(a => {
       if (a.payment_method === 'cash' || !a.payment_method) {
         balance -= (a.amount || 0)
       }
     })
-    
+
     return balance
   })()
 
