@@ -405,7 +405,7 @@ export default function CashflowPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setKeypadField(null)}>
           <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-semibold text-gray-700">Jumlah (Rp)</span>
+              <span className="text-sm font-semibold text-gray-700">{keypadField === 'customer_cash' ? 'Uang Customer (Rp)' : 'Jumlah (Rp)'}</span>
               <button onClick={() => setKeypadField(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -415,7 +415,7 @@ export default function CashflowPage() {
             {/* Display current value */}
             <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
               <span className="text-xl font-bold text-gray-800">
-                {form.amount_raw || 'Rp 0'}
+                {keypadField === 'customer_cash' ? (form.customer_cash || 'Rp 0') : (form.amount_raw || 'Rp 0')}
               </span>
             </div>
             <div className="grid grid-cols-3 gap-2 mb-2">
