@@ -690,6 +690,28 @@ async def get_latest_cash_denomination():
         return None
     return doc
 
+@api.put('/cash-denominations/latest')
+async def update_latest_cash_denomination(body: CashDenominationCreate):
+    # Calculate total from breakdown
+    total = 0
+    for denom, count in body.breakdown.items():
+        total += int(denom) * count
+
+    # Get latest record
+    latest = await db.cash_denominations.find_one({}, sort=[('created_at', -1)])
+    if not latest:
+        raise HTTPException(status_code=404, detail='Belum ada data modal')
+
+    # Update it
+    update_data = {
+        'breakdown': body.breakdown,
+        'total': total,
+        'updated_at': now_str()
+    }
+    await db.cash_denominations.update_one({'id': latest['id']}, {'$set': update_data})
+    updated = await db.cash_denominations.find_one({'id': latest['id']}, {'_id': 0})
+    return clean(updated)
+
 # ── Kasbon ───────────────────────────────────────────────────────────────────
 @api.get('/kasbon')
 async def get_all_kasbon():

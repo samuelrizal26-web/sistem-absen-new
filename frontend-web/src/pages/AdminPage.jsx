@@ -9,7 +9,7 @@ import {
   getJobs, getArchivedJobs, getArchivedProjects,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
   getKasbonByEmployeePaginated, getPrintJobsByEmployeePaginated, getCashflowByEmployeePaginated,
-  resetDatabase, createCashDenomination, getLatestCashDenomination,
+  resetDatabase, createCashDenomination, getLatestCashDenomination, updateCashDenomination,
 } from '../services/api'
 import DeviceSettingsModal from '../components/DeviceSettingsModal'
 import FloatingMenuSettings from '../components/FloatingMenuSettings'
@@ -89,6 +89,7 @@ export default function AdminPage() {
   )
   const [showModalView, setShowModalView] = useState(false)
   const [latestModal, setLatestModal] = useState(null)
+  const [isUpdatingModal, setIsUpdatingModal] = useState(false)
   const [cfTab, setCfTab] = useState('semua')
   const [editCf, setEditCf] = useState(null)
   const [viewEmp, setViewEmp] = useState(null)
@@ -397,13 +398,20 @@ export default function AdminPage() {
     setCfForm({ type: 'income', amount: '', amount_raw: '', description: '', payment_method: 'cash', notes: '', employee_id: '' })
     setEditCf(null)
     setShowAddCf(false)
+    setIsUpdatingModal(false)
   }
 
   const handleModalSubmit = async () => {
     try {
-      await createCashDenomination({ breakdown: modalDenominations })
-      showToast('Modal berhasil disimpan', 'success')
+      if (isUpdatingModal) {
+        await updateCashDenomination({ breakdown: modalDenominations })
+        showToast('Modal berhasil diupdate', 'success')
+      } else {
+        await createCashDenomination({ breakdown: modalDenominations })
+        showToast('Modal berhasil disimpan', 'success')
+      }
       setModalDenominations(Object.fromEntries(DENOMINATIONS.map(d => [d.value.toString(), 0])))
+      setIsUpdatingModal(false)
       resetCfForm()
     } catch (e) {
       showToast(e.message || 'Gagal menyimpan modal', 'error')
@@ -418,6 +426,22 @@ export default function AdminPage() {
         setShowModalView(true)
       } else {
         showToast('Belum ada data modal', 'info')
+      }
+    } catch (e) {
+      showToast(e.message || 'Gagal memuat modal', 'error')
+    }
+  }
+
+  const handleLoadModalForUpdate = async () => {
+    try {
+      const modal = await getLatestCashDenomination()
+      if (modal) {
+        setModalDenominations(modal.breakdown)
+        setIsUpdatingModal(true)
+        setCfForm(f => ({ ...f, type: 'modal' }))
+        setShowAddCf(true)
+      } else {
+        showToast('Belum ada data modal untuk diupdate', 'info')
       }
     } catch (e) {
       showToast(e.message || 'Gagal memuat modal', 'error')
@@ -1184,8 +1208,14 @@ export default function AdminPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                 Tambah Cashflow
               </button>
+              <button onClick={handleLoadModalForUpdate}
+                className="py-3.5 px-3 rounded-2xl bg-blue-500 text-white font-semibold shadow hover:bg-blue-600 active:scale-95 transition-all">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
               <button onClick={handleViewModal}
-                className="py-3.5 px-4 rounded-2xl bg-amber-500 text-white font-semibold shadow hover:bg-amber-600 active:scale-95 transition-all">
+                className="py-3.5 px-3 rounded-2xl bg-amber-500 text-white font-semibold shadow hover:bg-amber-600 active:scale-95 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
                 </svg>
@@ -1993,7 +2023,9 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
             <div className="flex justify-between items-center mb-4">
-              <p className="font-bold text-gray-800">{editCf ? 'Edit Cashflow' : 'Tambah Cashflow'}</p>
+              <p className="font-bold text-gray-800">
+                {isUpdatingModal ? 'Update Modal' : editCf ? 'Edit Cashflow' : 'Tambah Cashflow'}
+              </p>
               <button onClick={resetCfForm} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
             </div>
             <div className="space-y-3">
@@ -2051,7 +2083,7 @@ export default function AdminPage() {
                   </div>
                   <button onClick={handleModalSubmit}
                     className="w-full py-3.5 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark">
-                    Simpan Modal
+                    {isUpdatingModal ? 'Update Modal' : 'Simpan Modal'}
                   </button>
                 </div>
               )}

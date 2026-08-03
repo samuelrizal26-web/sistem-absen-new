@@ -75,6 +75,8 @@ export const createCashDenomination = (data) =>
   request('/cash-denominations', { method: 'POST', body: JSON.stringify(data) })
 export const getLatestCashDenomination = () =>
   request('/cash-denominations/latest')
+export const updateCashDenomination = (data) =>
+  request('/cash-denominations/latest', { method: 'PUT', body: JSON.stringify(data) })
 
 // ─── Jobs (Pekerjaan) ─────────────────────────────────────────
 export const getJobs = (status = '') =>
