@@ -113,6 +113,7 @@ export const getDevicesByRole = (role) => request(`/devices/by-role/${role}`)
 // ─── Cashflow ─────────────────────────────────────────────────
 export const getCashflow = (params = '') => request(`/cashflow${params}`)
 export const getCashflowSummary = () => request('/cashflow/summary')
+export const getAdminCashflowSummary = () => request('/cashflow/admin-summary')
 export const createCashflow = (data) =>
   request('/cashflow', { method: 'POST', body: JSON.stringify(data) })
 export const updateCashflow = (id, data) =>

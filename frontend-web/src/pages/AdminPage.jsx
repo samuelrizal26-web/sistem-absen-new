@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core'
 import {
   getEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee,
   getStock, createStock, updateStock, deleteStock,
-  getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow,
+  getCashflow, getCashflowSummary, getAdminCashflowSummary, createCashflow, updateCashflow, deleteCashflow,
   getPrintJobs, getProjects, getAllAdvances, deleteAdvance, settleKasbon,
   getJobs, getArchivedJobs, getArchivedProjects,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
@@ -228,7 +228,7 @@ export default function AdminPage() {
     try {
       const [cf, cfs, pj, pr, jobs, adv] = await Promise.all([
         getCashflow(cfSearch ? `?month=${cfSearch}` : ''),
-        getCashflowSummary(),
+        getAdminCashflowSummary(),
         getPrintJobs(cfSearch ? `?month=${cfSearch}` : ''),
         getProjects(cfSearch ? `?month=${cfSearch}` : ''),
         getJobs(cfSearch ? `?month=${cfSearch}` : ''),
