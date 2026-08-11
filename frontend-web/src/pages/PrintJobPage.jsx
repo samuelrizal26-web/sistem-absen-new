@@ -904,8 +904,8 @@ export default function PrintJobPage() {
             <p className="font-bold text-gray-800 text-base">Ringkasan Pekerjaan</p>
             {[
               ['Tanggal', formatDate(savedJob.date)],
-              ['Material', savedJob.material],
-              ['Quantity', `${savedJob.quantity} pcs`],
+              ['Material', savedJob.materials?.map(m => m.name).join(', ') || '-'],
+              ['Quantity', `${savedJob.materials?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0} pcs`],
               ['Metode', savedJob.payment_method === 'cash' ? '💵 Cash' : '🏦 Transfer'],
             ].map(([l, v]) => (
               <div key={l} className="flex justify-between text-sm">
@@ -920,16 +920,20 @@ export default function PrintJobPage() {
               </div>
             )}
             <div className="border-t border-gray-100 pt-3 space-y-1.5">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Harga normal</span>
-                <span>{formatRupiah(savedJob.harga_normal)} × {savedJob.quantity}</span>
-              </div>
-              {savedJob.dapat_diskon && savedJob.diskon_nominal > 0 && (
-                <div className="flex justify-between text-sm text-green-600 font-medium">
-                  <span>🎉 Diskon (≥10 pcs)</span>
-                  <span>-{formatRupiah(savedJob.diskon_nominal)}</span>
+              {savedJob.materials?.map((m, idx) => (
+                <div key={idx} className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">{m.name}</span>
+                    <span>{formatRupiah(m.harga_normal)} × {m.quantity}</span>
+                  </div>
+                  {m.harga_diskon && m.quantity >= 10 && (
+                    <div className="flex justify-between text-xs text-green-600">
+                      <span>Diskon ≥10 pcs</span>
+                      <span>-{formatRupiah((m.harga_normal - m.harga_diskon) * m.quantity)}</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
               <div className="flex justify-between pt-1 border-t border-gray-100">
                 <span className="font-bold text-gray-700">Total Pekerjaan</span>
                 <span className="font-bold text-primary text-lg">{formatRupiah(savedJob.total_price)}</span>
