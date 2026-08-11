@@ -632,6 +632,7 @@ async def get_admin_cashflow_summary():
         db.cash_denominations.find_one({}, {'_id': 0}, sort=[('updated_at', -1)]),
     )
     modal_total = float(modal_doc.get('total') or 0) if modal_doc else 0
+    modal_updated_at = modal_doc.get('updated_at') if modal_doc else None
     manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
     manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
     print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
@@ -652,6 +653,7 @@ async def get_admin_cashflow_summary():
         'manual_expense': manual_expense,
         'manual_balance': manual_balance,
         'modal_total': modal_total,
+        'modal_updated_at': modal_updated_at,
         'print_job_cash': print_cash,
         'print_job_transfer': print_transfer,
         'print_job_total': print_cash + print_transfer,

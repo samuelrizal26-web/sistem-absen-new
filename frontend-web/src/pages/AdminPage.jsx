@@ -618,47 +618,58 @@ export default function AdminPage() {
     finally { setEmpTxLoading(false) }
   }
 
-  // Kalkulasi saldo laci (semua transaksi cash dari semua sumber)
+  // Kalkulasi saldo laci (modal + transaksi setelah update modal)
   const saldoLaci = (() => {
     let balance = 0
+    const modalUpdated = cfSummary?.modal_updated_at
 
-    // Modal (taruh modal awal)
+    // Modal (taruh modal awal - hasil audit fisik)
     balance += (cfSummary?.modal_total || 0)
 
-    // Manual cashflow
+    // Helper untuk cek apakah transaksi terjadi setelah modal di-update
+    const isAfterModalUpdate = (date) => {
+      if (!modalUpdated) return true
+      const transDate = new Date(date)
+      const modalDate = new Date(modalUpdated)
+      return transDate > modalDate
+    }
+
+    // Manual cashflow (hanya transaksi setelah modal update)
     cashflows.forEach(c => {
-      if (['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'cash') {
-        balance += (c.amount || 0)
-      }
-      if (['expense', 'kas_keluar'].includes(c.type)) {
-        balance -= (c.amount || 0)
+      if (c.date && isAfterModalUpdate(c.date)) {
+        if (['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'cash') {
+          balance += (c.amount || 0)
+        }
+        if (['expense', 'kas_keluar'].includes(c.type)) {
+          balance -= (c.amount || 0)
+        }
       }
     })
 
-    // Print Jobs (cash only)
+    // Print Jobs (cash only - hanya setelah modal update)
     cfPrintJobs.forEach(j => {
-      if (j.payment_method === 'cash') {
+      if (j.created_at && isAfterModalUpdate(j.created_at) && j.payment_method === 'cash') {
         balance += (j.total_price || 0)
       }
     })
 
-    // Projects (cash only)
+    // Projects (cash only - hanya setelah modal update)
     cfProjects.forEach(p => {
-      if (p.payment_method === 'cash') {
+      if (p.created_at && isAfterModalUpdate(p.created_at) && p.payment_method === 'cash') {
         balance += (p.selling_price || p.total_project_value || 0)
       }
     })
 
-    // Jobs (cash only)
+    // Jobs (cash only - hanya setelah modal update)
     cfJobs.forEach(j => {
-      if (j.payment_method === 'cash') {
+      if (j.created_at && isAfterModalUpdate(j.created_at) && j.payment_method === 'cash') {
         balance += (j.total_price || 0)
       }
     })
 
-    // Kasbon (only cash reduces drawer)
+    // Kasbon (only cash reduces drawer - hanya setelah modal update)
     advances.forEach(a => {
-      if (a.payment_method === 'cash' || !a.payment_method) {
+      if (a.date && isAfterModalUpdate(a.date) && (a.payment_method === 'cash' || !a.payment_method)) {
         balance -= (a.amount || 0)
       }
     })
