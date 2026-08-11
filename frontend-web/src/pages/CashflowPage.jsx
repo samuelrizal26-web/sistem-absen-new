@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow, getPreviousMonthSummary } from '../services/api'
-import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
+import { formatRupiah, formatDate, formatDateTime, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
 import Toast from '../components/Toast'
@@ -285,7 +285,7 @@ export default function CashflowPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-800 text-sm truncate">{item.description}</p>
-                            <p className="text-xs text-gray-400">{formatDate(item.date)} · {item.handled_by || '-'}</p>
+                            <p className="text-xs text-gray-400">{formatDateTime(item.created_at || item.date)} · {item.handled_by || '-'}</p>
                             {item.notes && <p className="text-xs text-gray-400 truncate">{item.notes}</p>}
                           </div>
                           <div className="text-right shrink-0">
