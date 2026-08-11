@@ -122,8 +122,9 @@ export const getDevicesByRole = (role) => request(`/devices/by-role/${role}`)
 // ─── Cashflow ─────────────────────────────────────────────────
 export const getCashflow = (params = '') => request(`/cashflow${params}`)
 export const getCashflowSummary = (query = '') => request(`/cashflow/summary${query}`)
-export const getAdminCashflowSummary = () => request('/cashflow/admin-summary')
+export const getAdminCashflowSummary = (query = '') => request(`/cashflow/admin-summary${query}`)
 export const getPreviousMonthSummary = () => request('/cashflow/previous-month-summary')
+export const getAdminPreviousMonthSummary = () => request('/cashflow/admin-previous-month-summary')
 export const createCashflow = (data) =>
   request('/cashflow', { method: 'POST', body: JSON.stringify(data) })
 export const updateCashflow = (id, data) =>

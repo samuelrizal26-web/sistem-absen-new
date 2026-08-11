@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core'
 import {
   getEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee,
   getStock, createStock, updateStock, deleteStock,
-  getCashflow, getCashflowSummary, getAdminCashflowSummary, createCashflow, updateCashflow, deleteCashflow,
+  getCashflow, getCashflowSummary, getAdminCashflowSummary, getAdminPreviousMonthSummary, createCashflow, updateCashflow, deleteCashflow,
   getPrintJobs, getProjects, getAllAdvances, deleteAdvance, settleKasbon,
   getJobs, getArchivedJobs, getArchivedProjects,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
@@ -75,6 +75,7 @@ export default function AdminPage() {
   // ── Cashflow state ──
   const [cashflows, setCashflows] = useState([])
   const [cfSummary, setCfSummary] = useState(null)
+  const [cfPrevMonthSummary, setCfPrevMonthSummary] = useState(null)
   const [cfPrintJobs, setCfPrintJobs] = useState([])
   const [cfProjects, setCfProjects] = useState([])
   const [cfJobs, setCfJobs] = useState([])
@@ -226,16 +227,20 @@ export default function AdminPage() {
   const loadCashflow = async () => {
     setCfLoading(true)
     try {
-      const [cf, cfs, pj, pr, jobs, adv] = await Promise.all([
+      const currentMonth = new Date().toISOString().slice(0, 7)
+      const displayMonth = cfSearch || currentMonth
+      const [cf, cfs, pj, pr, jobs, adv, prev] = await Promise.all([
         getCashflow(cfSearch ? `?month=${cfSearch}` : ''),
-        getAdminCashflowSummary(),
+        getAdminCashflowSummary(`?month=${displayMonth}`),
         getPrintJobs(cfSearch ? `?month=${cfSearch}` : ''),
         getProjects(cfSearch ? `?month=${cfSearch}` : ''),
         getJobs(cfSearch ? `?month=${cfSearch}` : ''),
         getAllAdvances(),
+        getAdminPreviousMonthSummary(),
       ])
       setCashflows(Array.isArray(cf) ? cf : [])
       setCfSummary(cfs)
+      setCfPrevMonthSummary(prev)
       setCfPrintJobs(Array.isArray(pj) ? pj : [])
       setCfProjects(Array.isArray(pr) ? pr : [])
       setCfJobs(Array.isArray(jobs) ? jobs : [])
@@ -1088,6 +1093,30 @@ export default function AdminPage() {
         <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
           {/* Left Panel - Controls & Stats */}
           <div className="w-full md:w-1/2 flex flex-col gap-4">
+            {/* Previous Month Summary */}
+            {cfPrevMonthSummary && (
+              <div className="bg-gray-100 rounded-2xl p-3 border border-gray-200">
+                <p className="text-xs font-semibold text-gray-500 mb-2">Ringkasan Bulan Lalu ({cfPrevMonthSummary.month})</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Omzet:</span>
+                    <span className="font-semibold text-green-600">{formatRupiah(cfPrevMonthSummary.total_income)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Pengeluaran:</span>
+                    <span className="font-semibold text-red-500">{formatRupiah(cfPrevMonthSummary.total_expense)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Laba Bersih:</span>
+                    <span className="font-semibold text-purple-600">{formatRupiah(cfPrevMonthSummary.balance)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Kasbon:</span>
+                    <span className="font-semibold text-orange-500">{formatRupiah(cfPrevMonthSummary.total_kasbon)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-green-500 rounded-2xl p-3 text-white shadow">

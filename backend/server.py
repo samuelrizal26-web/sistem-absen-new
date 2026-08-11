@@ -647,12 +647,13 @@ async def get_previous_month_summary():
     }
 
 @api.get('/cashflow/admin-summary')
-async def get_admin_cashflow_summary():
+async def get_admin_cashflow_summary(month: Optional[str] = None):
+    query = {'date': {'$regex': f'^{month}'}} if month else {}
     cashflow_docs, print_jobs, projects, kasbon_docs, modal_doc = await asyncio.gather(
-        db.cashflow.find({}, {'_id': 0}).to_list(None),
-        db.print_jobs.find({}, {'_id': 0}).to_list(None),
-        db.projects.find({}, {'_id': 0}).to_list(None),
-        db.kasbon.find({}, {'_id': 0}).to_list(None),
+        db.cashflow.find(query, {'_id': 0}).to_list(None),
+        db.print_jobs.find(query, {'_id': 0}).to_list(None),
+        db.projects.find(query, {'_id': 0}).to_list(None),
+        db.kasbon.find(query, {'_id': 0}).to_list(None),
         db.cash_denominations.find_one({}, {'_id': 0}, sort=[('updated_at', -1)]),
     )
     modal_total = float(modal_doc.get('total') or 0) if modal_doc else 0
@@ -687,6 +688,43 @@ async def get_admin_cashflow_summary():
         'total_kasbon': total_kasbon,
         'kasbon_cash': kasbon_cash,
         'kasbon_transfer': kasbon_transfer,
+    }
+
+@api.get('/cashflow/admin-previous-month-summary')
+async def get_admin_previous_month_summary():
+    from datetime import datetime
+    today = datetime.now()
+    if today.month == 1:
+        prev_month = 12
+        prev_year = today.year - 1
+    else:
+        prev_month = today.month - 1
+        prev_year = today.year
+    prev_month_str = f'{prev_year}-{prev_month:02d}'
+    query = {'date': {'$regex': f'^{prev_month_str}'}}
+    cashflow_docs, print_jobs, projects, kasbon_docs = await asyncio.gather(
+        db.cashflow.find(query, {'_id': 0}).to_list(None),
+        db.print_jobs.find(query, {'_id': 0}).to_list(None),
+        db.projects.find(query, {'_id': 0}).to_list(None),
+        db.kasbon.find(query, {'_id': 0}).to_list(None),
+    )
+    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
+    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
+    print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
+    print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
+    project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
+    project_transfer = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or '').lower() == 'transfer')
+    kasbon_cash = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or 'cash').lower() == 'cash')
+    kasbon_transfer = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or '').lower() == 'transfer')
+    total_kasbon = kasbon_cash + kasbon_transfer
+    total_income = manual_income + print_cash + print_transfer + project_cash + project_transfer
+    total_expense = manual_expense + kasbon_cash
+    return {
+        'month': prev_month_str,
+        'total_income': total_income,
+        'total_expense': total_expense,
+        'balance': total_income - total_expense,
+        'total_kasbon': total_kasbon,
     }
 
 @api.get('/cashflow')
