@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { getPrintJobsSummary, getPrintJobs, createPrintJob, updatePrintJob, deletePrintJob, getStock, getFloatingMenu } from '../services/api'
-import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
+import { formatRupiah, formatDate, formatDateTime, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { buildPrintJobReceipt, triggerBrowserPrint } from '../utils/rawbt'
 import { printReceiptNative } from '../utils/nativePrint'
 import StaffPinModal from '../components/StaffPinModal'
@@ -517,8 +517,9 @@ export default function PrintJobPage() {
                                 </svg>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-800 text-xs truncate">{j.material} · {j.customer_name || '-'}</p>
-                                <p className="text-[10px] text-gray-400">{formatDate(j.date)} · {j.payment_method === 'cash' ? 'Cash' : 'Transfer'} · {j.quantity} pcs</p>
+                                <p className="font-semibold text-gray-800 text-xs truncate">{j.customer_name || 'Tanpa Customer'}</p>
+                                <p className="text-[10px] text-gray-400">{formatDateTime(j.created_at || j.date)} · {j.payment_method === 'cash' ? 'Cash' : 'Transfer'}</p>
+                                <p className="text-[10px] text-gray-500 truncate">{j.materials?.map(m => `${m.name} (${m.quantity})`).join(', ') || j.material || '-'}</p>
                               </div>
                               <p className="font-bold text-gray-800 text-xs shrink-0">{formatRupiah(j.total_price)}</p>
                               <button onClick={() => handleDeleteJob(j.id)} className="text-red-400 hover:text-red-600 shrink-0">
