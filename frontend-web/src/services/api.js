@@ -78,6 +78,15 @@ export const getLatestCashDenomination = () =>
 export const updateCashDenomination = (data) =>
   request('/cash-denominations/latest', { method: 'PUT', body: JSON.stringify(data) })
 
+// ─── Stock ─────────────────────────────────────────────────────
+export const getStock = () => request('/stock')
+export const createStock = (data) =>
+  request('/stock', { method: 'POST', body: JSON.stringify(data) })
+export const updateStock = (id, data) =>
+  request(`/stock/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteStock = (id) =>
+  request(`/stock/${id}`, { method: 'DELETE' })
+
 // ─── Jobs (Pekerjaan) ─────────────────────────────────────────
 export const getJobs = (status = '') =>
   request(`/jobs${status ? `?status=${status}` : ''}`)
@@ -112,8 +121,9 @@ export const getDevicesByRole = (role) => request(`/devices/by-role/${role}`)
 
 // ─── Cashflow ─────────────────────────────────────────────────
 export const getCashflow = (params = '') => request(`/cashflow${params}`)
-export const getCashflowSummary = () => request('/cashflow/summary')
+export const getCashflowSummary = (query = '') => request(`/cashflow/summary${query}`)
 export const getAdminCashflowSummary = () => request('/cashflow/admin-summary')
+export const getPreviousMonthSummary = () => request('/cashflow/previous-month-summary')
 export const createCashflow = (data) =>
   request('/cashflow', { method: 'POST', body: JSON.stringify(data) })
 export const updateCashflow = (id, data) =>
@@ -139,20 +149,6 @@ export const updateProject = (id, data) =>
   request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteProject = (id) =>
   request(`/projects/${id}`, { method: 'DELETE' })
-
-// ─── Cashflow ───────────────────────────────────────────────────────
-export const getCashflow = (query = '') =>
-  request(`/cashflow${query}`)
-export const createCashflow = (data) =>
-  request('/cashflow', { method: 'POST', body: JSON.stringify(data) })
-export const updateCashflow = (id, data) =>
-  request(`/cashflow/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const deleteCashflow = (id) =>
-  request(`/cashflow/${id}`, { method: 'DELETE' })
-export const getCashflowSummary = (query = '') =>
-  request(`/cashflow/summary${query}`)
-export const getPreviousMonthSummary = () =>
-  request('/cashflow/previous-month-summary')
 
 // ─── Work Tracking ─────────────────────────────────────────────
 export const getWorkTracking = () => request('/work-tracking')
