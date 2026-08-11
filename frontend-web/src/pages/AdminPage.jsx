@@ -1093,47 +1093,43 @@ export default function AdminPage() {
         <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
           {/* Left Panel - Controls & Stats */}
           <div className="w-full md:w-1/2 flex flex-col gap-4">
-            {/* Previous Month Summary */}
-            {cfPrevMonthSummary && (
-              <div className="bg-gray-100 rounded-2xl p-3 border border-gray-200">
-                <p className="text-xs font-semibold text-gray-500 mb-2">Ringkasan Bulan Lalu ({cfPrevMonthSummary.month})</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Omzet:</span>
-                    <span className="font-semibold text-green-600">{formatRupiah(cfPrevMonthSummary.total_income)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Pengeluaran:</span>
-                    <span className="font-semibold text-red-500">{formatRupiah(cfPrevMonthSummary.total_expense)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Laba Bersih:</span>
-                    <span className="font-semibold text-purple-600">{formatRupiah(cfPrevMonthSummary.balance)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Kasbon:</span>
-                    <span className="font-semibold text-orange-500">{formatRupiah(cfPrevMonthSummary.total_kasbon)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-green-500 rounded-2xl p-3 text-white shadow">
                 <p className="text-xs opacity-80">OMZET</p>
-                <p className="text-sm font-bold mt-0.5">{formatRupiah(omzet)}</p>
+                <div className="flex justify-between items-end mt-1">
+                  {cfPrevMonthSummary && (
+                    <span className="text-[10px] opacity-60">Bln lalu: {formatRupiah(cfPrevMonthSummary.total_income)}</span>
+                  )}
+                  <p className="text-sm font-bold">{formatRupiah(omzet)}</p>
+                </div>
               </div>
               <div className="bg-red-500 rounded-2xl p-3 text-white shadow">
                 <p className="text-xs opacity-80">PENGELUARAN</p>
-                <p className="text-sm font-bold mt-0.5">{formatRupiah(pengeluaran)}</p>
+                <div className="flex justify-between items-end mt-1">
+                  {cfPrevMonthSummary && (
+                    <span className="text-[10px] opacity-60">Bln lalu: {formatRupiah(cfPrevMonthSummary.total_expense)}</span>
+                  )}
+                  <p className="text-sm font-bold">{formatRupiah(pengeluaran)}</p>
+                </div>
               </div>
               <div className="bg-orange-500 rounded-2xl p-3 text-white shadow">
                 <p className="text-xs opacity-80">KASBON</p>
-                <p className="text-sm font-bold mt-0.5">{formatRupiah(totalKasbon)}</p>
+                <div className="flex justify-between items-end mt-1">
+                  {cfPrevMonthSummary && (
+                    <span className="text-[10px] opacity-60">Bln lalu: {formatRupiah(cfPrevMonthSummary.total_kasbon)}</span>
+                  )}
+                  <p className="text-sm font-bold">{formatRupiah(totalKasbon)}</p>
+                </div>
               </div>
               <div className="bg-purple-500 rounded-2xl p-3 text-white shadow">
                 <p className="text-xs opacity-80">LABA BERSIH</p>
-                <p className="text-sm font-bold mt-0.5">{formatRupiah(labaBersih)}</p>
+                <div className="flex justify-between items-end mt-1">
+                  {cfPrevMonthSummary && (
+                    <span className="text-[10px] opacity-60">Bln lalu: {formatRupiah(cfPrevMonthSummary.balance)}</span>
+                  )}
+                  <p className="text-sm font-bold">{formatRupiah(labaBersih)}</p>
+                </div>
               </div>
             </div>
 
