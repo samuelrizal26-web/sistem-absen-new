@@ -585,12 +585,13 @@ async def delete_project(project_id: str):
 
 # ── Cashflow ─────────────────────────────────────────────────────────────────
 @api.get('/cashflow/summary')
-async def get_cashflow_summary():
+async def get_cashflow_summary(month: Optional[str] = None):
+    query = {'date': {'$regex': f'^{month}'}} if month else {}
     cashflow_docs, print_jobs, projects, kasbon_docs = await asyncio.gather(
-        db.cashflow.find({}, {'_id': 0}).to_list(None),
-        db.print_jobs.find({}, {'_id': 0}).to_list(None),
-        db.projects.find({}, {'_id': 0}).to_list(None),
-        db.kasbon.find({}, {'_id': 0}).to_list(None),
+        db.cashflow.find(query, {'_id': 0}).to_list(None),
+        db.print_jobs.find(query, {'_id': 0}).to_list(None),
+        db.projects.find(query, {'_id': 0}).to_list(None),
+        db.kasbon.find(query, {'_id': 0}).to_list(None),
     )
     manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
     manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
@@ -620,6 +621,29 @@ async def get_cashflow_summary():
         'total_kasbon': total_kasbon,
         'kasbon_cash': kasbon_cash,
         'kasbon_transfer': kasbon_transfer,
+    }
+
+@api.get('/cashflow/previous-month-summary')
+async def get_previous_month_summary():
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    if today.month == 1:
+        prev_month = 12
+        prev_year = today.year - 1
+    else:
+        prev_month = today.month - 1
+        prev_year = today.year
+    prev_month_str = f'{prev_year}-{prev_month:02d}'
+    query = {'date': {'$regex': f'^{prev_month_str}'}}
+    cashflow_docs = await db.cashflow.find(query, {'_id': 0}).to_list(None)
+    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
+    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
+    manual_balance = manual_income - manual_expense
+    return {
+        'month': prev_month_str,
+        'manual_income': manual_income,
+        'manual_expense': manual_expense,
+        'manual_balance': manual_balance,
     }
 
 @api.get('/cashflow/admin-summary')

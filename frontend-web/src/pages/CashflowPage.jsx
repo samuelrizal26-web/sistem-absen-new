@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow } from '../services/api'
+import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow, getPreviousMonthSummary } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
@@ -15,6 +15,7 @@ export default function CashflowPage() {
   const { toast, showToast, clearToast } = useToast()
 
   const [summary, setSummary] = useState(null)
+  const [prevMonthSummary, setPrevMonthSummary] = useState(null)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState(TAB.CASH)
@@ -41,12 +42,16 @@ export default function CashflowPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [s, d] = await Promise.all([
-        getCashflowSummary(),
+      const currentMonth = new Date().toISOString().slice(0, 7)
+      const displayMonth = searchMonth || currentMonth
+      const [s, d, prev] = await Promise.all([
+        getCashflowSummary(`?month=${displayMonth}`),
         getCashflow(searchMonth ? `?month=${searchMonth}` : ''),
+        getPreviousMonthSummary(),
       ])
       setSummary(s)
       setItems(Array.isArray(d) ? d : [])
+      setPrevMonthSummary(prev)
     } catch {
       showToast('Gagal memuat data', 'error')
     } finally {
@@ -185,6 +190,20 @@ export default function CashflowPage() {
       <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
         {/* Left Panel - Cards & Controls */}
         <div className="w-full md:w-1/2 flex flex-col gap-4">
+          {/* Previous Month Summary */}
+          {prevMonthSummary && (
+            <div className="bg-gray-100 rounded-2xl p-3 border border-gray-200">
+              <p className="text-xs font-semibold text-gray-500 mb-2">Ringkasan Bulan Lalu ({prevMonthSummary.month})</p>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600">Pemasukan:</span>
+                <span className="font-semibold text-green-600">{formatRupiah(prevMonthSummary.manual_income)}</span>
+              </div>
+              <div className="flex justify-between text-xs mt-1">
+                <span className="text-gray-600">Pengeluaran:</span>
+                <span className="font-semibold text-red-500">{formatRupiah(prevMonthSummary.manual_expense)}</span>
+              </div>
+            </div>
+          )}
           {/* Summary Cards */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-green-500 rounded-2xl p-4 text-white shadow">

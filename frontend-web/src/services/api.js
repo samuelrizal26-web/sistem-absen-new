@@ -140,14 +140,19 @@ export const updateProject = (id, data) =>
 export const deleteProject = (id) =>
   request(`/projects/${id}`, { method: 'DELETE' })
 
-// ─── Stock ────────────────────────────────────────────────────
-export const getStock = (params = '') => request(`/stock${params}`)
-export const createStock = (data) =>
-  request('/stock', { method: 'POST', body: JSON.stringify(data) })
-export const updateStock = (id, data) =>
-  request(`/stock/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const deleteStock = (id) =>
-  request(`/stock/${id}`, { method: 'DELETE' })
+// ─── Cashflow ───────────────────────────────────────────────────────
+export const getCashflow = (query = '') =>
+  request(`/cashflow${query}`)
+export const createCashflow = (data) =>
+  request('/cashflow', { method: 'POST', body: JSON.stringify(data) })
+export const updateCashflow = (id, data) =>
+  request(`/cashflow/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteCashflow = (id) =>
+  request(`/cashflow/${id}`, { method: 'DELETE' })
+export const getCashflowSummary = (query = '') =>
+  request(`/cashflow/summary${query}`)
+export const getPreviousMonthSummary = () =>
+  request('/cashflow/previous-month-summary')
 
 // ─── Work Tracking ─────────────────────────────────────────────
 export const getWorkTracking = () => request('/work-tracking')
