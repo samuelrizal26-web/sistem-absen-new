@@ -629,7 +629,7 @@ async def get_admin_cashflow_summary():
         db.print_jobs.find({}, {'_id': 0}).to_list(None),
         db.projects.find({}, {'_id': 0}).to_list(None),
         db.kasbon.find({}, {'_id': 0}).to_list(None),
-        db.cash_denominations.find_one({}, {'_id': 0}, sort=[('created_at', -1)]),
+        db.cash_denominations.find_one({}, {'_id': 0}, sort=[('updated_at', -1)]),
     )
     modal_total = float(modal_doc.get('total') or 0) if modal_doc else 0
     manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
