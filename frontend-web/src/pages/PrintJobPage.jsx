@@ -455,7 +455,7 @@ export default function PrintJobPage() {
           {/* 2-Column Layout */}
           <div className="flex flex-col md:flex-row gap-4">
             {/* Left Panel - Summary & Job List */}
-            <div className="w-full md:w-1/3 flex flex-col gap-4">
+            <div className="w-full md:w-1/2 flex flex-col gap-4">
               {/* Summary Card */}
               {summary && (
                 <div className="bg-green-500 rounded-2xl p-4 text-white shadow">
@@ -536,8 +536,8 @@ export default function PrintJobPage() {
               </div>
             </div>
 
-            {/* Right Panel - Form Only - 2/3 Width */}
-            <div className="w-full md:w-2/3 flex flex-col">
+            {/* Right Panel - Form Only - 1/2 Width */}
+            <div className="w-full md:w-1/2 flex flex-col">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
                 <p className="text-sm font-semibold text-gray-600 mb-3">Tambah Pekerjaan Printing</p>
                 <div className="space-y-3">
