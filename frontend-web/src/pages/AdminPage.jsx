@@ -13,7 +13,7 @@ import {
 } from '../services/api'
 import DeviceSettingsModal from '../components/DeviceSettingsModal'
 import FloatingMenuSettings from '../components/FloatingMenuSettings'
-import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
+import { formatRupiah, formatDate, formatDateTime, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import { initNotifications, showNotification } from '../utils/notifications'
 import BluetoothPrinter from '../plugins/bluetoothPrinter'
@@ -639,9 +639,9 @@ export default function AdminPage() {
       return transDate > modalDate
     }
 
-    // Manual cashflow (hanya transaksi setelah modal update)
+    // Manual cashflow (hanya transaksi setelah modal update - gunakan created_at)
     cashflows.forEach(c => {
-      if (c.date && isAfterModalUpdate(c.date)) {
+      if (c.created_at && isAfterModalUpdate(c.created_at)) {
         if (['income', 'modal_masuk'].includes(c.type) && c.payment_method === 'cash') {
           balance += (c.amount || 0)
         }
@@ -672,9 +672,9 @@ export default function AdminPage() {
       }
     })
 
-    // Kasbon (only cash reduces drawer - hanya setelah modal update)
+    // Kasbon (only cash reduces drawer - hanya setelah modal update - gunakan created_at)
     advances.forEach(a => {
-      if (a.date && isAfterModalUpdate(a.date) && (a.payment_method === 'cash' || !a.payment_method)) {
+      if (a.created_at && isAfterModalUpdate(a.created_at) && (a.payment_method === 'cash' || !a.payment_method)) {
         balance -= (a.amount || 0)
       }
     })
@@ -1303,7 +1303,7 @@ export default function AdminPage() {
                                 <p className="font-semibold text-gray-800 text-xs truncate">{item.description}</p>
                                 <span className={`text-[9px] px-1 py-0.5 rounded font-semibold shrink-0 ${srcColor}`}>{srcLabel}</span>
                               </div>
-                              <p className="text-[10px] text-gray-400">{formatDate(item.date)} · {item.payment_method === 'cash' ? 'Cash' : 'Transfer'} · Oleh: {item.handled_by || item.cashier || '-'}{item.employee_id ? ` · ${employees.find(e => e.id === item.employee_id)?.name || '-'}` : ''}</p>
+                              <p className="text-[10px] text-gray-400">{formatDateTime(item.created_at || item.date)} · {item.payment_method === 'cash' ? 'Cash' : 'Transfer'} · Oleh: {item.handled_by || item.cashier || '-'}{item.employee_id ? ` · ${employees.find(e => e.id === item.employee_id)?.name || '-'}` : ''}</p>
                             </div>
                             <p className={`font-bold text-xs shrink-0 ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
                               {isIncome ? '+' : '-'}{formatRupiah(item.amount)}
