@@ -743,10 +743,11 @@ async def update_latest_cash_denomination(body: CashDenominationCreate):
     if not latest:
         raise HTTPException(status_code=404, detail='Belum ada data modal')
 
-    # Update it
+    # Update it (also update created_at to ensure it remains the latest)
     update_data = {
         'breakdown': body.breakdown,
         'total': total,
+        'created_at': now_str(),
         'updated_at': now_str()
     }
     await db.cash_denominations.update_one({'id': latest['id']}, {'$set': update_data})
