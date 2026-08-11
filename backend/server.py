@@ -435,24 +435,42 @@ async def get_print_jobs(month: Optional[str] = None):
     docs = await db.print_jobs.find(query, {'_id': 0}).sort('date', -1).to_list(None)
     result = []
     for d in docs:
-        result.append({
-            'id': str(d.get('id') or ''),
-            'date': str(d.get('date') or ''),
-            'material': str(d.get('material') or ''),
-            'payment_method': str(d.get('payment_method') or 'cash'),
-            'quantity': float(d.get('quantity') or 0),
-            'harga_normal': float(d.get('harga_normal') or d.get('price') or d.get('price_per_unit') or 0),
-            'harga_diskon': d.get('harga_diskon'),
-            'dapat_diskon': bool(d.get('dapat_diskon') or False),
-            'diskon_nominal': float(d.get('diskon_nominal') or 0),
-            'price_per_unit': float(d.get('price_per_unit') or d.get('price') or 0),
-            'total_price': float(d.get('total_price') or d.get('price') or 0),
-            'customer_name': str(d.get('customer_name') or ''),
-            'notes': str(d.get('notes') or ''),
-            'cashier': str(d.get('cashier') or ''),
-            'cashier_id': str(d.get('cashier_id') or ''),
-            'created_at': str(d.get('created_at') or ''),
-        })
+        # Check if data has new materials array structure
+        materials = d.get('materials')
+        if materials and isinstance(materials, list):
+            # New structure with materials array
+            result.append({
+                'id': str(d.get('id') or ''),
+                'date': str(d.get('date') or ''),
+                'materials': materials,
+                'payment_method': str(d.get('payment_method') or 'cash'),
+                'total_price': float(d.get('total_price') or 0),
+                'customer_name': str(d.get('customer_name') or ''),
+                'notes': str(d.get('notes') or ''),
+                'cashier': str(d.get('cashier') or ''),
+                'cashier_id': str(d.get('cashier_id') or ''),
+                'created_at': str(d.get('created_at') or ''),
+            })
+        else:
+            # Old structure - convert to new format
+            result.append({
+                'id': str(d.get('id') or ''),
+                'date': str(d.get('date') or ''),
+                'materials': [{
+                    'name': str(d.get('material') or ''),
+                    'quantity': float(d.get('quantity') or 0),
+                    'harga_normal': float(d.get('price_per_unit') or d.get('price') or 0),
+                    'harga_diskon': None,
+                    'unit': 'pcs'
+                }],
+                'payment_method': str(d.get('payment_method') or 'cash'),
+                'total_price': float(d.get('total_price') or d.get('price') or 0),
+                'customer_name': str(d.get('customer_name') or ''),
+                'notes': str(d.get('notes') or ''),
+                'cashier': str(d.get('cashier') or ''),
+                'cashier_id': str(d.get('cashier_id') or ''),
+                'created_at': str(d.get('created_at') or ''),
+            })
     return result
 
 @api.get('/print-jobs/{job_id}')
