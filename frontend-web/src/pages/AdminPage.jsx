@@ -107,6 +107,7 @@ export default function AdminPage() {
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [viewEmployeeDetails, setViewEmployeeDetails] = useState(null)
   const [empSalaryCalc, setEmpSalaryCalc] = useState(null)
+  const [payConfirmOpen, setPayConfirmOpen] = useState(false)
 
   // Employee Transactions pagination state
   const [empTxPage, setEmpTxPage] = useState(1)
@@ -325,17 +326,19 @@ export default function AdminPage() {
     } catch (e) { showToast(e.message || 'Gagal membayar gaji', 'error') }
   }
 
-  const handlePaySalarySelected = async () => {
+  const handleConfirmPaySalary = async () => {
     if (!selectedEmployee || !empSalaryCalc) return
-    const netText = empSalaryCalc.net_salary > 0 ? `Gaji bersih: ${formatRupiah(empSalaryCalc.net_salary)}` : 'Gaji tidak cukup untuk dibayar (semua dipotong kasbon)'
-    if (!window.confirm(`Bayar gaji ${selectedEmployee.name}?\nGaji bulanan: ${formatRupiah(empSalaryCalc.monthly_salary)}\nKasbon aktif: ${formatRupiah(empSalaryCalc.total_kasbon)}\nPotongan kasbon: ${formatRupiah(empSalaryCalc.deduction)}\n${netText}\nSisa kasbon: ${formatRupiah(empSalaryCalc.kasbon_belum_lunas)}\nLanjutkan?`)) return
     try {
       const res = await paySalary(selectedEmployee.id)
+      setPayConfirmOpen(false)
       showToast(`Gaji ${selectedEmployee.name} berhasil dicatat. Kasbon dilunasi ${formatRupiah(res.deduction)}.`, 'success')
       await loadCashflow()
       await loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, 'kasbon')
       await loadSalaryCalc(selectedEmployee.id)
-    } catch (e) { showToast(e.message || 'Gagal membayar gaji', 'error') }
+    } catch (e) {
+      setPayConfirmOpen(false)
+      showToast(e.message || 'Gagal membayar gaji', 'error')
+    }
   }
 
   const handleDeleteEmployee = async (id) => {
@@ -1879,7 +1882,7 @@ export default function AdminPage() {
                       <span className="font-bold text-red-600">{formatRupiah(empSalaryCalc.kasbon_belum_lunas)}</span>
                     </div>
                   </div>
-                  <button onClick={handlePaySalarySelected}
+                  <button onClick={() => setPayConfirmOpen(true)}
                     className="w-full mt-4 py-3 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 active:scale-95 flex items-center justify-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Bayar Gaji
@@ -1949,6 +1952,48 @@ export default function AdminPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {payConfirmOpen && selectedEmployee && empSalaryCalc && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setPayConfirmOpen(false)}>
+          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Bayar gaji {selectedEmployee.name}?</h3>
+            <div className="space-y-2 text-sm mb-6">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Gaji Bulanan</span>
+                <span className="font-semibold">{formatRupiah(empSalaryCalc.monthly_salary)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Kasbon Aktif</span>
+                <span className="font-semibold text-red-500">{formatRupiah(empSalaryCalc.total_kasbon)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Potongan Kasbon</span>
+                <span className="font-semibold text-red-500">-{formatRupiah(empSalaryCalc.deduction)}</span>
+              </div>
+              {empSalaryCalc.net_salary > 0 ? (
+                <div className="flex justify-between pt-2 border-t border-gray-100">
+                  <span className="text-gray-600 font-semibold">Gaji Bersih Dibayar</span>
+                  <span className="font-bold text-green-600">{formatRupiah(empSalaryCalc.net_salary)}</span>
+                </div>
+              ) : (
+                <p className="text-xs text-red-500 pt-2 border-t border-gray-100">Gaji tidak cukup untuk dibayar (semua dipotong kasbon)</p>
+              )}
+              <div className="flex justify-between pt-2 border-t border-gray-100">
+                <span className="text-gray-600 font-semibold">Kasbon Belum Lunas</span>
+                <span className="font-bold text-red-600">{formatRupiah(empSalaryCalc.kasbon_belum_lunas)}</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setPayConfirmOpen(false)} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200">
+                Batal
+              </button>
+              <button onClick={handleConfirmPaySalary} className="flex-1 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600">
+                Bayar Gaji
+              </button>
             </div>
           </div>
         </div>
