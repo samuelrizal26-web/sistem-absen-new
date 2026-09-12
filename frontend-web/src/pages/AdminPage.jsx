@@ -106,18 +106,20 @@ export default function AdminPage() {
   const [empTxCashflows, setEmpTxCashflows] = useState([])
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [viewEmployeeDetails, setViewEmployeeDetails] = useState(null)
+  const [empSalaryCalc, setEmpSalaryCalc] = useState(null)
 
   // Employee Transactions pagination state
   const [empTxPage, setEmpTxPage] = useState(1)
   const [empTxType, setEmpTxType] = useState('all') // 'all', 'print_jobs', 'cashflow', 'kasbon'
   const [empTxData, setEmpTxData] = useState({ items: [], total: 0, page: 1, limit: 50, total_pages: 0 })
 
-  // Auto-load employee kasbon when modal opens
+  // Auto-load employee kasbon and salary calc when modal opens
   useEffect(() => {
     if (selectedEmployee) {
       setEmpTxPage(1)
       setEmpTxType('kasbon')
       loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, 'kasbon')
+      loadSalaryCalc(selectedEmployee.id)
       // Fetch full employee data to include photo
       const fetchEmployeePhoto = async () => {
         try {
@@ -132,6 +134,16 @@ export default function AdminPage() {
       fetchEmployeePhoto()
     }
   }, [selectedEmployee])
+
+  const loadSalaryCalc = async (empId) => {
+    try {
+      const calc = await getSalaryCalc(empId)
+      setEmpSalaryCalc(calc)
+    } catch (e) {
+      console.error('Error loading salary calc:', e)
+      setEmpSalaryCalc(null)
+    }
+  }
 
   const loadEmployeeTransactionsPaginated = async (empId, page = 1, type = 'all') => {
     setEmpTxLoading(true)
@@ -310,6 +322,19 @@ export default function AdminPage() {
       showToast(`Gaji ${emp.name} berhasil dibayar. Kasbon dilunasi ${formatRupiah(res.deduction)}. Gaji bersih ${formatRupiah(res.net_salary)}.`, 'success')
       await loadCashflow()
       setViewEmp(null)
+    } catch (e) { showToast(e.message || 'Gagal membayar gaji', 'error') }
+  }
+
+  const handlePaySalarySelected = async () => {
+    if (!selectedEmployee || !empSalaryCalc) return
+    const netText = empSalaryCalc.net_salary > 0 ? `Gaji bersih: ${formatRupiah(empSalaryCalc.net_salary)}` : 'Gaji tidak cukup untuk dibayar (semua dipotong kasbon)'
+    if (!window.confirm(`Bayar gaji ${selectedEmployee.name}?\nGaji bulanan: ${formatRupiah(empSalaryCalc.monthly_salary)}\nKasbon aktif: ${formatRupiah(empSalaryCalc.total_kasbon)}\nPotongan kasbon: ${formatRupiah(empSalaryCalc.deduction)}\n${netText}\nSisa kasbon: ${formatRupiah(empSalaryCalc.kasbon_belum_lunas)}\nLanjutkan?`)) return
+    try {
+      const res = await paySalary(selectedEmployee.id)
+      showToast(`Gaji ${selectedEmployee.name} berhasil dicatat. Kasbon dilunasi ${formatRupiah(res.deduction)}.`, 'success')
+      await loadCashflow()
+      await loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, 'kasbon')
+      await loadSalaryCalc(selectedEmployee.id)
     } catch (e) { showToast(e.message || 'Gagal membayar gaji', 'error') }
   }
 
@@ -1827,14 +1852,44 @@ export default function AdminPage() {
                   <p className="text-sm text-gray-600">{selectedEmployee.totalTransactions} transaksi</p>
                 </div>
               </div>
-              <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total Amount</span>
-                  <span className={`text-lg font-bold ${selectedEmployee.totalAmount >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {formatRupiah(selectedEmployee.totalAmount)}
-                  </span>
+              {empSalaryCalc ? (
+                <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
+                  <p className="text-sm font-semibold text-purple-700 mb-3">Detail Gaji Bulan Ini</p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Gaji Bulanan</span>
+                      <span className="font-semibold">{formatRupiah(empSalaryCalc.monthly_salary)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Kasbon Aktif</span>
+                      <span className="font-semibold text-red-500">{formatRupiah(empSalaryCalc.total_kasbon)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Potongan Kasbon</span>
+                      <span className="font-semibold text-red-500">-{formatRupiah(empSalaryCalc.deduction)}</span>
+                    </div>
+                    {empSalaryCalc.net_salary > 0 && (
+                      <div className="flex justify-between pt-2 border-t border-gray-100">
+                        <span className="text-gray-600 font-semibold">Gaji Bersih Dibayar</span>
+                        <span className="font-bold text-green-600">{formatRupiah(empSalaryCalc.net_salary)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between pt-2 border-t border-gray-100">
+                      <span className="text-gray-600 font-semibold">Kasbon Belum Lunas</span>
+                      <span className="font-bold text-red-600">{formatRupiah(empSalaryCalc.kasbon_belum_lunas)}</span>
+                    </div>
+                  </div>
+                  <button onClick={handlePaySalarySelected}
+                    className="w-full mt-4 py-3 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 active:scale-95 flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Bayar Gaji
+                  </button>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white rounded-xl p-4 mb-4 shadow-sm text-center text-sm text-gray-500">
+                  Menghitung gaji...
+                </div>
+              )}
               <div className="space-y-2 text-sm text-gray-600">
                 <p><span className="font-semibold">Position:</span> {selectedEmployee.position || selectedEmployee.position_crew || '-'}</p>
                 <p><span className="font-semibold">WhatsApp:</span> {selectedEmployee.whatsapp || '-'}</p>
