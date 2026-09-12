@@ -69,6 +69,12 @@ export const getKasbonByEmployee = (employeeId, activeOnly = false) =>
   request(`/kasbon/employee/${employeeId}${activeOnly ? '?active_only=true' : ''}`)
 export const settleKasbon = (employeeId) =>
   request(`/kasbon/settle/${employeeId}`, { method: 'POST' })
+export const getSalaryCalc = (employeeId) =>
+  request(`/employees/${employeeId}/salary-calc`)
+export const paySalary = (employeeId) =>
+  request(`/kasbon/pay-salary/${employeeId}`, { method: 'POST' })
+export const getKasbonMonthly = (employeeId) =>
+  request(`/kasbon/employee/${employeeId}/monthly`)
 
 // ─── Cash Denominations (Modal) ───────────────────────────────
 export const createCashDenomination = (data) =>

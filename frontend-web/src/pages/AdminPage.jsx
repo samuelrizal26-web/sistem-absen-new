@@ -5,7 +5,8 @@ import {
   getEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee,
   getStock, createStock, updateStock, deleteStock,
   getCashflow, getCashflowSummary, getAdminCashflowSummary, getAdminPreviousMonthSummary, createCashflow, updateCashflow, deleteCashflow,
-  getPrintJobs, getProjects, getAllAdvances, deleteAdvance, settleKasbon,
+  getPrintJobs, getProjects, getAllAdvances, deleteAdvance,
+  getSalaryCalc, paySalary,
   getJobs, getArchivedJobs, getArchivedProjects,
   verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
   getKasbonByEmployeePaginated, getPrintJobsByEmployeePaginated, getCashflowByEmployeePaginated,
@@ -302,13 +303,14 @@ export default function AdminPage() {
     finally { setEmpSaving(false) }
   }
 
-  const handleSettleKasbon = async (emp) => {
-    if (!window.confirm(`Tandai gaji ${emp.name} sudah ditransfer? Semua kasbon aktifnya akan dilunasi dan tampilan dashboard-nya kembali kosong.`)) return
+  const handlePaySalary = async (emp) => {
+    if (!window.confirm(`Bayar gaji ${emp.name}? Gaji bersih akan otomatis dihitung dari gaji bulanan dikurangi kasbon aktif.`)) return
     try {
-      const res = await settleKasbon(emp.id)
-      showToast(`Gaji ditandai. ${res.settled_count || 0} kasbon dilunasi.`, 'success')
+      const res = await paySalary(emp.id)
+      showToast(`Gaji ${emp.name} berhasil dibayar. Kasbon dilunasi ${formatRupiah(res.deduction)}. Gaji bersih ${formatRupiah(res.net_salary)}.`, 'success')
+      await loadCashflow()
       setViewEmp(null)
-    } catch (e) { showToast(e.message || 'Gagal melunasi kasbon', 'error') }
+    } catch (e) { showToast(e.message || 'Gagal membayar gaji', 'error') }
   }
 
   const handleDeleteEmployee = async (id) => {
@@ -1619,29 +1621,42 @@ export default function AdminPage() {
             {/* Salary Breakdown */}
             <div className="bg-purple-50 rounded-2xl p-4 mt-4 border border-purple-100">
               <p className="text-sm font-semibold text-purple-700 mb-3">Detail Gaji Bulan Ini</p>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-xs text-purple-600">Gaji Bulanan</span>
-                  <span className="text-sm font-semibold text-purple-800">{formatRupiah(viewEmp.monthly_salary || 0)}</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-xs text-purple-600">Kasbon</span>
-                  <span className="text-sm font-semibold text-orange-600">{formatRupiah(advances.filter(a => a.employee_id === viewEmp.id).reduce((sum, a) => sum + (a.amount || 0), 0))}</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-xs text-purple-600">Sudah Dibayar</span>
-                  <span className="text-sm font-semibold text-green-600">{formatRupiah(cashflows.filter(c => (c.type === 'salary' || c.description?.toUpperCase().includes('GAJI')) && c.employee_id === viewEmp.id).reduce((sum, c) => sum + (c.amount || 0), 0))}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-t border-purple-200 mt-2">
-                  <span className="text-xs font-bold text-purple-700">Sisa Gaji Harus Bayar</span>
-                  <span className="text-lg font-bold text-purple-800">{formatRupiah((viewEmp.monthly_salary || 0) - advances.filter(a => a.employee_id === viewEmp.id).reduce((sum, a) => sum + (a.amount || 0), 0))}</span>
-                </div>
-              </div>
+              {(() => {
+                const salary = viewEmp.monthly_salary || 0
+                const activeKasbon = advances.filter(a => a.employee_id === viewEmp.id && !a.settled).reduce((sum, a) => sum + (a.amount || 0), 0)
+                const deduction = Math.min(salary, activeKasbon)
+                const netSalary = salary - deduction
+                const remaining = activeKasbon - deduction
+                return (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-xs text-purple-600">Gaji Bulanan</span>
+                      <span className="text-sm font-semibold text-purple-800">{formatRupiah(salary)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-xs text-purple-600">Kasbon Aktif</span>
+                      <span className="text-sm font-semibold text-orange-600">{formatRupiah(activeKasbon)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-xs text-purple-600">Potongan Kasbon</span>
+                      <span className="text-sm font-semibold text-orange-600">{formatRupiah(deduction)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-xs text-purple-600">Gaji Bersih Dibayar</span>
+                      <span className="text-sm font-semibold text-green-600">{formatRupiah(netSalary)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-t border-purple-200 mt-2">
+                      <span className="text-xs font-bold text-purple-700">Kasbon Belum Lunas</span>
+                      <span className="text-lg font-bold text-purple-800">{formatRupiah(remaining)}</span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
-            <button onClick={() => handleSettleKasbon(viewEmp)}
-              className="w-full mt-4 py-3 rounded-2xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 active:scale-95 flex items-center justify-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-              Tandai Gaji Ditransfer (Reset Kasbon)
+            <button onClick={() => handlePaySalary(viewEmp)}
+              className="w-full mt-4 py-3 rounded-2xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 active:scale-95 flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Bayar Gaji
             </button>
             <div className="flex gap-2 mt-3">
               <button onClick={() => { setViewEmp(null); handleEditEmployee(viewEmp) }}

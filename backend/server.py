@@ -916,6 +916,118 @@ async def delete_kasbon(kasbon_id: str):
     if result.deleted_count == 0: raise HTTPException(status_code=404, detail='Kasbon tidak ditemukan')
     return {'message': 'Kasbon dihapus'}
 
+@api.get('/employees/{emp_id}/salary-calc')
+async def get_salary_calc(emp_id: str):
+    emp = await db.employees.find_one({'id': emp_id}, {'_id': 0, 'name': 1, 'monthly_salary': 1})
+    if not emp: raise HTTPException(status_code=404, detail='Karyawan tidak ditemukan')
+    salary = float(emp.get('monthly_salary') or 0)
+    items = await db.kasbon.find({'employee_id': emp_id, 'settled': {'$ne': True}}, {'_id': 0, 'amount': 1}).to_list(None)
+    total_kasbon = sum(float(k.get('amount') or 0) for k in items)
+    deduction = min(salary, total_kasbon)
+    return {
+        'employee_id': emp_id,
+        'employee_name': emp.get('name', ''),
+        'monthly_salary': salary,
+        'total_kasbon': total_kasbon,
+        'deduction': deduction,
+        'net_salary': salary - deduction,
+        'kasbon_belum_lunas': total_kasbon - deduction,
+    }
+
+@api.post('/kasbon/pay-salary/{emp_id}')
+async def pay_salary(emp_id: str):
+    emp = await db.employees.find_one({'id': emp_id}, {'_id': 0})
+    if not emp: raise HTTPException(status_code=404, detail='Karyawan tidak ditemukan')
+    salary = float(emp.get('monthly_salary') or 0)
+    if salary <= 0:
+        raise HTTPException(status_code=400, detail='Gaji bulanan karyawan belum diatur atau 0')
+    items = await db.kasbon.find({'employee_id': emp_id, 'settled': {'$ne': True}}, {'_id': 0}).sort('created_at', 1).to_list(None)
+    total_kasbon = sum(float(k.get('amount') or 0) for k in items)
+    if total_kasbon <= 0:
+        raise HTTPException(status_code=400, detail='Tidak ada kasbon aktif untuk karyawan ini')
+    deduction = min(salary, total_kasbon)
+    net_salary = salary - deduction
+    remaining = total_kasbon - deduction
+    remaining_deduction = deduction
+    settled_ids = []
+    for k in items:
+        if remaining_deduction <= 0:
+            break
+        amount = float(k.get('amount') or 0)
+        kid = k['id']
+        if amount <= remaining_deduction:
+            await db.kasbon.update_one({'id': kid}, {'$set': {'settled': True, 'settled_at': now_str()}})
+            settled_ids.append(kid)
+            remaining_deduction -= amount
+        else:
+            await db.kasbon.update_one({'id': kid}, {'$set': {
+                'amount': remaining_deduction,
+                'settled': True,
+                'settled_at': now_str(),
+            }})
+            settled_ids.append(kid)
+            await db.kasbon.insert_one({
+                'id': new_id(),
+                'employee_id': emp_id,
+                'employee_name': emp.get('name', ''),
+                'amount': amount - remaining_deduction,
+                'payment_method': k.get('payment_method', 'cash'),
+                'notes': k.get('notes', ''),
+                'settled': False,
+                'date': k.get('date', now_str()[:10]),
+                'created_at': k.get('created_at', now_str()),
+            })
+            remaining_deduction = 0
+    today = now_str()[:10]
+    cf_doc = {
+        'id': new_id(),
+        'type': 'salary',
+        'date': today,
+        'amount': net_salary,
+        'description': f'Gaji {emp.get("name", "")}',
+        'notes': '',
+        'payment_method': 'transfer',
+        'handled_by': 'Admin',
+        'employee_id': emp_id,
+        'created_at': now_str(),
+    }
+    await db.cashflow.insert_one(cf_doc)
+    return {
+        'success': True,
+        'monthly_salary': salary,
+        'total_kasbon': total_kasbon,
+        'deduction': deduction,
+        'net_salary': net_salary,
+        'kasbon_belum_lunas': remaining,
+        'settled_count': len(settled_ids),
+        'cashflow_id': cf_doc['id'],
+    }
+
+@api.get('/kasbon/employee/{emp_id}/monthly')
+async def get_kasbon_monthly(emp_id: str):
+    emp = await db.employees.find_one({'id': emp_id}, {'_id': 0, 'name': 1})
+    if not emp: raise HTTPException(status_code=404, detail='Karyawan tidak ditemukan')
+    items = await db.kasbon.find({'employee_id': emp_id}, {'_id': 0}).sort('created_at', -1).to_list(None)
+    months = {}
+    for k in items:
+        month = str(k.get('date', now_str()[:10]))[:7]
+        if month not in months:
+            months[month] = {'total_kasbon': 0.0, 'kasbon_belum_lunas': 0.0}
+        months[month]['total_kasbon'] += float(k.get('amount') or 0)
+        if not k.get('settled'):
+            months[month]['kasbon_belum_lunas'] += float(k.get('amount') or 0)
+    salary_cashflows = await db.cashflow.find({'employee_id': emp_id, 'type': 'salary'}, {'_id': 0, 'date': 1}).to_list(None)
+    salary_months = {str(c.get('date', ''))[:7] for c in salary_cashflows}
+    result = []
+    for month in sorted(months.keys(), reverse=True):
+        result.append({
+            'month': month,
+            'total_kasbon': months[month]['total_kasbon'],
+            'kasbon_belum_lunas': months[month]['kasbon_belum_lunas'],
+            'status': 'CLEAR' if month in salary_months else 'BELUM',
+        })
+    return result
+
 # ── Advances (alias kasbon untuk kompatibilitas frontend lama) ────────────────
 @api.post('/advances')
 async def create_advance(body: KasbonCreate):

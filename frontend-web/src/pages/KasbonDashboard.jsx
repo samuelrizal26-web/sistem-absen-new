@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { getKasbonSummary, createKasbon, getKasbonByEmployee } from '../services/api'
+import { getKasbonSummary, createKasbon, getKasbonByEmployee, getKasbonMonthly } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput, getInitials } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import Toast from '../components/Toast'
@@ -17,6 +17,8 @@ export default function KasbonDashboard() {
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [monthly, setMonthly] = useState([])
+  const [loadingMonthly, setLoadingMonthly] = useState(true)
 
   // Ajukan kasbon flow
   const [step, setStep] = useState(null) // null | 'method' | 'form' | 'warning'
@@ -47,7 +49,16 @@ export default function KasbonDashboard() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { loadSummary() }, [employee])
+  const loadMonthly = () => {
+    if (!employee) return
+    setLoadingMonthly(true)
+    getKasbonMonthly(employee.id)
+      .then((data) => setMonthly(Array.isArray(data) ? data : []))
+      .catch(() => showToast('Gagal memuat riwayat bulanan', 'error'))
+      .finally(() => setLoadingMonthly(false))
+  }
+
+  useEffect(() => { loadSummary(); loadMonthly() }, [employee])
 
   const resetForm = () => {
     setStep(null)
@@ -96,6 +107,7 @@ export default function KasbonDashboard() {
       }
       resetForm()
       loadSummary()
+      loadMonthly()
     } catch (e) {
       showToast(e.message || 'Gagal menyimpan kasbon', 'error')
     } finally {
@@ -230,6 +242,36 @@ export default function KasbonDashboard() {
                       </div>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${k.payment_method === 'transfer' ? 'bg-primary/10 text-primary' : 'bg-green-100 text-green-600'}`}>
                         {k.payment_method === 'transfer' ? 'Transfer' : 'Cash'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Riwayat Kasbon per Bulan */}
+            <div className="bg-white rounded-3xl shadow-sm p-5 border border-gray-100">
+              <p className="text-sm font-semibold text-gray-600 mb-3">Riwayat Kasbon per Bulan</p>
+              {loadingMonthly ? (
+                <div className="flex justify-center py-10">
+                  <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                </div>
+              ) : monthly.length === 0 ? (
+                <p className="text-center text-gray-400 py-10 text-sm">Belum ada riwayat kasbon.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {monthly.map((m) => (
+                    <div key={m.month} className={`rounded-2xl p-4 flex items-center justify-between border ${m.status === 'CLEAR' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-800">{m.month}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Total Kasbon: {formatRupiah(m.total_kasbon)}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Kasbon Belum Lunas: {formatRupiah(m.kasbon_belum_lunas)}</p>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${m.status === 'CLEAR' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {m.status === 'CLEAR' ? 'CLEAR' : 'BELUM'}
                       </span>
                     </div>
                   ))}
