@@ -112,12 +112,12 @@ export default function AdminPage() {
   const [empTxType, setEmpTxType] = useState('all') // 'all', 'print_jobs', 'cashflow', 'kasbon'
   const [empTxData, setEmpTxData] = useState({ items: [], total: 0, page: 1, limit: 50, total_pages: 0 })
 
-  // Auto-load employee transactions when modal opens
+  // Auto-load employee kasbon when modal opens
   useEffect(() => {
     if (selectedEmployee) {
       setEmpTxPage(1)
-      setEmpTxType('all')
-      loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, 'all')
+      setEmpTxType('kasbon')
+      loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, 'kasbon')
       // Fetch full employee data to include photo
       const fetchEmployeePhoto = async () => {
         try {
@@ -1845,18 +1845,11 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Right Panel - Transactions with Tabs */}
+            {/* Right Panel - Kasbon */}
             <div className="w-2/3 flex flex-col">
-              {/* Tabs */}
+              {/* Header */}
               <div className="p-4 border-b border-gray-100">
-                <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-                  {['all', 'print_jobs', 'cashflow', 'kasbon'].map(type => (
-                    <button key={type} onClick={() => { setEmpTxType(type); setEmpTxPage(1); loadEmployeeTransactionsPaginated(selectedEmployee.id, 1, type) }}
-                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${empTxType === type ? 'bg-white text-indigo-600 shadow' : 'text-gray-500'}`}>
-                      {type === 'all' ? 'Semua' : type === 'print_jobs' ? 'Print Jobs' : type === 'cashflow' ? 'Cashflow' : 'Kasbon'}
-                    </button>
-                  ))}
-                </div>
+                <h3 className="text-sm font-bold text-gray-800">Kasbon</h3>
               </div>
 
               {/* Transaction List */}
