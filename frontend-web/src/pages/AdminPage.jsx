@@ -966,14 +966,14 @@ export default function AdminPage() {
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                   {filteredEmp.map(emp => (
                     <div key={emp.id} className="bg-gray-50 rounded-xl p-4 flex items-center gap-3 border border-gray-100">
-                      <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" onClick={() => handleViewEmployeeDetails(emp)}>
+                      <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" onClick={() => handleViewEmployee(emp)}>
                         {emp.photo ? (
                           <img src={emp.photo} alt={emp.name} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-purple-600 font-bold text-sm">{(emp.name || '?')[0].toUpperCase()}</span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleViewEmployeeDetails(emp)}>
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleViewEmployee(emp)}>
                         <p className="font-semibold text-gray-800 text-sm truncate">{emp.name}</p>
                         <p className="text-xs text-gray-400">{emp.position} · {emp.whatsapp}</p>
                         <p className="text-xs text-gray-400">{emp.status_crew || '-'}</p>
