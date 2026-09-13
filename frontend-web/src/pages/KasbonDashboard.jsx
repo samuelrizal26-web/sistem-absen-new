@@ -202,7 +202,8 @@ export default function KasbonDashboard() {
 
             {/* Total Kasbon Card */}
             <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl shadow-md p-6 text-white">
-              <p className="text-white/80 text-sm">TOTAL KASBON</p>
+              <p className="text-white/80 text-sm">{new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
+              <p className="text-white/80 text-sm mt-1">TOTAL KASBON</p>
               <p className="text-4xl font-extrabold mt-2">{formatRupiah(total)}</p>
               <p className="text-white/70 text-xs mt-1">{items.length} transaksi</p>
             </div>
