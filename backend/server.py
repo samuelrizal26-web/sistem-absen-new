@@ -687,7 +687,7 @@ async def get_admin_cashflow_summary(month: Optional[str] = None):
     total_kasbon = kasbon_cash + kasbon_transfer
     total_income = manual_income + modal_total + print_cash + print_transfer + project_cash + project_transfer
     total_expense = manual_expense + kasbon_cash
-    manual_balance = manual_income + modal_total - manual_expense
+    manual_balance = manual_income + modal_total - manual_expense - kasbon_cash
     return {
         'total_income': total_income,
         'total_expense': total_expense,
