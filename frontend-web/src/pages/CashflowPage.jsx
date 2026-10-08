@@ -31,6 +31,7 @@ export default function CashflowPage() {
   const [keypadField, setKeypadField] = useState(null) // 'amount', 'customer_cash', or 'edit_amount'
   const [editingId, setEditingId] = useState(null)
   const [editAmountRaw, setEditAmountRaw] = useState('')
+  const [editOriginalRaw, setEditOriginalRaw] = useState('')
   const [editPaymentMethod, setEditPaymentMethod] = useState('cash')
 
   const [form, setForm] = useState({
@@ -148,6 +149,13 @@ export default function CashflowPage() {
     }
   }
 
+  const handleCloseKeypad = () => {
+    if (keypadField === 'edit_amount' && !editAmountRaw) {
+      setEditAmountRaw(editOriginalRaw)
+    }
+    setKeypadField(null)
+  }
+
   const handleFormSubmit = () => {
     if (!form.amount || !form.description) {
       showToast('Lengkapi jumlah dan deskripsi', 'error'); return
@@ -187,19 +195,24 @@ export default function CashflowPage() {
 
   const handleEditClick = (item) => {
     setEditingId(item.id)
-    setEditAmountRaw(formatRupiahInput(String(item.amount || 0)))
+    const raw = formatRupiahInput(String(item.amount || 0))
+    setEditOriginalRaw(raw)
+    setEditAmountRaw(raw)
     setEditPaymentMethod(item.payment_method || 'cash')
   }
 
   const handleEditSave = async (id) => {
     setSaving(true)
     try {
+      const amount = editAmountRaw ? (parseRupiahInput(editAmountRaw) || 0) : (parseRupiahInput(editOriginalRaw) || 0)
       await updateCashflow(id, {
-        amount: parseRupiahInput(editAmountRaw) || 0,
+        amount,
         payment_method: editPaymentMethod,
       })
       setEditingId(null)
       setKeypadField(null)
+      setEditAmountRaw('')
+      setEditOriginalRaw('')
       showToast('Transaksi diperbarui', 'success')
       await loadData()
     } catch (e) {
@@ -213,6 +226,7 @@ export default function CashflowPage() {
     setEditingId(null)
     setKeypadField(null)
     setEditAmountRaw('')
+    setEditOriginalRaw('')
   }
 
   return (
@@ -339,7 +353,7 @@ export default function CashflowPage() {
                                 type="text"
                                 readOnly
                                 value={editAmountRaw || 'Rp 0'}
-                                onClick={() => setKeypadField('edit_amount')}
+                                onClick={() => { setEditAmountRaw(''); setKeypadField('edit_amount') }}
                                 className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
                                 disabled={saving}
                               />
@@ -504,13 +518,13 @@ export default function CashflowPage() {
 
       {/* Custom Numeric Keypad */}
       {keypadField && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setKeypadField(null)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleCloseKeypad}>
           <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-semibold text-gray-700">
                 {keypadField === 'customer_cash' ? 'Uang Customer (Rp)' : keypadField === 'edit_amount' ? 'Edit Jumlah (Rp)' : 'Jumlah (Rp)'}
               </span>
-              <button onClick={() => setKeypadField(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={handleCloseKeypad} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -545,7 +559,7 @@ export default function CashflowPage() {
             <button onClick={() => handleKeypadInput(1000)} className="w-full py-3 rounded-xl bg-gray-100 text-lg font-semibold text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-all mb-2">
               000
             </button>
-            <button onClick={() => setKeypadField(null)} className="w-full py-3 rounded-xl bg-teal-500 text-white font-semibold text-sm">
+            <button onClick={handleCloseKeypad} className="w-full py-3 rounded-xl bg-teal-500 text-white font-semibold text-sm">
               Selesai
             </button>
           </div>
