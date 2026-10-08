@@ -945,6 +945,32 @@ async def pay_salary(emp_id: str):
     total_kasbon = sum(float(k.get('amount') or 0) for k in items)
     if total_kasbon <= 0:
         raise HTTPException(status_code=400, detail='Tidak ada kasbon aktif untuk karyawan ini')
+    # Determine the salary month: earliest month not yet paid, starting from earliest unsettled kasbon month
+    salary_cfs = await db.cashflow.find({'employee_id': emp_id, 'type': 'salary'}, {'_id': 0, 'salary_month': 1, 'date': 1}).to_list(None)
+    paid_months = set()
+    for c in salary_cfs:
+        sm = c.get('salary_month')
+        if sm:
+            paid_months.add(str(sm))
+        else:
+            paid_months.add(str(c.get('date', ''))[:7])
+    unsettled_months = sorted({str(k.get('date', now_str()[:10]))[:7] for k in items})
+    target_month = None
+    if unsettled_months:
+        y, m = int(unsettled_months[0][:4]), int(unsettled_months[0][5:7])
+        cur_y, cur_m = int(now_str()[:4]), int(now_str()[5:7])
+        while y * 12 + m <= cur_y * 12 + cur_m:
+            key = f'{y:04d}-{m:02d}'
+            if key not in paid_months:
+                target_month = key
+                break
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+    if not target_month:
+        target_month = now_str()[:7]
+    target_month = str(target_month)
     deduction = min(salary, total_kasbon)
     net_salary = salary - deduction
     remaining = total_kasbon - deduction
@@ -983,6 +1009,7 @@ async def pay_salary(emp_id: str):
         'id': new_id(),
         'type': 'salary',
         'date': today,
+        'salary_month': target_month,
         'amount': net_salary,
         'description': f'Gaji {emp.get("name", "")}',
         'notes': '',
@@ -995,6 +1022,7 @@ async def pay_salary(emp_id: str):
     return {
         'success': True,
         'monthly_salary': salary,
+        'salary_month': target_month,
         'total_kasbon': total_kasbon,
         'deduction': deduction,
         'net_salary': net_salary,
@@ -1016,8 +1044,14 @@ async def get_kasbon_monthly(emp_id: str):
         months[month]['total_kasbon'] += float(k.get('amount') or 0)
         if not k.get('settled'):
             months[month]['kasbon_belum_lunas'] += float(k.get('amount') or 0)
-    salary_cashflows = await db.cashflow.find({'employee_id': emp_id, 'type': 'salary'}, {'_id': 0, 'date': 1}).to_list(None)
-    salary_months = {str(c.get('date', ''))[:7] for c in salary_cashflows}
+    salary_cashflows = await db.cashflow.find({'employee_id': emp_id, 'type': 'salary'}, {'_id': 0, 'salary_month': 1, 'date': 1}).to_list(None)
+    salary_months = set()
+    for c in salary_cashflows:
+        sm = c.get('salary_month')
+        if sm:
+            salary_months.add(str(sm))
+        else:
+            salary_months.add(str(c.get('date', ''))[:7])
     result = []
     for month in sorted(months.keys(), reverse=True):
         result.append({
