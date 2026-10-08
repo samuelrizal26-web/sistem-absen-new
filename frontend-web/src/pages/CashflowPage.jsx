@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, deleteCashflow, getPreviousMonthSummary } from '../services/api'
+import { getCashflow, getCashflowSummary, createCashflow, updateCashflow, getPreviousMonthSummary } from '../services/api'
 import { formatRupiah, formatDate, formatDateTime, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import { openCashDrawerOnly } from '../utils/rawbt'
 import StaffPinModal from '../components/StaffPinModal'
@@ -29,6 +29,9 @@ export default function CashflowPage() {
   const [pendingForm, setPendingForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [keypadField, setKeypadField] = useState(null) // 'amount' or null
+  const [editingId, setEditingId] = useState(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editPaymentMethod, setEditPaymentMethod] = useState('cash')
 
   const [form, setForm] = useState({
     amount: '',
@@ -159,15 +162,31 @@ export default function CashflowPage() {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Hapus transaksi ini?')) return
+  const handleEditClick = (item) => {
+    setEditingId(item.id)
+    setEditAmount(String(item.amount || 0))
+    setEditPaymentMethod(item.payment_method || 'cash')
+  }
+
+  const handleEditSave = async (id) => {
+    setSaving(true)
     try {
-      await deleteCashflow(id)
-      showToast('Transaksi dihapus', 'info')
+      await updateCashflow(id, {
+        amount: parseFloat(editAmount) || 0,
+        payment_method: editPaymentMethod,
+      })
+      setEditingId(null)
+      showToast('Transaksi diperbarui', 'success')
       await loadData()
     } catch (e) {
-      showToast(e.message || 'Gagal menghapus', 'error')
+      showToast(e.message || 'Gagal memperbarui', 'error')
+    } finally {
+      setSaving(false)
     }
+  }
+
+  const handleEditCancel = () => {
+    setEditingId(null)
   }
 
   return (
@@ -288,12 +307,49 @@ export default function CashflowPage() {
                             <p className="text-xs text-gray-400">{formatDateTime(item.created_at || item.date)} · {item.handled_by || '-'}</p>
                             {item.notes && <p className="text-xs text-gray-400 truncate">{item.notes}</p>}
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className={`font-bold text-sm ${item.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
-                              {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
-                            </p>
-                            <button onClick={() => handleDelete(item.id)} className="text-xs text-gray-300 hover:text-red-400 mt-0.5">hapus</button>
-                          </div>
+                          {editingId === item.id ? (
+                            <div className="flex flex-col gap-2 shrink-0 min-w-[140px]">
+                              <input
+                                type="number"
+                                value={editAmount}
+                                onChange={e => setEditAmount(e.target.value)}
+                                className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                disabled={saving}
+                              />
+                              <select
+                                value={editPaymentMethod}
+                                onChange={e => setEditPaymentMethod(e.target.value)}
+                                className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                disabled={saving}
+                              >
+                                <option value="cash">Cash</option>
+                                <option value="transfer">Transfer</option>
+                              </select>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleEditSave(item.id)}
+                                  disabled={saving}
+                                  className="flex-1 py-1 rounded-lg bg-teal-500 text-white text-xs font-semibold disabled:opacity-40"
+                                >
+                                  Simpan
+                                </button>
+                                <button
+                                  onClick={handleEditCancel}
+                                  disabled={saving}
+                                  className="flex-1 py-1 rounded-lg bg-gray-200 text-gray-600 text-xs font-semibold disabled:opacity-40"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-right shrink-0">
+                              <p className={`font-bold text-sm ${item.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                                {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
+                              </p>
+                              <button onClick={() => handleEditClick(item)} className="text-xs text-gray-300 hover:text-teal-500 mt-0.5">edit</button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

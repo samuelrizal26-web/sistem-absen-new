@@ -613,6 +613,8 @@ async def get_cashflow_summary(month: Optional[str] = None):
     )
     manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
     manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
+    manual_income_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income' and str(d.get('payment_method') or 'cash').lower() == 'cash')
+    manual_expense_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense' and str(d.get('payment_method') or 'cash').lower() == 'cash')
     print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
     print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
     project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
@@ -622,7 +624,7 @@ async def get_cashflow_summary(month: Optional[str] = None):
     total_kasbon = kasbon_cash + kasbon_transfer
     total_income = manual_income + print_cash + print_transfer + project_cash + project_transfer
     total_expense = manual_expense + kasbon_cash
-    manual_balance = manual_income - manual_expense
+    manual_balance = manual_income_cash - manual_expense_cash
     return {
         'total_income': total_income,
         'total_expense': total_expense,
@@ -656,7 +658,9 @@ async def get_previous_month_summary():
     cashflow_docs = await db.cashflow.find(query, {'_id': 0}).to_list(None)
     manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
     manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
-    manual_balance = manual_income - manual_expense
+    manual_income_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income' and str(d.get('payment_method') or 'cash').lower() == 'cash')
+    manual_expense_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense' and str(d.get('payment_method') or 'cash').lower() == 'cash')
+    manual_balance = manual_income_cash - manual_expense_cash
     return {
         'month': prev_month_str,
         'manual_income': manual_income,
@@ -678,6 +682,8 @@ async def get_admin_cashflow_summary(month: Optional[str] = None):
     modal_updated_at = modal_doc.get('updated_at') if modal_doc else None
     manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
     manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
+    manual_income_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income' and str(d.get('payment_method') or 'cash').lower() == 'cash')
+    manual_expense_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense' and str(d.get('payment_method') or 'cash').lower() == 'cash')
     print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
     print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
     project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
@@ -687,7 +693,7 @@ async def get_admin_cashflow_summary(month: Optional[str] = None):
     total_kasbon = kasbon_cash + kasbon_transfer
     total_income = manual_income + modal_total + print_cash + print_transfer + project_cash + project_transfer
     total_expense = manual_expense + kasbon_cash
-    manual_balance = manual_income + modal_total - manual_expense - kasbon_cash
+    manual_balance = manual_income_cash + modal_total - manual_expense_cash - kasbon_cash
     return {
         'total_income': total_income,
         'total_expense': total_expense,
@@ -777,9 +783,14 @@ async def create_cashflow(body: CashflowCreate):
 
 @api.put('/cashflow/{cf_id}')
 async def update_cashflow(cf_id: str, body: CashflowUpdate):
-    if not await db.cashflow.find_one({'id': cf_id}):
+    doc = await db.cashflow.find_one({'id': cf_id})
+    if not doc:
         raise HTTPException(status_code=404, detail='Cashflow tidak ditemukan')
     update = body.model_dump(exclude_none=True)
+    allowed = {'amount', 'payment_method'}
+    update = {k: v for k, v in update.items() if k in allowed}
+    if not update:
+        raise HTTPException(status_code=400, detail='Tidak ada field yang boleh diubah')
     await db.cashflow.update_one({'id': cf_id}, {'$set': update})
     return await db.cashflow.find_one({'id': cf_id}, {'_id': 0})
 
