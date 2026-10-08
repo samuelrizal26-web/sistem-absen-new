@@ -28,9 +28,9 @@ export default function CashflowPage() {
   const [showStaffPin, setShowStaffPin] = useState(false)
   const [pendingForm, setPendingForm] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [keypadField, setKeypadField] = useState(null) // 'amount' or null
+  const [keypadField, setKeypadField] = useState(null) // 'amount', 'customer_cash', or 'edit_amount'
   const [editingId, setEditingId] = useState(null)
-  const [editAmount, setEditAmount] = useState('')
+  const [editAmountRaw, setEditAmountRaw] = useState('')
   const [editPaymentMethod, setEditPaymentMethod] = useState('cash')
 
   const [form, setForm] = useState({
@@ -87,6 +87,18 @@ export default function CashflowPage() {
 
   const handleKeypadInput = (num) => {
     if (!keypadField) return
+    if (keypadField === 'edit_amount') {
+      const currentRaw = editAmountRaw || ''
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      let newNum
+      if (num === 1000) {
+        newNum = currentNum * 1000
+      } else {
+        newNum = currentNum * 10 + num
+      }
+      setEditAmountRaw(formatRupiahInput(String(newNum)))
+      return
+    }
     const currentRaw = keypadField === 'customer_cash' ? (form.customer_cash || '') : (form.amount_raw || '')
     const currentNum = parseRupiahInput(currentRaw) || 0
     let newNum
@@ -105,6 +117,13 @@ export default function CashflowPage() {
 
   const handleKeypadBackspace = () => {
     if (!keypadField) return
+    if (keypadField === 'edit_amount') {
+      const currentRaw = editAmountRaw || ''
+      const currentNum = parseRupiahInput(currentRaw) || 0
+      const newNum = Math.floor(currentNum / 10)
+      setEditAmountRaw(newNum > 0 ? formatRupiahInput(String(newNum)) : '')
+      return
+    }
     const currentRaw = keypadField === 'customer_cash' ? (form.customer_cash || '') : (form.amount_raw || '')
     const currentNum = parseRupiahInput(currentRaw) || 0
     const newNum = Math.floor(currentNum / 10)
@@ -118,6 +137,10 @@ export default function CashflowPage() {
 
   const handleKeypadClear = () => {
     if (!keypadField) return
+    if (keypadField === 'edit_amount') {
+      setEditAmountRaw('')
+      return
+    }
     if (keypadField === 'customer_cash') {
       setForm(f => ({ ...f, customer_cash: '' }))
     } else {
@@ -164,7 +187,7 @@ export default function CashflowPage() {
 
   const handleEditClick = (item) => {
     setEditingId(item.id)
-    setEditAmount(String(item.amount || 0))
+    setEditAmountRaw(formatRupiahInput(String(item.amount || 0)))
     setEditPaymentMethod(item.payment_method || 'cash')
   }
 
@@ -172,10 +195,11 @@ export default function CashflowPage() {
     setSaving(true)
     try {
       await updateCashflow(id, {
-        amount: parseFloat(editAmount) || 0,
+        amount: parseRupiahInput(editAmountRaw) || 0,
         payment_method: editPaymentMethod,
       })
       setEditingId(null)
+      setKeypadField(null)
       showToast('Transaksi diperbarui', 'success')
       await loadData()
     } catch (e) {
@@ -187,6 +211,8 @@ export default function CashflowPage() {
 
   const handleEditCancel = () => {
     setEditingId(null)
+    setKeypadField(null)
+    setEditAmountRaw('')
   }
 
   return (
@@ -310,10 +336,11 @@ export default function CashflowPage() {
                           {editingId === item.id ? (
                             <div className="flex flex-col gap-2 shrink-0 min-w-[140px]">
                               <input
-                                type="number"
-                                value={editAmount}
-                                onChange={e => setEditAmount(e.target.value)}
-                                className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                type="text"
+                                readOnly
+                                value={editAmountRaw || 'Rp 0'}
+                                onClick={() => setKeypadField('edit_amount')}
+                                className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
                                 disabled={saving}
                               />
                               <select
@@ -480,7 +507,9 @@ export default function CashflowPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setKeypadField(null)}>
           <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-semibold text-gray-700">{keypadField === 'customer_cash' ? 'Uang Customer (Rp)' : 'Jumlah (Rp)'}</span>
+              <span className="text-sm font-semibold text-gray-700">
+                {keypadField === 'customer_cash' ? 'Uang Customer (Rp)' : keypadField === 'edit_amount' ? 'Edit Jumlah (Rp)' : 'Jumlah (Rp)'}
+              </span>
               <button onClick={() => setKeypadField(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -490,7 +519,7 @@ export default function CashflowPage() {
             {/* Display current value */}
             <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
               <span className="text-xl font-bold text-gray-800">
-                {keypadField === 'customer_cash' ? (form.customer_cash || 'Rp 0') : (form.amount_raw || 'Rp 0')}
+                {keypadField === 'customer_cash' ? (form.customer_cash || 'Rp 0') : keypadField === 'edit_amount' ? (editAmountRaw || 'Rp 0') : (form.amount_raw || 'Rp 0')}
               </span>
             </div>
             <div className="grid grid-cols-3 gap-2 mb-2">
