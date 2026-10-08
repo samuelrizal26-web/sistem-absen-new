@@ -14,3 +14,9 @@ Cache-Control = "no-cache, no-store, must-revalidate"
 for = "/index.html"
 [headers.values]
 Cache-Control = "no-cache, no-store, must-revalidate"
+
+[env.staging]
+name = "sistem-absen-staging"
+# Production config above remains unchanged. Run:
+# VITE_API_BASE_URL=https://sistem-absen-staging.up.railway.app/api npm run build
+# npx wrangler deploy --env staging
