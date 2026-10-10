@@ -1,0 +1,9 @@
+providers = ["python"]
+
+[variables]
+NIXPACKS_PYTHON_PACKAGE_MANAGER = "skip"
+
+[phases.install]
+cmds = [
+  "python -m venv --copies /opt/venv && . /opt/venv/bin/activate && pip install -r requirements-minimal.txt"
+]
