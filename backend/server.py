@@ -7,6 +7,11 @@ from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import os, uuid, bcrypt, asyncio
+from summary_logic import (
+    PeriodError, resolve_date_filter,
+    build_print_jobs_totals_pipeline, build_print_jobs_by_material_pipeline, assemble_print_jobs_summary,
+    build_cashflow_pipelines, assemble_cashflow_summary,
+)
 
 # FCM Integration
 try:
@@ -412,22 +417,24 @@ async def delete_stock(stock_id: str):
 
 # ── Print Jobs ───────────────────────────────────────────────────────────────
 @api.get('/print-jobs/summary')
-async def get_print_jobs_summary():
-    jobs = await db.print_jobs.find({}, {'_id': 0}).to_list(None)
-    total = cash = transfer = 0.0
-    by_mat: Dict[str, Dict] = {}
-    for j in jobs:
-        amt = float(j.get('total_price') or 0)
-        total += amt
-        method = str(j.get('payment_method') or 'cash').lower()
-        if method == 'transfer': transfer += amt
-        else: cash += amt
-        mat = str(j.get('material') or 'unknown')
-        e = by_mat.setdefault(mat, {'total_qty': 0.0, 'total_revenue': 0.0})
-        e['total_qty'] += float(j.get('quantity') or 0)
-        e['total_revenue'] += amt
-    return {'total_revenue': total, 'cash_revenue': cash, 'transfer_revenue': transfer,
-            'total_jobs': len(jobs), 'by_material': [{'material': m, **e} for m, e in by_mat.items()]}
+async def get_print_jobs_summary(
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    month: Optional[str] = None,
+):
+    # Perilaku periode (lihat summary_logic.resolve_date_filter):
+    #   - month ATAU start+end (keduanya bersamaan -> HTTP 400); start/end harus berpasangan
+    #   - rentang maksimum 180 hari -> HTTP 400 jika dilampaui (periode tidak digeser)
+    #   - tanpa parameter -> bulan berjalan (WIB). Sebelumnya: SELURUH histori.
+    try:
+        date_filter = resolve_date_filter(month=month, start=start, end=end)
+    except PeriodError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    totals_rows, material_rows = await asyncio.gather(
+        db.print_jobs.aggregate(build_print_jobs_totals_pipeline(date_filter)).to_list(None),
+        db.print_jobs.aggregate(build_print_jobs_by_material_pipeline(date_filter)).to_list(None),
+    )
+    return assemble_print_jobs_summary(totals_rows, material_rows)
 
 @api.get('/print-jobs')
 async def get_print_jobs(month: Optional[str] = None):
@@ -604,44 +611,21 @@ async def delete_project(project_id: str):
 # ── Cashflow ─────────────────────────────────────────────────────────────────
 @api.get('/cashflow/summary')
 async def get_cashflow_summary(month: Optional[str] = None):
-    query = {'date': {'$regex': f'^{month}'}} if month else {}
-    cashflow_docs, print_jobs, projects, kasbon_docs = await asyncio.gather(
-        db.cashflow.find(query, {'_id': 0}).to_list(None),
-        db.print_jobs.find(query, {'_id': 0}).to_list(None),
-        db.projects.find(query, {'_id': 0}).to_list(None),
-        db.kasbon.find(query, {'_id': 0}).to_list(None),
+    # Perilaku periode (lihat summary_logic.resolve_date_filter):
+    #   - month=YYYY-MM -> hanya bulan tersebut; format tidak valid -> HTTP 400
+    #   - tanpa month   -> bulan berjalan (WIB). Sebelumnya: SELURUH histori (penyebab RAM tinggi).
+    try:
+        date_filter = resolve_date_filter(month=month, allow_range=False)
+    except PeriodError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    pipes = build_cashflow_pipelines(date_filter)
+    cf_rows, pj_rows, proj_rows, kb_rows = await asyncio.gather(
+        db.cashflow.aggregate(pipes['cashflow']).to_list(None),
+        db.print_jobs.aggregate(pipes['print_jobs']).to_list(None),
+        db.projects.aggregate(pipes['projects']).to_list(None),
+        db.kasbon.aggregate(pipes['kasbon']).to_list(None),
     )
-    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
-    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
-    manual_income_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income' and str(d.get('payment_method') or 'cash').lower() == 'cash')
-    manual_expense_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense' and str(d.get('payment_method') or 'cash').lower() == 'cash')
-    print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
-    print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
-    project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
-    project_transfer = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or '').lower() == 'transfer')
-    kasbon_cash = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or 'cash').lower() == 'cash')
-    kasbon_transfer = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or '').lower() == 'transfer')
-    total_kasbon = kasbon_cash + kasbon_transfer
-    total_income = manual_income + print_cash + print_transfer + project_cash + project_transfer
-    total_expense = manual_expense + kasbon_cash
-    manual_balance = manual_income_cash - manual_expense_cash
-    return {
-        'total_income': total_income,
-        'total_expense': total_expense,
-        'balance': total_income - total_expense,
-        'manual_income': manual_income,
-        'manual_expense': manual_expense,
-        'manual_balance': manual_balance,
-        'print_job_cash': print_cash,
-        'print_job_transfer': print_transfer,
-        'print_job_total': print_cash + print_transfer,
-        'project_cash': project_cash,
-        'project_transfer': project_transfer,
-        'project_total': project_cash + project_transfer,
-        'total_kasbon': total_kasbon,
-        'kasbon_cash': kasbon_cash,
-        'kasbon_transfer': kasbon_transfer,
-    }
+    return assemble_cashflow_summary(cf_rows, pj_rows, proj_rows, kb_rows)
 
 @api.get('/cashflow/previous-month-summary')
 async def get_previous_month_summary():

@@ -442,8 +442,9 @@ class ApiService {
     throw Exception('Gagal memuat data cashflow');
   }
 
-  static Future<Map<String, dynamic>> fetchCashflowSummary() async {
-    final response = await http.get(_uri('/cashflow/summary'));
+  static Future<Map<String, dynamic>> fetchCashflowSummary({String? month}) async {
+    final query = month != null ? {'month': month} : <String, String>{};
+    final response = await http.get(query.isEmpty ? _uri('/cashflow/summary') : _uri('/cashflow/summary', query));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }

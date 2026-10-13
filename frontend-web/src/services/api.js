@@ -140,7 +140,8 @@ export const deleteCashflow = (id) =>
 
 // ─── Print Jobs ───────────────────────────────────────────────
 export const getPrintJobs = (params = '') => request(`/print-jobs${params}`)
-export const getPrintJobsSummary = () => request('/print-jobs/summary')
+export const getPrintJobsSummary = (month) =>
+  request(month ? `/print-jobs/summary?month=${encodeURIComponent(month)}` : '/print-jobs/summary')
 export const createPrintJob = (data) =>
   request('/print-jobs', { method: 'POST', body: JSON.stringify(data) })
 export const updatePrintJob = (id, data) =>

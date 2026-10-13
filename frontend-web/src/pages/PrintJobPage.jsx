@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { getPrintJobsSummary, getPrintJobs, createPrintJob, updatePrintJob, deletePrintJob, getStock, getFloatingMenu } from '../services/api'
@@ -15,6 +15,10 @@ const MATERIALS_KEY = 'print'
 
 const STEP = { LIST: 'list', FORM: 'form', SUMMARY: 'summary', PIN_PRINT: 'pin_print', PIN_SAVE: 'pin_save', DETAIL: 'detail' }
 
+// Periode ringkasan & daftar selalu YYYY-MM. Bulan berjalan memakai WIB (UTC+7), sama dengan default backend.
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+const currentMonthWIB = () => new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 7)
+
 export default function PrintJobPage() {
   const navigate = useNavigate()
   const { toast, showToast, clearToast } = useToast()
@@ -25,7 +29,17 @@ export default function PrintJobPage() {
   const [stocks, setStocks] = useState([])
   const [loading, setLoading] = useState(true)
   const [detailBahan, setDetailBahan] = useState(null)
-  const [searchMonth, setSearchMonth] = useState('')
+  const [searchMonth, setSearchMonth] = useState(() => currentMonthWIB())
+  const searchMonthRef = useRef(searchMonth)
+  searchMonthRef.current = searchMonth // selalu bulan terbaru; dipakai loadData agar tidak memakai closure lama
+  const loadSeq = useRef(0)
+  // Kartu hanya tampil bila ringkasannya memang untuk bulan yang sedang aktif.
+  const summaryData = summary && summary.month === searchMonth ? summary.data : null
+
+  const handleMonthChange = (value) => {
+    if (!value) { setSearchMonth(currentMonthWIB()); return } // input dikosongkan -> bulan berjalan
+    if (MONTH_RE.test(value)) setSearchMonth(value)            // nilai tidak valid diabaikan
+  }
 
   // Form state
   const [form, setForm] = useState({
@@ -205,29 +219,41 @@ export default function PrintJobPage() {
     }
   }
 
+  // Satu pemuatan = satu periode: daftar dan ringkasan memakai snapshot `month` yang SAMA.
+  // `loadSeq` membuang respons kedaluwarsa (mis. pengguna ganti bulan saat request sebelumnya berjalan).
   const loadData = async () => {
+    const month = searchMonthRef.current
+    const seq = ++loadSeq.current
     setLoading(true)
-    try {
-      const [j, st] = await Promise.all([
-        getPrintJobs(searchMonth ? `?month=${searchMonth}` : ''),
-        getStock(),
-      ])
-      setJobs(Array.isArray(j) ? j : [])
+    const [jobsRes, stockRes, summaryRes] = await Promise.allSettled([
+      getPrintJobs(`?month=${encodeURIComponent(month)}`),
+      getStock(),
+      getPrintJobsSummary(month),
+    ])
+    if (seq !== loadSeq.current) return // ada pemuatan yang lebih baru; abaikan hasil ini
+
+    if (jobsRes.status === 'fulfilled') {
+      setJobs(Array.isArray(jobsRes.value) ? jobsRes.value : [])
+    } else {
+      setJobs([]) // jangan biarkan daftar bulan sebelumnya tampil di bawah bulan baru
+    }
+    if (stockRes.status === 'fulfilled') {
+      const st = stockRes.value
       setStocks(Array.isArray(st) ? st.filter(s => {
         const cat = (s.usage_category || s.category || '').toString().toUpperCase()
         return cat === '' || cat === 'PRINT'
       }) : [])
-    } catch {
+    }
+    if (jobsRes.status === 'rejected' || stockRes.status === 'rejected') {
       showToast('Gagal memuat data', 'error')
-    } finally {
-      setLoading(false)
     }
-    try {
-      const s = await getPrintJobsSummary()
-      setSummary(s)
-    } catch {
-      setSummary(null)
+
+    if (summaryRes.status === 'fulfilled') {
+      setSummary({ month, data: summaryRes.value })
+    } else {
+      setSummary(null) // kartu disembunyikan; angka bulan sebelumnya tidak tertinggal
     }
+    setLoading(false)
   }
 
   useEffect(() => { loadData() }, [searchMonth])
@@ -457,23 +483,23 @@ export default function PrintJobPage() {
             {/* Left Panel - Summary & Job List */}
             <div className="w-full md:w-1/2 flex flex-col gap-4">
               {/* Summary Card */}
-              {summary && (
+              {summaryData && (
                 <div className="bg-green-500 rounded-2xl p-4 text-white shadow">
-                  <p className="text-sm opacity-80">Total Pendapatan</p>
-                  <p className="text-3xl font-bold mt-1">{formatRupiah(summary.total_revenue || 0)}</p>
+                  <p className="text-sm opacity-80">Total Pendapatan · {searchMonth}</p>
+                  <p className="text-3xl font-bold mt-1">{formatRupiah(summaryData.total_revenue || 0)}</p>
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     <div className="bg-white/20 rounded-xl p-2.5">
                       <p className="text-xs opacity-80">Total Pekerjaan</p>
-                      <p className="text-xl font-bold">{summary.total_jobs || 0}</p>
+                      <p className="text-xl font-bold">{summaryData.total_jobs || 0}</p>
                     </div>
                     <div className="bg-white/20 rounded-xl p-2.5 grid grid-cols-2 gap-1">
                       <div>
                         <p className="text-xs opacity-80">Cash</p>
-                        <p className="text-sm font-semibold">{formatRupiah(summary.cash_revenue || 0)}</p>
+                        <p className="text-sm font-semibold">{formatRupiah(summaryData.cash_revenue || 0)}</p>
                       </div>
                       <div>
                         <p className="text-xs opacity-80">Transfer</p>
-                        <p className="text-sm font-semibold">{formatRupiah(summary.transfer_revenue || 0)}</p>
+                        <p className="text-sm font-semibold">{formatRupiah(summaryData.transfer_revenue || 0)}</p>
                       </div>
                     </div>
                   </div>
@@ -485,10 +511,10 @@ export default function PrintJobPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-gray-800 font-bold text-lg">Daftar Pekerjaan</h2>
                   <div className="flex items-center gap-2">
-                    <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
+                    <input type="month" value={searchMonth} onChange={e => handleMonthChange(e.target.value)}
                       className="px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                    {searchMonth && (
-                      <button onClick={() => setSearchMonth('')} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-500 text-xs">Reset</button>
+                    {searchMonth !== currentMonthWIB() && (
+                      <button onClick={() => setSearchMonth(currentMonthWIB())} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-500 text-xs">Reset</button>
                     )}
                   </div>
                 </div>
@@ -731,10 +757,10 @@ export default function PrintJobPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-gray-800 font-bold text-lg">Daftar Pekerjaan</h2>
               <div className="flex items-center gap-2">
-                <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
+                <input type="month" value={searchMonth} onChange={e => handleMonthChange(e.target.value)}
                   className="px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                {searchMonth && (
-                  <button onClick={() => setSearchMonth('')} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-500 text-xs">Reset</button>
+                {searchMonth !== currentMonthWIB() && (
+                  <button onClick={() => setSearchMonth(currentMonthWIB())} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-500 text-xs">Reset</button>
                 )}
               </div>
             </div>

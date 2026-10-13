@@ -47,7 +47,9 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
   Future<void> _reloadData() async {
     setState(() => _loading = true);
     try {
-      final summary = await ApiService.fetchCashflowSummary();
+      final summary = await ApiService.fetchCashflowSummary(
+        month: DateFormat('yyyy-MM').format(_selectedPeriod),
+      );
       final transactions = await ApiService.fetchCashflow();
       transactions.sort(
         (a, b) => _resolveDate(b).compareTo(_resolveDate(a)),
@@ -181,6 +183,7 @@ class _CashflowHomeScreenState extends State<CashflowHomeScreen> {
     if (selected != null &&
         (selected.year != _selectedPeriod.year || selected.month != _selectedPeriod.month)) {
       setState(() => _selectedPeriod = selected);
+      _reloadData();
     }
   }
 
