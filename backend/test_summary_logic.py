@@ -441,5 +441,104 @@ class TestSummaryMatchesListPeriod(_Base):
                     sl.resolve_date_filter(month=bad)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 4) Pure Python: Assembler & Pipeline Contract (Tanpa Database)
+# ─────────────────────────────────────────────────────────────────────────────
+class TestAssembleSummary(unittest.TestCase):
+    """Pengujian unit murni (offline, zero-dependency, tanpa mongomock/DB).
+    Memverifikasi perakitan respons JSON dan kontrak struktur pipeline."""
+
+    def test_assemble_cashflow_empty_results(self):
+        res = sl.assemble_cashflow_summary([], [], [], [])
+        self.assertEqual(set(res), CASHFLOW_KEYS)
+        for k, v in res.items():
+            self.assertIsInstance(v, float, f'{k} harus bertipe float')
+            self.assertEqual(v, 0.0, f'{k} harus bernilai 0.0 saat hasil kosong')
+
+    def test_assemble_print_jobs_empty_results(self):
+        res = sl.assemble_print_jobs_summary([], [])
+        self.assertEqual(set(res), PRINT_KEYS)
+        self.assertEqual(res['total_revenue'], 0.0)
+        self.assertEqual(res['cash_revenue'], 0.0)
+        self.assertEqual(res['transfer_revenue'], 0.0)
+        self.assertEqual(res['total_jobs'], 0)
+        self.assertIsInstance(res['total_jobs'], int)
+        self.assertEqual(res['by_material'], [])
+
+    def test_kasbon_transfer_excluded_from_total_expense(self):
+        cf = [{'income': 100000.0, 'expense': 50000.0, 'income_cash': 80000.0, 'expense_cash': 40000.0}]
+        pj = [{'cash': 20000.0, 'transfer': 10000.0}]
+        proj = [{'cash': 30000.0, 'transfer': 15000.0}]
+        kb = [{'cash': 12000.0, 'transfer': 25000.0}]  # kasbon transfer 25.000
+        res = sl.assemble_cashflow_summary(cf, pj, proj, kb)
+
+        # total_kasbon mencakup cash + transfer
+        self.assertEqual(res['total_kasbon'], 37000.0)
+        self.assertEqual(res['kasbon_cash'], 12000.0)
+        self.assertEqual(res['kasbon_transfer'], 25000.0)
+
+        # total_expense HANYA mencakup manual_expense + kasbon_cash (kasbon transfer tidak masuk)
+        self.assertEqual(res['total_expense'], 50000.0 + 12000.0)
+        self.assertEqual(res['total_income'], 100000.0 + 20000.0 + 10000.0 + 30000.0 + 15000.0)
+        self.assertEqual(res['balance'], res['total_income'] - res['total_expense'])
+
+    def test_manual_balance_uses_cash_only(self):
+        cf = [{'income': 200000.0, 'expense': 90000.0, 'income_cash': 150000.0, 'expense_cash': 60000.0}]
+        res = sl.assemble_cashflow_summary(cf, [], [], [])
+        # manual_balance = income_cash - expense_cash (saldo kas laci)
+        self.assertEqual(res['manual_balance'], 90000.0)
+        self.assertEqual(res['manual_income'], 200000.0)
+        self.assertEqual(res['manual_expense'], 90000.0)
+
+    def test_print_jobs_discrepancy_between_total_and_materials_sum(self):
+        # Skenario kasir: Diskon global Rp 15.000 pada total transaksi
+        totals = [{'_id': None, 'total_revenue': 85000.0, 'cash_revenue': 85000.0, 'transfer_revenue': 0.0, 'total_jobs': 1}]
+        materials = [{'_id': 'Banner', 'total_qty': 2.0, 'total_revenue': 100000.0}]
+        res = sl.assemble_print_jobs_summary(totals, materials)
+
+        # total_revenue mempertahankan uang riil dari total transaksi
+        self.assertEqual(res['total_revenue'], 85000.0)
+        self.assertEqual(res['cash_revenue'], 85000.0)
+        self.assertEqual(res['total_jobs'], 1)
+        # by_material mempertahankan valuasi rincian bahan
+        self.assertEqual(len(res['by_material']), 1)
+        self.assertEqual(res['by_material'][0]['material'], 'Banner')
+        self.assertEqual(res['by_material'][0]['total_revenue'], 100000.0)
+
+    def test_print_jobs_pipeline_structure_contract(self):
+        flt = {'$regex': '^2026-10'}
+        totals_pipe = sl.build_print_jobs_totals_pipeline(flt)
+        # Struktur wajib: $match -> $addFields -> $group
+        self.assertIsInstance(totals_pipe, list)
+        self.assertEqual(len(totals_pipe), 3)
+        self.assertEqual(totals_pipe[0], {'$match': {'date': flt}})
+        self.assertIn('$addFields', totals_pipe[1])
+        self.assertIn('_amt', totals_pipe[1]['$addFields'])
+        self.assertIn('_m', totals_pipe[1]['$addFields'])
+        self.assertIn('$group', totals_pipe[2])
+        # total dihitung tanpa unwind agar tidak ada duplikasi per bahan
+        self.assertEqual(totals_pipe[2]['$group']['_id'], None)
+        self.assertIn('total_revenue', totals_pipe[2]['$group'])
+        self.assertIn('total_jobs', totals_pipe[2]['$group'])
+
+        mat_pipe = sl.build_print_jobs_by_material_pipeline(flt)
+        # Struktur wajib: $match -> $project -> $unwind -> $group
+        self.assertEqual(len(mat_pipe), 4)
+        self.assertEqual(mat_pipe[0], {'$match': {'date': flt}})
+        self.assertIn('$project', mat_pipe[1])
+        self.assertEqual(mat_pipe[2], {'$unwind': '$_lines'})
+        self.assertEqual(mat_pipe[3]['$group']['_id'], '$_lines.name')
+
+    def test_cashflow_pipelines_structure_contract(self):
+        flt = {'$regex': '^2026-10'}
+        pipes = sl.build_cashflow_pipelines(flt)
+        self.assertEqual(set(pipes), {'cashflow', 'print_jobs', 'projects', 'kasbon'})
+        for name, pipe in pipes.items():
+            self.assertEqual(pipe[0], {'$match': {'date': flt}}, f'Pipeline {name} harus diawali $match date')
+            self.assertIn('$addFields', pipe[1], f'Stage 1 {name} harus $addFields')
+            self.assertIn('$group', pipe[2], f'Stage 2 {name} harus $group')
+            self.assertEqual(pipe[2]['$group']['_id'], None, f'Group {name} harus _id: None')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
