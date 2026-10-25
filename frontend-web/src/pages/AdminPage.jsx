@@ -2058,7 +2058,22 @@ export default function AdminPage() {
                       const file = e.target.files[0]
                       if (file) {
                         const reader = new FileReader()
-                        reader.onloadend = () => setEmpForm(f => ({ ...f, photo: reader.result }))
+                        reader.onload = ev => {
+                          const img = new Image()
+                          img.onload = () => {
+                            const maxDim = 450
+                            const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+                            const w = Math.round(img.width * scale)
+                            const h = Math.round(img.height * scale)
+                            const canvas = document.createElement('canvas')
+                            canvas.width = w
+                            canvas.height = h
+                            canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+                            setEmpForm(f => ({ ...f, photo: canvas.toDataURL('image/jpeg', 0.82) }))
+                          }
+                          img.onerror = () => setEmpForm(f => ({ ...f, photo: ev.target.result }))
+                          img.src = ev.target.result
+                        }
                         reader.readAsDataURL(file)
                       }
                     }} />

@@ -13,6 +13,28 @@ export default function CrewFormModal({ onClose, onSaved, showToast }) {
   const [showPin, setShowPin] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  const compressPhotoFile = (file, maxDim = 450, quality = 0.82) =>
+    new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const img = new Image()
+        img.onload = () => {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+          const w = Math.round(img.width * scale)
+          const h = Math.round(img.height * scale)
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, w, h)
+          resolve(canvas.toDataURL('image/jpeg', quality))
+        }
+        img.onerror = () => resolve(ev.target.result)
+        img.src = ev.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+
   const handleSave = async () => {
     if (!form.name || !form.whatsapp || !form.pin || !form.birthdate || !form.birthplace) {
       showToast('Lengkapi semua field wajib', 'error')
@@ -59,12 +81,11 @@ export default function CrewFormModal({ onClose, onSaved, showToast }) {
           </div>
           <label className="mt-2 text-sm text-purple-600 font-medium cursor-pointer hover:text-purple-700">
             Upload Foto
-            <input type="file" accept="image/*" className="hidden" onChange={e => {
+            <input type="file" accept="image/*" className="hidden" onChange={async e => {
               const file = e.target.files[0]
               if (file) {
-                const reader = new FileReader()
-                reader.onloadend = () => setForm(f => ({ ...f, photo: reader.result }))
-                reader.readAsDataURL(file)
+                const compressed = await compressPhotoFile(file)
+                setForm(f => ({ ...f, photo: compressed }))
               }
             }} />
           </label>

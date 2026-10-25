@@ -327,10 +327,11 @@ async def employee_login(body: dict):
 
 @api.post('/auth/identify-by-pin')
 async def identify_by_pin(body: IdentifyByPin):
-    employees = await db.employees.find({}, {'_id': 0}).to_list(None)
+    employees = await db.employees.find({}, {'_id': 0, 'photo': 0}).to_list(None)
     for emp in employees:
         if emp.get('pin_hash') and bcrypt.checkpw(body.pin.encode(), emp['pin_hash'].encode()):
-            return {'success': True, 'employee': {k: v for k, v in emp.items() if k != 'pin_hash'}}
+            full_emp = await db.employees.find_one({'id': emp['id']}, {'_id': 0, 'pin_hash': 0})
+            return {'success': True, 'employee': full_emp or {k: v for k, v in emp.items() if k != 'pin_hash'}}
     raise HTTPException(status_code=404, detail='PIN tidak ditemukan')
 
 @api.post('/auth/verify-birthdate')
