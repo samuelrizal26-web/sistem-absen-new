@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-import os, uuid, bcrypt, asyncio
+import os, uuid, bcrypt, asyncio, json
 from summary_logic import (
     PeriodError, resolve_date_filter,
     build_print_jobs_totals_pipeline, build_print_jobs_by_material_pipeline, assemble_print_jobs_summary,
@@ -20,7 +20,14 @@ try:
     # Try to initialize from environment variables or file
     firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
     if firebase_creds:
-        cred_dict = eval(firebase_creds)  # Parse JSON string from env
+        # Parse JSON string from env (json.loads: tidak mengeksekusi kode, tidak seperti eval)
+        try:
+            cred_dict = json.loads(firebase_creds)
+        except ValueError:
+            # Pesan asli parser tidak dicetak agar isi kredensial tidak masuk ke log
+            raise ValueError('FIREBASE_CREDENTIALS bukan JSON yang valid') from None
+        if not isinstance(cred_dict, dict):
+            raise ValueError('FIREBASE_CREDENTIALS harus berupa objek JSON')
         firebase_admin.initialize_app(credentials.Certificate(cred_dict))
         print('[INFO] Firebase Admin SDK initialized from environment variables')
     else:
@@ -31,12 +38,19 @@ except Exception as e:
     print(f'[WARNING] Firebase initialization failed: {e}')
     pass
 
-# ── Setup ────────────────────────────────────────────────────────────────────
+# ── Setup & Optimized Database Connection ──────────────────────────────────────
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+
+# Konfigurasi pembatasan connection pool untuk menghemat memori RAM
+client = AsyncIOMotorClient(
+    mongo_url,
+    maxPoolSize=10,       # Membatasi koneksi aktif maksimal 10 paralel
+    minPoolSize=2,        # Mempertahankan minimal 2 koneksi siaga
+    maxIdleTimeMS=30000   # Putus otomatis koneksi idle di atas 30 detik
+)
 db = client[os.environ['DB_NAME']]
 
 app = FastAPI(title='Labalaba Advertising API')

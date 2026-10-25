@@ -52,3 +52,15 @@ test_post.py
 
 # Firebase secrets
 **/firebase-adminsdk.json
+
+# Environment files
+.env
+*.env
+backend/.env
+
+# Firebase/Google service-account keys (nama file hasil unduhan bervariasi,
+# mis. <project>-firebase-adminsdk-xxxxx-<hash>.json). google-services.json
+# (konfigurasi klien Android) sengaja TIDAK diabaikan.
+*firebase-adminsdk*.json
+*service-account*.json
+*serviceAccount*.json
