@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import os, uuid, bcrypt, asyncio, json
 from summary_logic import (
-    PeriodError, resolve_date_filter,
+    PeriodError, resolve_date_filter, current_month_wib,
     build_print_jobs_totals_pipeline, build_print_jobs_by_material_pipeline, assemble_print_jobs_summary,
     build_cashflow_pipelines, assemble_cashflow_summary,
 )
@@ -453,7 +453,8 @@ async def get_print_jobs_summary(
 
 @api.get('/print-jobs')
 async def get_print_jobs(month: Optional[str] = None):
-    query = {'date': {'$regex': f'^{month}'}} if month else {}
+    target_month = month if month else current_month_wib()
+    query = {'date': {'$regex': f'^{target_month}'}}
     docs = await db.print_jobs.find(query, {'_id': 0}).sort('date', -1).to_list(None)
     result = []
     for d in docs:
@@ -669,7 +670,8 @@ async def get_previous_month_summary():
 
 @api.get('/cashflow/admin-summary')
 async def get_admin_cashflow_summary(month: Optional[str] = None):
-    query = {'date': {'$regex': f'^{month}'}} if month else {}
+    target_month = month if month else current_month_wib()
+    query = {'date': {'$regex': f'^{target_month}'}}
     cashflow_docs, print_jobs, projects, kasbon_docs, modal_doc = await asyncio.gather(
         db.cashflow.find(query, {'_id': 0}).to_list(None),
         db.print_jobs.find(query, {'_id': 0}).to_list(None),
@@ -752,7 +754,8 @@ async def get_admin_previous_month_summary():
 
 @api.get('/cashflow')
 async def get_cashflow(month: Optional[str] = None):
-    query = {'date': {'$regex': f'^{month}'}} if month else {}
+    target_month = month if month else current_month_wib()
+    query = {'date': {'$regex': f'^{target_month}'}}
     return await db.cashflow.find(query, {'_id': 0}).sort('date', -1).to_list(None)
 
 @api.get('/cashflow/employee/{emp_id}/paginated')

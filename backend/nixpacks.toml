@@ -2,6 +2,8 @@ providers = ["python"]
 
 [variables]
 NIXPACKS_PYTHON_PACKAGE_MANAGER = "skip"
+MALLOC_TRIM_THRESHOLD_ = "65536"
+PYTHONUNBUFFERED = "1"
 
 [phases.install]
 cmds = [
