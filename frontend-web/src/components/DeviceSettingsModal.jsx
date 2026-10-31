@@ -10,14 +10,13 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
   const [deviceName, setDeviceName] = useState('')
 
   const ROLE_OPTIONS = [
-    { value: 'NONE', label: 'None' },
-    { value: 'STORE_TABLET', label: 'Tablet Toko' },
-    { value: 'OWNER', label: 'HP Pemilik' },
+    { value: 'NONE', label: 'Belum Diatur (Nonaktif)' },
+    { value: 'STORE_TABLET', label: 'Tablet Toko (Tanpa Notif)' },
+    { value: 'OWNER', label: 'HP Pemilik (Menerima Notif)' },
   ]
 
   useEffect(() => {
     loadDevices()
-    // Get or generate device ID
     let deviceId = localStorage.getItem('device_id')
     if (!deviceId) {
       deviceId = crypto.randomUUID()
@@ -49,8 +48,8 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
       loadDevices()
       setDeviceName('')
       setRole('')
-    } catch {
-      showToast('Gagal register device', 'error')
+    } catch (e) {
+      showToast(e.message || 'Gagal register device', 'error')
     }
   }
 
@@ -66,8 +65,8 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
       setEditDevice(null)
       setDeviceName('')
       setRole('')
-    } catch {
-      showToast('Gagal update device', 'error')
+    } catch (e) {
+      showToast(e.message || 'Gagal update device', 'error')
     }
   }
 
@@ -77,15 +76,15 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
       await deleteDevice(deviceId)
       showToast('Device berhasil dihapus', 'success')
       loadDevices()
-    } catch {
-      showToast('Gagal hapus device', 'error')
+    } catch (e) {
+      showToast(e.message || 'Gagal hapus device', 'error')
     }
   }
 
   const startEdit = (device) => {
     setEditDevice(device)
-    setDeviceName(device.device_name)
-    setRole(device.role)
+    setDeviceName(device.device_name || '')
+    setRole(device.role || 'NONE')
   }
 
   const cancelEdit = () => {
@@ -97,37 +96,44 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">Pengaturan Perangkat</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">
             ✕
           </button>
         </div>
 
+        {/* Info Banner */}
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-5 text-xs text-amber-900 leading-relaxed">
+          🔔 <b>Aturan Notifikasi:</b> Hanya perangkat bertipe <b>HP Pemilik</b> yang akan menerima notifikasi kasbon dan pesanan baru. Perangkat <b>Tablet Toko</b> dan <b>Belum Diatur</b> tidak menerima notifikasi.
+        </div>
+
         {/* Current Device Info */}
-        <div className="bg-blue-50 rounded-2xl p-4 mb-6">
-          <p className="text-sm text-blue-800 font-medium mb-1">Perangkat Ini</p>
-          <p className="text-xs text-blue-600 font-mono">{currentDeviceId}</p>
-          <p className="text-xs text-blue-500 mt-1">
-            {devices.find(d => d.device_id === currentDeviceId) ? 'Sudah diregister' : 'Belum diregister'}
+        <div className="bg-blue-50 rounded-2xl p-4 mb-5 border border-blue-100">
+          <p className="text-xs text-blue-800 font-semibold mb-1">Perangkat Ini</p>
+          <p className="text-xs text-blue-600 font-mono break-all">{currentDeviceId}</p>
+          <p className="text-xs text-blue-500 mt-1 font-medium">
+            Status: {devices.find(d => d.device_id === currentDeviceId) ? 'Sudah terdaftar di database' : 'Belum terdaftar'}
           </p>
         </div>
 
-        {/* Register Form */}
-        <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-          <h3 className="text-sm font-bold text-gray-700 mb-3">Register Perangkat Baru</h3>
+        {/* Form Register / Edit */}
+        <div className="bg-gray-50 rounded-2xl p-4 mb-5 border border-gray-100">
+          <h3 className="text-sm font-bold text-gray-700 mb-3">
+            {editDevice ? `Edit Perangkat (${editDevice.device_name || editDevice.device_id.slice(0, 8)})` : 'Set / Register Perangkat Ini'}
+          </h3>
           <div className="space-y-3">
             <input
               type="text"
               value={deviceName}
               onChange={e => setDeviceName(e.target.value)}
-              placeholder="Nama Perangkat (opsional)"
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              placeholder="Nama Perangkat (misal: Tablet Kasir Depan / HP Owner)"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
             <select
               value={role}
               onChange={e => setRole(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
             >
               <option value="">Pilih Role</option>
               {ROLE_OPTIONS.map(opt => (
@@ -137,14 +143,14 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
             <button
               onClick={editDevice ? handleUpdate : handleRegister}
               disabled={!role}
-              className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-40"
+              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition-colors"
             >
-              {editDevice ? 'Update Perangkat' : 'Register Perangkat'}
+              {editDevice ? 'Simpan Perubahan' : 'Register / Perbarui Perangkat Ini'}
             </button>
             {editDevice && (
               <button
                 onClick={cancelEdit}
-                className="w-full py-3 rounded-xl border border-gray-300 text-gray-600 font-medium hover:bg-gray-100"
+                className="w-full py-2 rounded-xl border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors"
               >
                 Batal Edit
               </button>
@@ -154,45 +160,55 @@ export default function DeviceSettingsModal({ onClose, showToast }) {
 
         {/* Device List */}
         <div>
-          <h3 className="text-sm font-bold text-gray-700 mb-3">Daftar Perangkat</h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-bold text-gray-700">Daftar Perangkat Aktif (14 Hari Terakhir)</h3>
+            <span className="text-xs text-gray-400 font-medium">{devices.length} perangkat</span>
+          </div>
           {loading ? (
-            <p className="text-sm text-gray-500 text-center py-4">Loading...</p>
+            <p className="text-sm text-gray-500 text-center py-4">Memuat data perangkat...</p>
           ) : devices.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">Belum ada perangkat</p>
+            <p className="text-sm text-gray-500 text-center py-6 bg-gray-50 rounded-2xl">Belum ada perangkat yang aktif</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {devices.map(device => (
-                <div key={device.device_id} className="bg-white border border-gray-200 rounded-xl p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800">{device.device_name || 'Unnamed'}</p>
-                      <p className="text-xs text-gray-500 font-mono mt-1">{device.device_id}</p>
-                      <div className="mt-2">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                <div key={device.device_id} className={`border rounded-xl p-3.5 transition-all ${device.device_id === currentDeviceId ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 bg-white'}`}>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{device.device_name || 'Tanpa Nama'}</p>
+                        {device.device_id === currentDeviceId && (
+                          <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Perangkat Ini</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate">{device.device_id}</p>
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                           device.role === 'OWNER' ? 'bg-purple-100 text-purple-700' :
                           device.role === 'STORE_TABLET' ? 'bg-blue-100 text-blue-700' :
                           'bg-gray-100 text-gray-600'
                         }`}>
                           {ROLE_OPTIONS.find(r => r.value === device.role)?.label || device.role}
                         </span>
+                        <span className={`text-[11px] font-mono ${device.fcm_token ? 'text-green-600' : 'text-gray-400'}`}>
+                          {device.fcm_token ? '✓ Notif Siap' : '✗ FCM Belum Siap'}
+                        </span>
                       </div>
-                      <div className="mt-2">
-                        <p className="text-xs text-gray-500">FCM Token:</p>
-                        <p className={`text-xs font-mono ${device.fcm_token ? 'text-green-600' : 'text-red-500'}`}>
-                          {device.fcm_token ? 'Terdaftar ✓' : 'Tidak terdaftar ✗'}
+                      {device.last_active && (
+                        <p className="text-[10px] text-gray-400 mt-1.5">
+                          Terakhir aktif: {new Date(device.last_active).toLocaleString('id-ID')}
                         </p>
-                      </div>
+                      )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5 shrink-0">
                       <button
                         onClick={() => startEdit(device)}
-                        className="px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(device.device_id)}
-                        className="px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg"
+                        className="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                       >
                         Hapus
                       </button>

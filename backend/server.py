@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Header
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import os, uuid, bcrypt, asyncio, json, hashlib
+from device_logic import is_valid_role, can_receive_notification, filter_active_devices, ACTIVE_DAYS_DEFAULT
 from summary_logic import (
     PeriodError, resolve_date_filter, current_month_wib,
     build_print_jobs_totals_pipeline, build_print_jobs_by_material_pipeline, assemble_print_jobs_summary,
@@ -221,6 +222,9 @@ class CashflowUpdate(BaseModel):
     amount: Optional[float] = None
     description: Optional[str] = None
     notes: Optional[str] = None
+    payment_method: Optional[str] = None
+    edited_by: Optional[str] = None
+    employee_id: Optional[str] = None
 
 class KasbonCreate(BaseModel):
     employee_id: str
@@ -316,24 +320,33 @@ class DeviceUpdate(BaseModel):
     fcm_token: Optional[str] = None
 
 # ── Auth ────────────────────────────────────────────────────────────────────
+async def _admin_pin_hash():
+    cfg = await db.config.find_one({'key': 'admin'})
+    return cfg.get('pin_hash') if cfg else None
+
+@api.get('/auth/admin-pin/status')
+async def admin_pin_status():
+    return {'has_pin': bool(await _admin_pin_hash())}
+
 @api.post('/auth/admin-login')
 async def admin_login(body: AdminLogin):
-    cfg = await db.config.find_one({'key': 'admin'})
-    if body.username and body.password:
-        if body.username == 'admin' and body.password in ('admin', 'admin123'):
-            return {'success': True, 'role': 'admin'}
-        raise HTTPException(status_code=401, detail='Username atau password salah')
+    # Login username/password bawaan dan PIN default sudah dihapus. Hanya PIN yang dibuat owner.
+    if body.username or body.password:
+        raise HTTPException(status_code=401, detail='Login dengan password dinonaktifkan. Gunakan PIN admin.')
     if body.pin:
-        if cfg and cfg.get('pin_hash'):
-            if await verify_pin_fast(body.pin, cfg['pin_hash']):
-                return {'success': True, 'role': 'admin'}
-        elif body.pin == '123456':
+        pin_hash = await _admin_pin_hash()
+        if not pin_hash:
+            raise HTTPException(status_code=409, detail='PIN admin belum dibuat')
+        if await verify_pin_fast(body.pin, pin_hash):
             return {'success': True, 'role': 'admin'}
         raise HTTPException(status_code=401, detail='PIN admin salah')
-    raise HTTPException(status_code=400, detail='Berikan username+password atau pin')
+    raise HTTPException(status_code=400, detail='Berikan PIN admin')
 
 @api.post('/auth/admin-pin/setup')
 async def setup_admin_pin(body: dict):
+    # Hanya boleh saat PIN belum pernah dibuat. Mengganti PIN lewat /admin-pin/change (wajib PIN lama).
+    if await _admin_pin_hash():
+        raise HTTPException(status_code=403, detail='PIN admin sudah ada. Gunakan Ganti PIN.')
     new_pin = body.get('new_pin', '')
     if len(new_pin) < 4:
         raise HTTPException(status_code=400, detail='PIN minimal 4 digit')
@@ -345,12 +358,13 @@ async def setup_admin_pin(body: dict):
 async def change_admin_pin(body: dict):
     old_pin = body.get('old_pin', '')
     new_pin = body.get('new_pin', '')
-    cfg = await db.config.find_one({'key': 'admin'})
-    if cfg and cfg.get('pin_hash'):
-        if not bcrypt.checkpw(old_pin.encode(), cfg['pin_hash'].encode()):
-            raise HTTPException(status_code=401, detail='PIN lama salah')
-    elif old_pin != '123456':
+    pin_hash_now = await _admin_pin_hash()
+    if not pin_hash_now:
+        raise HTTPException(status_code=409, detail='PIN admin belum dibuat')
+    if not await verify_pin_fast(old_pin, pin_hash_now):
         raise HTTPException(status_code=401, detail='PIN lama salah')
+    if len(new_pin) < 4:
+        raise HTTPException(status_code=400, detail='PIN minimal 4 digit')
     pin_hash = bcrypt.hashpw(new_pin.encode(), bcrypt.gensalt()).decode()
     await db.config.update_one({'key': 'admin'}, {'$set': {'pin_hash': pin_hash}}, upsert=True)
     return {'success': True}
@@ -792,10 +806,16 @@ async def update_cashflow(cf_id: str, body: CashflowUpdate):
     if not doc:
         raise HTTPException(status_code=404, detail='Cashflow tidak ditemukan')
     update = body.model_dump(exclude_none=True)
-    allowed = {'amount', 'payment_method'}
+    allowed = {'amount', 'payment_method', 'edited_by', 'employee_id'}
     update = {k: v for k, v in update.items() if k in allowed}
     if not update:
         raise HTTPException(status_code=400, detail='Tidak ada field yang boleh diubah')
+    update['is_edited'] = True
+    update['edited_at'] = now_str()
+    if 'original_amount' not in doc:
+        update['original_amount'] = doc.get('amount')
+    if 'original_payment_method' not in doc:
+        update['original_payment_method'] = doc.get('payment_method')
     await db.cashflow.update_one({'id': cf_id}, {'$set': update})
     return await db.cashflow.find_one({'id': cf_id}, {'_id': 0})
 
@@ -907,16 +927,8 @@ async def settle_kasbon(emp_id: str):
         {'employee_id': emp_id, 'settled': {'$ne': True}},
         {'$set': {'settled': True, 'settled_at': now_str()}})
     
-    # Send notification to STORE_TABLET when kasbon is approved
-    if result.modified_count > 0:
-        emp = await db.employees.find_one({'id': emp_id})
-        await send_notification_to_role(
-            role='STORE_TABLET',
-            title='Kasbon Disetujui',
-            body=f'Kasbon untuk {emp.get("name", "Karyawan")} telah disetujui',
-            data={'type': 'kasbon_approved', 'employee_id': emp_id}
-        )
-    
+    # Notifikasi hanya untuk HP owner (OWNER); tablet toko tidak menerima notifikasi.
+
     return {'success': True, 'settled_count': result.modified_count}
 
 @api.put('/kasbon/{kasbon_id}')
@@ -1228,6 +1240,8 @@ async def delete_work_tracking(item_id: str):
 # ── Device Management ───────────────────────────────────────────────────────────
 @api.post('/devices')
 async def register_device(body: DeviceCreate):
+    if not is_valid_role(body.role):
+        raise HTTPException(status_code=400, detail='Role tidak valid. Pilih NONE, STORE_TABLET, atau OWNER.')
     print(f'[REGISTER DEVICE] device_id={body.device_id}, device_name={body.device_name}, role={body.role}, fcm_token_present={bool(body.fcm_token)}')
     # Check by device_id first
     existing = await db.devices.find_one({'device_id': body.device_id})
@@ -1256,14 +1270,17 @@ async def register_device(body: DeviceCreate):
         )
         return clean(await db.devices.find_one({'device_name': body.device_name, 'role': body.role}, {'_id': 0}))
 
-    doc = {'id': new_id(), 'device_id': body.device_id, 'device_name': body.device_name, 'role': body.role, 'fcm_token': body.fcm_token, 'last_active': now_str(), 'created_at': now_str()}
+    # Perangkat baru SELALU mulai tanpa role (NONE) dan tidak menerima notifikasi.
+    # Owner harus menetapkan role di Admin > Pengaturan > Pengaturan Perangkat.
+    doc = {'id': new_id(), 'device_id': body.device_id, 'device_name': body.device_name, 'role': 'NONE', 'fcm_token': body.fcm_token, 'last_active': now_str(), 'created_at': now_str()}
     await db.devices.insert_one(doc)
     return clean(doc)
 
 @api.get('/devices')
-async def get_devices():
+async def get_devices(active_days: int = ACTIVE_DAYS_DEFAULT):
+    # Hanya perangkat aktif (default 14 hari terakhir). active_days=0 menampilkan semua.
     devices = await db.devices.find({}, {'_id': 0}).to_list(None)
-    return devices
+    return filter_active_devices(devices, active_days)
 
 @api.get('/devices/debug/{device_id}')
 async def debug_device(device_id: str):
@@ -1287,6 +1304,8 @@ async def update_device(device_id: str, body: DeviceUpdate):
     if not existing:
         raise HTTPException(status_code=404, detail='Device tidak ditemukan')
     update = body.model_dump(exclude_none=True)
+    if 'role' in update and not is_valid_role(update['role']):
+        raise HTTPException(status_code=400, detail='Role tidak valid. Pilih NONE, STORE_TABLET, atau OWNER.')
     update['last_active'] = now_str()
     await db.devices.update_one({'device_id': device_id}, {'$set': update})
     return clean(await db.devices.find_one({'device_id': device_id}, {'_id': 0}))
@@ -1395,39 +1414,55 @@ async def rotate_piket(group_id: str):
 
 # ── Notification Helper ─────────────────────────────────────────────────────────
 async def send_notification_to_role(role: str, title: str, body: str, data: dict = None):
-    """Send push notification to all devices with specified role"""
+    """Kirim push notification ke perangkat dengan role tertentu. Hanya role OWNER yang menerima."""
+    if not can_receive_notification(role):
+        print(f'[NOTIFICATION] Skipped: role {role} tidak menerima notifikasi')
+        return
     try:
         devices = await db.devices.find({'role': role}, {'_id': 0}).to_list(None)
         if not devices:
             print(f'[NOTIFICATION] No devices found with role: {role}')
             return
 
-        # Send FCM notifications
-        for device in devices:
-            if device.get('fcm_token'):
-                try:
-                    # Use both notification and data payload
-                    # notification payload shows automatically when app is in background
-                    # data payload is handled by app when in foreground
-                    message = messaging.Message(
-                        notification=messaging.Notification(title=title, body=body),
-                        data=data or {},
-                        token=device['fcm_token']
-                    )
-                    messaging.send(message)
-                    print(f'[NOTIFICATION] Sent to device: {device.get('device_name', device['device_id'])}')
-                except Exception as e:
-                    print(f'[NOTIFICATION ERROR] Failed to send to {device.get('device_name', device['device_id'])}: {e}')
-            else:
-                print(f'[NOTIFICATION] Device {device.get('device_name', device['device_id'])} has no FCM token')
+        stale_errors = tuple(
+            err for err in (getattr(messaging, 'UnregisteredError', None), getattr(messaging, 'SenderIdMismatchError', None)) if err
+        )
 
-        print(f'[NOTIFICATION] Sent to {len(devices)} devices with role {role}: {title} - {body}')
+        for device in devices:
+            name = device.get('device_name') or device.get('device_id')
+            token = device.get('fcm_token')
+            if not token:
+                print(f'[NOTIFICATION] Device {name} has no FCM token')
+                continue
+            try:
+                message = messaging.Message(
+                    notification=messaging.Notification(title=title, body=body),
+                    data=data or {},
+                    token=token
+                )
+                # messaging.send bersifat blocking; jalankan di thread agar server tidak tertahan.
+                await asyncio.to_thread(messaging.send, message)
+                print(f'[NOTIFICATION] Sent to device: {name}')
+            except Exception as e:
+                if stale_errors and isinstance(e, stale_errors):
+                    # Token sudah mati: kosongkan agar tidak dicoba lagi. Perangkat mendaftar ulang saat aplikasi dibuka.
+                    await db.devices.update_one({'device_id': device['device_id']}, {'$set': {'fcm_token': None}})
+                    print(f'[NOTIFICATION] Token mati dibersihkan untuk {name}')
+                else:
+                    print(f'[NOTIFICATION ERROR] Failed to send to {name}: {e}')
+
+        print(f'[NOTIFICATION] Processed {len(devices)} devices with role {role}: {title}')
     except Exception as e:
         print(f'[NOTIFICATION ERROR] {e}')
 
 @api.delete('/reset-database')
-async def reset_database():
-    """Hapus semua data kecuali stock dan employees untuk reset database"""
+async def reset_database(x_admin_pin: Optional[str] = Header(None, alias='X-Admin-Pin')):
+    """Hapus semua data kecuali stock dan employees. Wajib PIN admin (header X-Admin-Pin)."""
+    pin_hash = await _admin_pin_hash()
+    if not pin_hash:
+        raise HTTPException(status_code=403, detail='PIN admin belum dibuat')
+    if not x_admin_pin or not await verify_pin_fast(x_admin_pin, pin_hash):
+        raise HTTPException(status_code=401, detail='PIN admin salah')
     collections = [
         'cashflow', 'kasbon', 'print_jobs', 'projects', 'jobs', 'work_tracking'
     ]

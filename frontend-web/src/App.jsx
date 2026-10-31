@@ -36,7 +36,7 @@ function AppContent() {
           console.log('[App] Device ID:', deviceId)
           console.log('[App] Device info:', JSON.stringify(info))
           if (deviceId) {
-            await registerDevice({ device_id: deviceId, device_name: info.model, role: 'OWNER', fcm_token: token })
+            await registerDevice({ device_id: deviceId, device_name: info.model, role: 'NONE', fcm_token: token })
             await registerFCMTokenToBackend(deviceId, token)
           } else {
             console.log('[App] No device ID, skipping registration')

@@ -8,7 +8,7 @@ import {
   getPrintJobs, getProjects, getAllAdvances, deleteAdvance,
   getSalaryCalc, paySalary,
   getJobs, getArchivedJobs, getArchivedProjects,
-  verifyAdminPin, verifyAdminPassword, changeAdminPin, setupAdminPin,
+  verifyAdminPin, getAdminPinStatus, changeAdminPin, setupAdminPin,
   getKasbonByEmployeePaginated, getPrintJobsByEmployeePaginated, getCashflowByEmployeePaginated,
   resetDatabase, createCashDenomination, getLatestCashDenomination, updateCashDenomination,
 } from '../services/api'
@@ -44,12 +44,19 @@ export default function AdminPage() {
 
   // Auth
   const [authed, setAuthed] = useState(false)
-  const [authMode, setAuthMode] = useState('pin') // 'pin' | 'password'
+  const [hasAdminPin, setHasAdminPin] = useState(true)
   const [pinInput, setPinInput] = useState('')
-  const [passInput, setPassInput] = useState({ username: '', password: '' })
+  const [setupPinInput, setSetupPinInput] = useState('')
+  const [setupPinConfirm, setSetupPinConfirm] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [shake, setShake] = useState(false)
+
+  useEffect(() => {
+    getAdminPinStatus()
+      .then(res => setHasAdminPin(Boolean(res?.has_pin)))
+      .catch(() => setHasAdminPin(true))
+  }, [])
 
   // Navigation
   const [tab, setTab] = useState(TAB.CREW)
@@ -222,13 +229,23 @@ export default function AdminPage() {
     } finally { setAuthLoading(false) }
   }
 
-  const handlePassAuth = async () => {
+  const handleInitialSetupPin = async () => {
+    if (setupPinInput.length !== 6) {
+      setAuthError('PIN harus 6 digit angka')
+      return
+    }
+    if (setupPinInput !== setupPinConfirm) {
+      setAuthError('Konfirmasi PIN tidak cocok')
+      return
+    }
     setAuthLoading(true); setAuthError('')
     try {
-      await verifyAdminPassword(passInput.username, passInput.password)
+      await setupAdminPin(setupPinInput)
       setAuthed(true)
-    } catch {
-      setAuthError('Username atau password salah')
+      setHasAdminPin(true)
+      showToast('PIN Admin berhasil dibuat!', 'success')
+    } catch (e) {
+      setAuthError(e.message || 'Gagal menyimpan PIN')
     } finally { setAuthLoading(false) }
   }
 
@@ -840,17 +857,34 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="flex gap-2 mb-5">
-              {[['pin', 'PIN'], ['password', 'Password']].map(([m, label]) => (
-                <button key={m} onClick={() => { setAuthMode(m); setAuthError('') }}
-                  className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${authMode === m ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                  {label}
+            {!hasAdminPin ? (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <h2 className="font-bold text-gray-800 text-base">Setup PIN Admin Pertama Kali</h2>
+                  <p className="text-xs text-gray-500 mt-1">Buat 6 digit PIN untuk keamanan akses dashboard admin.</p>
+                </div>
+                {authError && <p className="text-red-500 text-center text-xs">{authError}</p>}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">PIN Baru (6 digit)</label>
+                  <input type="password" maxLength={6} value={setupPinInput} onChange={e => setSetupPinInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Contoh: 123456" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-center tracking-widest text-lg font-mono focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Konfirmasi PIN</label>
+                  <input type="password" maxLength={6} value={setupPinConfirm} onChange={e => setSetupPinConfirm(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Ulangi PIN" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-center tracking-widest text-lg font-mono focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                </div>
+                <button onClick={handleInitialSetupPin} disabled={authLoading || setupPinInput.length !== 6 || setupPinInput !== setupPinConfirm}
+                  className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-40 transition-colors">
+                  {authLoading ? 'Menyimpan...' : 'Simpan & Masuk'}
                 </button>
-              ))}
-            </div>
-
-            {authMode === 'pin' ? (
+              </div>
+            ) : (
               <div>
+                <div className="text-center mb-5">
+                  <h2 className="font-bold text-gray-800 text-base">Masukkan PIN Admin</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Akses khusus pemilik</p>
+                </div>
                 <div className="flex justify-center gap-3 mb-4">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className={`w-3.5 h-3.5 rounded-full transition-all ${i < pinInput.length ? 'bg-purple-600 scale-110' : 'bg-gray-300'}`} />
@@ -877,19 +911,6 @@ export default function AdminPage() {
                     )
                   })}
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {authError && <p className="text-red-500 text-center text-sm">{authError}</p>}
-                <input type="text" value={passInput.username} onChange={e => setPassInput(p => ({ ...p, username: e.target.value }))} placeholder="Username"
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300" />
-                <input type="password" value={passInput.password} onChange={e => setPassInput(p => ({ ...p, password: e.target.value }))} placeholder="Password"
-                  onKeyDown={e => e.key === 'Enter' && handlePassAuth()}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300" />
-                <button onClick={handlePassAuth} disabled={authLoading}
-                  className="w-full py-3.5 rounded-2xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-40">
-                  {authLoading ? 'Masuk...' : 'Masuk dengan Password'}
-                </button>
               </div>
             )}
           </div>
@@ -1325,16 +1346,21 @@ export default function AdminPage() {
                           const srcColor = {'print':'bg-orange-100 text-orange-600','project':'bg-purple-100 text-purple-600','kasbon':'bg-yellow-100 text-yellow-700','manual-income':'bg-green-100 text-green-600','manual-expense':'bg-red-100 text-red-600'}[item._source]||'bg-gray-100 text-gray-500'
                           const srcLabel = {'print':'Print','project':'Project','kasbon':'Kasbon','manual-income':'Manual','manual-expense':'Manual'}[item._source]||''
                           return (
-                          <div key={`${item._source}-${item.id}`} onClick={() => handleViewCashflow(item)} className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-center gap-2.5 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all">
+                          <div key={`${item._source}-${item.id}`} onClick={() => handleViewCashflow(item)} className={`rounded-xl px-3 py-2.5 flex items-center gap-2.5 border cursor-pointer hover:bg-gray-100 transition-all ${item.is_edited ? 'bg-amber-50/70 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
                               <svg className={`w-3.5 h-3.5 ${isIncome ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
                               </svg>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1 mb-0.5">
+                              <div className="flex items-center gap-1 mb-0.5 flex-wrap">
                                 <p className="font-semibold text-gray-800 text-xs truncate">{item.description}</p>
                                 <span className={`text-[9px] px-1 py-0.5 rounded font-semibold shrink-0 ${srcColor}`}>{srcLabel}</span>
+                                {item.is_edited && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-200 text-amber-900 border border-amber-300 shrink-0">
+                                    Diedit: {item.edited_by || 'Karyawan'}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-[10px] text-gray-400">{formatDateTime(item.created_at || item.date)} · {item.payment_method === 'cash' ? 'Cash' : 'Transfer'} · Oleh: {item.handled_by || item.cashier || '-'}{item.employee_id ? ` · ${employees.find(e => e.id === item.employee_id)?.name || '-'}` : ''}</p>
                             </div>
@@ -1544,10 +1570,17 @@ export default function AdminPage() {
               <button onClick={async () => {
                 if (!confirm('Apakah Anda yakin ingin mereset database? Data pekerjaan, cashflow, dan kasbon akan dihapus. Data stok dan anggota dipertahankan.')) return
                 if (!confirm('Konfirmasi sekali lagi: Lanjutkan reset database?')) return
+                const adminPin = prompt('Masukkan PIN Admin untuk konfirmasi reset database:')
+                if (!adminPin) return
                 setResetLoading(true)
-                try { await resetDatabase(); showToast('Database berhasil di-reset. Data stok dan anggota dipertahankan.', 'success') }
-                catch (e) { showToast(e.message || 'Gagal reset database', 'error') }
-                finally { setResetLoading(false) }
+                try {
+                  await resetDatabase(adminPin)
+                  showToast('Database berhasil di-reset. Data stok dan anggota dipertahankan.', 'success')
+                } catch (e) {
+                  showToast(e.message || 'Gagal reset database', 'error')
+                } finally {
+                  setResetLoading(false)
+                }
               }} disabled={resetLoading}
                 className="w-full py-3 rounded-2xl border border-red-300 text-red-600 font-semibold hover:bg-red-50 disabled:opacity-40">
                 {resetLoading ? 'Mereset data...' : 'Reset Database'}
@@ -1759,6 +1792,13 @@ export default function AdminPage() {
                 ['Sumber', {'print':'Print Job','project':'Project','kasbon':'Kasbon','manual-income':'Manual','manual-expense':'Manual'}[viewCf._source] || '-'],
                 ['Oleh', viewCf.handled_by || viewCf.cashier || '-'],
                 ['Catatan', viewCf.notes || '-'],
+                ['Status', viewCf.is_edited ? 'Diedit' : 'Asli'],
+                ...(viewCf.is_edited ? [
+                  ['Diedit Oleh', viewCf.edited_by || '-'],
+                  ['Waktu Diedit', formatDateTime(viewCf.edited_at)],
+                  ...(viewCf.original_amount !== undefined && viewCf.original_amount !== viewCf.amount ? [['Nominal Awal', formatRupiah(viewCf.original_amount)]] : []),
+                  ...(viewCf.original_payment_method && viewCf.original_payment_method !== viewCf.payment_method ? [['Metode Awal', viewCf.original_payment_method]] : []),
+                ] : []),
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between items-center py-2 border-b border-gray-50">
                   <span className="text-sm text-gray-500">{label}</span>

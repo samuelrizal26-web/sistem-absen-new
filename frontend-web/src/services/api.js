@@ -30,8 +30,8 @@ export const deleteEmployee = (id) =>
 export const verifyAdminPin = (pin) =>
   request('/auth/admin-login', { method: 'POST', body: JSON.stringify({ pin }) })
 
-export const verifyAdminPassword = (username, password) =>
-  request('/auth/admin-login', { method: 'POST', body: JSON.stringify({ username, password }) })
+export const getAdminPinStatus = () =>
+  request('/auth/admin-pin/status')
 
 export const setupAdminPin = (newPin) =>
   request('/auth/admin-pin/setup', { method: 'POST', body: JSON.stringify({ new_pin: newPin }) })
@@ -176,8 +176,11 @@ export const getCashflowByEmployeePaginated = (empId, page = 1, limit = 50) =>
   request(`/cashflow/employee/${empId}/paginated?page=${page}&limit=${limit}`)
 
 // ─── Reset Database ───────────────────────────────────────────
-export const resetDatabase = () =>
-  request('/reset-database', { method: 'DELETE' })
+export const resetDatabase = (adminPin) =>
+  request('/reset-database', {
+    method: 'DELETE',
+    headers: adminPin ? { 'X-Admin-Pin': adminPin } : {}
+  })
 
 // Floating Menu Config
 export const getFloatingMenu = () =>

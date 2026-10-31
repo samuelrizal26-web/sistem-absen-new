@@ -33,6 +33,8 @@ export default function CashflowPage() {
   const [editAmountRaw, setEditAmountRaw] = useState('')
   const [editOriginalRaw, setEditOriginalRaw] = useState('')
   const [editPaymentMethod, setEditPaymentMethod] = useState('cash')
+  const [showEditStaffPin, setShowEditStaffPin] = useState(false)
+  const [pendingEdit, setPendingEdit] = useState(null)
 
   const [form, setForm] = useState({
     amount: '',
@@ -201,19 +203,33 @@ export default function CashflowPage() {
     setEditPaymentMethod(item.payment_method || 'cash')
   }
 
-  const handleEditSave = async (id) => {
+  const handleEditSave = (id) => {
+    const amount = editAmountRaw ? (parseRupiahInput(editAmountRaw) || 0) : (parseRupiahInput(editOriginalRaw) || 0)
+    setPendingEdit({
+      id,
+      amount,
+      payment_method: editPaymentMethod,
+    })
+    setKeypadField(null)
+    setShowEditStaffPin(true)
+  }
+
+  const handleEditStaffConfirm = async (employee) => {
+    setShowEditStaffPin(false)
+    if (!pendingEdit) return
     setSaving(true)
     try {
-      const amount = editAmountRaw ? (parseRupiahInput(editAmountRaw) || 0) : (parseRupiahInput(editOriginalRaw) || 0)
-      await updateCashflow(id, {
-        amount,
-        payment_method: editPaymentMethod,
+      await updateCashflow(pendingEdit.id, {
+        amount: pendingEdit.amount,
+        payment_method: pendingEdit.payment_method,
+        edited_by: employee.name,
+        employee_id: employee.id,
       })
       setEditingId(null)
-      setKeypadField(null)
       setEditAmountRaw('')
       setEditOriginalRaw('')
-      showToast('Transaksi diperbarui', 'success')
+      setPendingEdit(null)
+      showToast('Transaksi berhasil diperbarui', 'success')
       await loadData()
     } catch (e) {
       showToast(e.message || 'Gagal memperbarui', 'error')
@@ -227,6 +243,7 @@ export default function CashflowPage() {
     setKeypadField(null)
     setEditAmountRaw('')
     setEditOriginalRaw('')
+    setPendingEdit(null)
   }
 
   return (
@@ -303,15 +320,6 @@ export default function CashflowPage() {
             ))}
           </div>
 
-          {/* Balance Card */}
-          {summary && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-              <p className="text-sm font-semibold text-gray-600 mb-2">Saldo</p>
-              <p className={`text-2xl font-bold ${summary.manual_balance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {formatRupiah(summary.manual_balance || 0)}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Right Panel - List */}
@@ -336,15 +344,22 @@ export default function CashflowPage() {
                     </p>
                     <div className="space-y-2">
                       {list.map(item => (
-                        <div key={item.id} className="bg-gray-50 rounded-xl p-3 flex items-center gap-3 border border-gray-100">
+                        <div key={item.id} className={`rounded-xl p-3 flex items-center gap-3 border transition-colors ${item.is_edited ? 'bg-amber-50/70 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
                             <svg className={`w-5 h-5 ${item.type === 'income' ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.type === 'income' ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
                             </svg>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm truncate">{item.description}</p>
-                            <p className="text-xs text-gray-400">{formatDateTime(item.created_at || item.date)} · {item.handled_by || '-'}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-semibold text-gray-800 text-sm truncate">{item.description}</p>
+                              {item.is_edited && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-200 text-amber-900 border border-amber-300">
+                                  Diedit oleh: {item.edited_by || 'Karyawan'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-400">{formatDateTime(item.created_at || item.date)} · Dicatat: {item.handled_by || '-'}</p>
                             {item.notes && <p className="text-xs text-gray-400 truncate">{item.notes}</p>}
                           </div>
                           {editingId === item.id ? (
@@ -385,7 +400,12 @@ export default function CashflowPage() {
                             </div>
                           ) : (
                             <div className="text-right shrink-0">
-                              <p className={`font-bold text-sm ${item.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                              {item.is_edited && item.original_amount !== undefined && item.original_amount !== item.amount && (
+                                <p className="text-[11px] text-gray-400 line-through">
+                                  {formatRupiah(item.original_amount)}
+                                </p>
+                              )}
+                              <p className={`font-bold text-sm ${item.is_edited ? 'text-amber-700' : item.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
                                 {item.type === 'income' ? '+' : '-'}{formatRupiah(item.amount)}
                               </p>
                               <button onClick={() => handleEditClick(item)} className="text-xs text-gray-300 hover:text-teal-500 mt-0.5">edit</button>
@@ -514,6 +534,10 @@ export default function CashflowPage() {
 
       {showStaffPin && (
         <StaffPinModal title="Dicatat oleh siapa?" onConfirm={handleStaffConfirm} onCancel={() => { setShowStaffPin(false); setShowForm(true) }} />
+      )}
+
+      {showEditStaffPin && (
+        <StaffPinModal title="Masukkan PIN Karyawan untuk Simpan Edit" onConfirm={handleEditStaffConfirm} onCancel={() => setShowEditStaffPin(false)} />
       )}
 
       {/* Custom Numeric Keypad */}
