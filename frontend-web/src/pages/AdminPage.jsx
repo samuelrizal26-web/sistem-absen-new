@@ -249,21 +249,21 @@ export default function AdminPage() {
     } finally { setAuthLoading(false) }
   }
 
-  // ─────────────────── LOAD DATA ───────────────────
+  // ─────────────────── LOAD DATA (Instant Cache & Background Revalidation) ───────────────────
   const loadEmployees = async () => {
-    setEmpLoading(true)
+    if (employees.length === 0) setEmpLoading(true)
     try { setEmployees(await getEmployees()) } catch { showToast('Gagal memuat karyawan', 'error') }
     finally { setEmpLoading(false) }
   }
 
   const loadStocks = async () => {
-    setStockLoading(true)
+    if (stocks.length === 0) setStockLoading(true)
     try { const s = await getStock(); setStocks(Array.isArray(s) ? s : []) } catch { showToast('Gagal memuat stok', 'error') }
     finally { setStockLoading(false) }
   }
 
   const loadCashflow = async () => {
-    setCfLoading(true)
+    if (cashflows.length === 0) setCfLoading(true)
     try {
       const currentMonth = new Date().toISOString().slice(0, 7)
       const displayMonth = cfSearch || currentMonth
@@ -1328,7 +1328,7 @@ export default function AdminPage() {
               </div>
 
               <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Transaksi</h2>
-              {cfLoading ? (
+              {cfLoading && cashflows.length === 0 ? (
                 <div className="flex justify-center py-8"><svg className="w-7 h-7 animate-spin text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg></div>
               ) : Object.entries(cfGrouped).length === 0 ? (
                 <p className="text-center text-gray-400 py-16">Belum ada transaksi.</p>

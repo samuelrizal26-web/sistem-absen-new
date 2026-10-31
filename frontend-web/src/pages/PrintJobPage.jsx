@@ -224,7 +224,7 @@ export default function PrintJobPage() {
   const loadData = async () => {
     const month = searchMonthRef.current
     const seq = ++loadSeq.current
-    setLoading(true)
+    if (jobs.length === 0) setLoading(true)
     const [jobsRes, stockRes, summaryRes] = await Promise.allSettled([
       getPrintJobs(`?month=${encodeURIComponent(month)}`),
       getStock(),
@@ -518,7 +518,7 @@ export default function PrintJobPage() {
                     )}
                   </div>
                 </div>
-                {loading ? (
+                {loading && jobs.length === 0 ? (
                   <div className="flex justify-center py-8">
                     <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -764,7 +764,7 @@ export default function PrintJobPage() {
                 )}
               </div>
             </div>
-            {loading ? (
+            {loading && jobs.length === 0 ? (
               <div className="flex justify-center py-8">
                 <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>

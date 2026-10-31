@@ -46,7 +46,7 @@ export default function CashflowPage() {
   })
 
   const loadData = async () => {
-    setLoading(true)
+    if (items.length === 0) setLoading(true)
     try {
       const currentMonth = new Date().toISOString().slice(0, 7)
       const displayMonth = searchMonth || currentMonth
@@ -326,7 +326,7 @@ export default function CashflowPage() {
         <div className="w-full md:w-1/2 flex flex-col">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
             <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Transaksi</h2>
-            {loading ? (
+            {loading && items.length === 0 ? (
               <div className="flex justify-center py-8">
                 <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>

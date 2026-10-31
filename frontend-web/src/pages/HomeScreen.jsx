@@ -142,7 +142,7 @@ export default function HomeScreen() {
   const [reduceLoading, setReduceLoading] = useState(false)
 
   const loadJobs = () => {
-    setLoadingJobs(true)
+    if (jobs.length === 0 && projects.length === 0) setLoadingJobs(true)
     Promise.all([
       getJobs(),
       getProjects(),
@@ -162,7 +162,7 @@ export default function HomeScreen() {
   }
 
   const loadStock = () => {
-    setLoadingStock(true)
+    if (stockList.length === 0) setLoadingStock(true)
     getStock()
       .then((data) => setStockList(Array.isArray(data) ? data : []))
       .catch(() => showToast('Gagal memuat daftar stok', 'error'))
@@ -559,7 +559,7 @@ export default function HomeScreen() {
             </div>
 
             <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Pekerjaan</h2>
-            {loadingJobs ? (
+            {loadingJobs && jobs.length === 0 && projects.length === 0 ? (
               <div className="flex justify-center items-center py-16">
                 <svg className="w-8 h-8 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>

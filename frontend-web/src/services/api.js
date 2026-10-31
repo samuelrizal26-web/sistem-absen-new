@@ -1,19 +1,80 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sistem-absen-production.up.railway.app/api'
 console.log('[API] BASE_URL:', BASE_URL)
 
-async function request(path, options = {}) {
-  const url = `${BASE_URL}${path}`
-  console.log('[API] request:', url)
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }))
-    console.error('[API] Error response:', JSON.stringify(err, null, 2))
-    throw new Error(err.detail || `HTTP ${res.status}`)
+// ─── Instant In-Memory Cache & Request Deduplication ─────────
+const memoryCache = new Map() // url -> { data, timestamp }
+const inFlightRequests = new Map() // url -> Promise
+const DEFAULT_CACHE_TTL = 30 * 1000 // 30 detik untuk navigasi cepat
+
+export function clearCache(pattern = '') {
+  if (!pattern) {
+    memoryCache.clear()
+    return
   }
-  return res.json()
+  for (const key of memoryCache.keys()) {
+    if (key.includes(pattern)) {
+      memoryCache.delete(key)
+    }
+  }
+}
+
+async function request(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase()
+  const isGet = method === 'GET'
+  const url = `${BASE_URL}${path}`
+
+  // Mutasi (POST/PUT/DELETE) otomatis membersihkan cache agar data selalu sinkron
+  if (!isGet) {
+    clearCache()
+  }
+
+  // Auth & device status tidak perlu di-cache
+  const isAuth = path.startsWith('/auth/') || path.includes('/devices/debug/')
+  const ttl = isAuth ? 0 : (options.ttl ?? DEFAULT_CACHE_TTL)
+  const force = options.force === true
+
+  // Cek cache memori instan untuk GET
+  if (isGet && !force && ttl > 0) {
+    const cached = memoryCache.get(url)
+    if (cached && (Date.now() - cached.timestamp < ttl)) {
+      return cached.data
+    }
+  }
+
+  // Deduplikasi request GET bersamaan (mencegah request ganda ke server)
+  if (isGet && inFlightRequests.has(url)) {
+    return inFlightRequests.get(url)
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      console.log('[API] request:', url)
+      const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', ...options.headers },
+        ...options,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }))
+        console.error('[API] Error response:', JSON.stringify(err, null, 2))
+        throw new Error(err.detail || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      if (isGet && ttl > 0) {
+        memoryCache.set(url, { data, timestamp: Date.now() })
+      }
+      return data
+    } finally {
+      if (isGet) {
+        inFlightRequests.delete(url)
+      }
+    }
+  })()
+
+  if (isGet) {
+    inFlightRequests.set(url, fetchPromise)
+  }
+
+  return fetchPromise
 }
 
 // ─── Employees ───────────────────────────────────────────────
