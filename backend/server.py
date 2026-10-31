@@ -1,12 +1,13 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Request
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-import os, uuid, bcrypt, asyncio, json
+import os, uuid, bcrypt, asyncio, json, hashlib
 from summary_logic import (
     PeriodError, resolve_date_filter, current_month_wib,
     build_print_jobs_totals_pipeline, build_print_jobs_by_material_pipeline, assemble_print_jobs_summary,
@@ -61,7 +62,33 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+app.add_middleware(GZipMiddleware, minimum_size=500)
 api = APIRouter(prefix='/api')
+
+@app.on_event('startup')
+async def ensure_indexes():
+    try:
+        await asyncio.gather(
+            db.employees.create_index('id'),
+            db.print_jobs.create_index('date'),
+            db.print_jobs.create_index('id'),
+            db.print_jobs.create_index('created_at'),
+            db.cashflow.create_index('date'),
+            db.cashflow.create_index('id'),
+            db.cashflow.create_index('created_at'),
+            db.kasbon.create_index('employee_id'),
+            db.kasbon.create_index('date'),
+            db.kasbon.create_index('id'),
+            db.projects.create_index('date'),
+            db.projects.create_index('id'),
+            db.jobs.create_index('date'),
+            db.jobs.create_index('id'),
+            db.stock.create_index('id'),
+            db.devices.create_index('device_id'),
+        )
+        print('[INFO] MongoDB indexes verified')
+    except Exception as e:
+        print(f'[WARNING] Index creation skipped: {e}')
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def now_str(): return datetime.now(timezone.utc).isoformat()
@@ -69,6 +96,24 @@ def new_id(): return str(uuid.uuid4())
 def clean(doc):
     doc.pop('_id', None)
     return doc
+
+_verified_pin_digests = set()
+
+def _pin_digest(pin: str, pin_hash: str) -> str:
+    return hashlib.sha256(f'{pin}:{pin_hash}'.encode('utf-8')).hexdigest()
+
+async def verify_pin_fast(pin: str, pin_hash: str) -> bool:
+    if not pin or not pin_hash:
+        return False
+    d = _pin_digest(pin, pin_hash)
+    if d in _verified_pin_digests:
+        return True
+    matched = await asyncio.to_thread(bcrypt.checkpw, pin.encode('utf-8'), pin_hash.encode('utf-8'))
+    if matched:
+        if len(_verified_pin_digests) > 200:
+            _verified_pin_digests.clear()
+        _verified_pin_digests.add(d)
+    return matched
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
 class EmployeeCreate(BaseModel):
@@ -280,7 +325,7 @@ async def admin_login(body: AdminLogin):
         raise HTTPException(status_code=401, detail='Username atau password salah')
     if body.pin:
         if cfg and cfg.get('pin_hash'):
-            if bcrypt.checkpw(body.pin.encode(), cfg['pin_hash'].encode()):
+            if await verify_pin_fast(body.pin, cfg['pin_hash']):
                 return {'success': True, 'role': 'admin'}
         elif body.pin == '123456':
             return {'success': True, 'role': 'admin'}
@@ -321,15 +366,23 @@ async def employee_login(body: dict):
         raise HTTPException(status_code=404, detail='Karyawan tidak ditemukan')
     if not emp.get('pin_hash'):
         raise HTTPException(status_code=401, detail='PIN belum diset, hubungi admin')
-    if not bcrypt.checkpw(pin.encode(), emp['pin_hash'].encode()):
+    if not await verify_pin_fast(pin, emp['pin_hash']):
         raise HTTPException(status_code=401, detail='PIN salah')
     return {'success': True, 'employee': {k: v for k, v in emp.items() if k not in ('_id', 'pin_hash')}}
 
 @api.post('/auth/identify-by-pin')
 async def identify_by_pin(body: IdentifyByPin):
     employees = await db.employees.find({}, {'_id': 0, 'photo': 0}).to_list(None)
+    # Pass 1: O(1) instant cache check (~0.01 ms) so we don't run slow bcrypt on non-matching employees
     for emp in employees:
-        if emp.get('pin_hash') and bcrypt.checkpw(body.pin.encode(), emp['pin_hash'].encode()):
+        ph = emp.get('pin_hash')
+        if ph and _pin_digest(body.pin, ph) in _verified_pin_digests:
+            full_emp = await db.employees.find_one({'id': emp['id']}, {'_id': 0, 'pin_hash': 0})
+            return {'success': True, 'employee': full_emp or {k: v for k, v in emp.items() if k != 'pin_hash'}}
+    # Pass 2: First-time bcrypt verification in worker thread
+    for emp in employees:
+        ph = emp.get('pin_hash')
+        if ph and await verify_pin_fast(body.pin, ph):
             full_emp = await db.employees.find_one({'id': emp['id']}, {'_id': 0, 'pin_hash': 0})
             return {'success': True, 'employee': full_emp or {k: v for k, v in emp.items() if k != 'pin_hash'}}
     raise HTTPException(status_code=404, detail='PIN tidak ditemukan')
@@ -645,111 +698,61 @@ async def get_cashflow_summary(month: Optional[str] = None):
 
 @api.get('/cashflow/previous-month-summary')
 async def get_previous_month_summary():
-    from datetime import datetime, timedelta
-    today = datetime.now()
-    if today.month == 1:
-        prev_month = 12
-        prev_year = today.year - 1
-    else:
-        prev_month = today.month - 1
-        prev_year = today.year
+    cur_m = current_month_wib()
+    y, m = int(cur_m[:4]), int(cur_m[5:7])
+    prev_year, prev_month = (y - 1, 12) if m == 1 else (y, m - 1)
     prev_month_str = f'{prev_year}-{prev_month:02d}'
-    query = {'date': {'$regex': f'^{prev_month_str}'}}
-    cashflow_docs = await db.cashflow.find(query, {'_id': 0}).to_list(None)
-    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
-    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
-    manual_income_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income' and str(d.get('payment_method') or 'cash').lower() == 'cash')
-    manual_expense_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense' and str(d.get('payment_method') or 'cash').lower() == 'cash')
-    manual_balance = manual_income_cash - manual_expense_cash
+    pipes = build_cashflow_pipelines({'$regex': f'^{prev_month_str}'})
+    cf_rows = await db.cashflow.aggregate(pipes['cashflow']).to_list(None)
+    base = assemble_cashflow_summary(cf_rows, [], [], [])
     return {
         'month': prev_month_str,
-        'manual_income': manual_income,
-        'manual_expense': manual_expense,
-        'manual_balance': manual_balance,
+        'manual_income': base['manual_income'],
+        'manual_expense': base['manual_expense'],
+        'manual_balance': base['manual_balance'],
     }
 
 @api.get('/cashflow/admin-summary')
 async def get_admin_cashflow_summary(month: Optional[str] = None):
     target_month = month if month else current_month_wib()
-    query = {'date': {'$regex': f'^{target_month}'}}
-    cashflow_docs, print_jobs, projects, kasbon_docs, modal_doc = await asyncio.gather(
-        db.cashflow.find(query, {'_id': 0}).to_list(None),
-        db.print_jobs.find(query, {'_id': 0}).to_list(None),
-        db.projects.find(query, {'_id': 0}).to_list(None),
-        db.kasbon.find(query, {'_id': 0}).to_list(None),
+    pipes = build_cashflow_pipelines({'$regex': f'^{target_month}'})
+    cf_rows, pj_rows, proj_rows, kb_rows, modal_doc = await asyncio.gather(
+        db.cashflow.aggregate(pipes['cashflow']).to_list(None),
+        db.print_jobs.aggregate(pipes['print_jobs']).to_list(None),
+        db.projects.aggregate(pipes['projects']).to_list(None),
+        db.kasbon.aggregate(pipes['kasbon']).to_list(None),
         db.cash_denominations.find_one({}, {'_id': 0}, sort=[('updated_at', -1)]),
     )
+    base = assemble_cashflow_summary(cf_rows, pj_rows, proj_rows, kb_rows)
     modal_total = float(modal_doc.get('total') or 0) if modal_doc else 0
     modal_updated_at = modal_doc.get('updated_at') if modal_doc else None
-    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
-    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
-    manual_income_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income' and str(d.get('payment_method') or 'cash').lower() == 'cash')
-    manual_expense_cash = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense' and str(d.get('payment_method') or 'cash').lower() == 'cash')
-    print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
-    print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
-    project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
-    project_transfer = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or '').lower() == 'transfer')
-    kasbon_cash = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or 'cash').lower() == 'cash')
-    kasbon_transfer = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or '').lower() == 'transfer')
-    total_kasbon = kasbon_cash + kasbon_transfer
-    total_income = manual_income + modal_total + print_cash + print_transfer + project_cash + project_transfer
-    total_expense = manual_expense + kasbon_cash
-    manual_balance = manual_income_cash + modal_total - manual_expense_cash - kasbon_cash
-    return {
-        'total_income': total_income,
-        'total_expense': total_expense,
-        'balance': total_income - total_expense,
-        'manual_income': manual_income,
-        'manual_expense': manual_expense,
-        'manual_balance': manual_balance,
-        'modal_total': modal_total,
-        'modal_updated_at': modal_updated_at,
-        'print_job_cash': print_cash,
-        'print_job_transfer': print_transfer,
-        'print_job_total': print_cash + print_transfer,
-        'project_cash': project_cash,
-        'project_transfer': project_transfer,
-        'project_total': project_cash + project_transfer,
-        'total_kasbon': total_kasbon,
-        'kasbon_cash': kasbon_cash,
-        'kasbon_transfer': kasbon_transfer,
-    }
+    base['total_income'] += modal_total
+    base['balance'] = base['total_income'] - base['total_expense']
+    base['manual_balance'] = base['manual_balance'] + modal_total - base['kasbon_cash']
+    base['modal_total'] = modal_total
+    base['modal_updated_at'] = modal_updated_at
+    return base
 
 @api.get('/cashflow/admin-previous-month-summary')
 async def get_admin_previous_month_summary():
-    from datetime import datetime
-    today = datetime.now()
-    if today.month == 1:
-        prev_month = 12
-        prev_year = today.year - 1
-    else:
-        prev_month = today.month - 1
-        prev_year = today.year
+    cur_m = current_month_wib()
+    y, m = int(cur_m[:4]), int(cur_m[5:7])
+    prev_year, prev_month = (y - 1, 12) if m == 1 else (y, m - 1)
     prev_month_str = f'{prev_year}-{prev_month:02d}'
-    query = {'date': {'$regex': f'^{prev_month_str}'}}
-    cashflow_docs, print_jobs, projects, kasbon_docs = await asyncio.gather(
-        db.cashflow.find(query, {'_id': 0}).to_list(None),
-        db.print_jobs.find(query, {'_id': 0}).to_list(None),
-        db.projects.find(query, {'_id': 0}).to_list(None),
-        db.kasbon.find(query, {'_id': 0}).to_list(None),
+    pipes = build_cashflow_pipelines({'$regex': f'^{prev_month_str}'})
+    cf_rows, pj_rows, proj_rows, kb_rows = await asyncio.gather(
+        db.cashflow.aggregate(pipes['cashflow']).to_list(None),
+        db.print_jobs.aggregate(pipes['print_jobs']).to_list(None),
+        db.projects.aggregate(pipes['projects']).to_list(None),
+        db.kasbon.aggregate(pipes['kasbon']).to_list(None),
     )
-    manual_income = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'income')
-    manual_expense = sum(float(d.get('amount') or 0) for d in cashflow_docs if d.get('type') == 'expense')
-    print_cash = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or 'cash').lower() == 'cash')
-    print_transfer = sum(float(j.get('total_price') or 0) for j in print_jobs if str(j.get('payment_method') or '').lower() == 'transfer')
-    project_cash = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or 'cash').lower() == 'cash')
-    project_transfer = sum(float(p.get('selling_price') or p.get('total_project_value') or 0) for p in projects if str(p.get('payment_method') or '').lower() == 'transfer')
-    kasbon_cash = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or 'cash').lower() == 'cash')
-    kasbon_transfer = sum(float(k.get('amount') or 0) for k in kasbon_docs if str(k.get('payment_method') or '').lower() == 'transfer')
-    total_kasbon = kasbon_cash + kasbon_transfer
-    total_income = manual_income + print_cash + print_transfer + project_cash + project_transfer
-    total_expense = manual_expense + kasbon_cash
+    base = assemble_cashflow_summary(cf_rows, pj_rows, proj_rows, kb_rows)
     return {
         'month': prev_month_str,
-        'total_income': total_income,
-        'total_expense': total_expense,
-        'balance': total_income - total_expense,
-        'total_kasbon': total_kasbon,
+        'total_income': base['total_income'],
+        'total_expense': base['total_expense'],
+        'balance': base['balance'],
+        'total_kasbon': base['total_kasbon'],
     }
 
 @api.get('/cashflow')
