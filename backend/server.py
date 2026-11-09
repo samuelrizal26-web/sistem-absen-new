@@ -76,6 +76,7 @@ async def ensure_indexes():
             db.print_jobs.create_index('created_at'),
             db.cashflow.create_index('date'),
             db.cashflow.create_index('id'),
+            db.acrylics.create_index('id'),
             db.cashflow.create_index('created_at'),
             db.kasbon.create_index('employee_id'),
             db.kasbon.create_index('date'),
@@ -231,6 +232,35 @@ class KasbonCreate(BaseModel):
     amount: float
     payment_method: Optional[str] = 'cash'
     notes: Optional[str] = ''
+
+# ── Acrylic Catalog Models ───────────────────────────────────────────────────
+class AcrylicCreate(BaseModel):
+    name: str
+    thickness: str
+    color: Optional[str] = ''
+    sheet_length: Optional[float] = 122.0
+    sheet_width: Optional[float] = 244.0
+    buy_price: Optional[float] = 0.0
+    sell_price: Optional[float] = 0.0
+    price_normal_sqcm: Optional[float] = None
+    price_small_sqcm: Optional[float] = None
+    min_area_sqcm: Optional[float] = 400.0
+    min_qty_bulk: Optional[int] = 5
+    notes: Optional[str] = ''
+
+class AcrylicUpdate(BaseModel):
+    name: Optional[str] = None
+    thickness: Optional[str] = None
+    color: Optional[str] = None
+    sheet_length: Optional[float] = None
+    sheet_width: Optional[float] = None
+    buy_price: Optional[float] = None
+    sell_price: Optional[float] = None
+    price_normal_sqcm: Optional[float] = None
+    price_small_sqcm: Optional[float] = None
+    min_area_sqcm: Optional[float] = None
+    min_qty_bulk: Optional[int] = None
+    notes: Optional[str] = None
 
 # ── Floating Menu Config ──────────────────────────────────────────────────────
 class FloatingMenuItemCreate(BaseModel):
@@ -1469,6 +1499,95 @@ async def reset_database(x_admin_pin: Optional[str] = Header(None, alias='X-Admi
     for collection_name in collections:
         await db[collection_name].delete_many({})
     return {'message': 'Database berhasil di-reset. Data stok dan anggota dipertahankan.'}
+
+# ── Acrylic Catalog Endpoints ─────────────────────────────────────────────────
+@api.get('/acrylics')
+async def get_acrylics():
+    docs = await db.acrylics.find({}, {'_id': 0}).sort('created_at', -1).to_list(None)
+    return docs
+
+@api.get('/acrylics/{acrylic_id}')
+async def get_acrylic(acrylic_id: str):
+    doc = await db.acrylics.find_one({'id': acrylic_id}, {'_id': 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail='Bahan akrilik tidak ditemukan')
+    return doc
+
+@api.post('/acrylics')
+async def create_acrylic(body: AcrylicCreate):
+    sl = body.sheet_length if (body.sheet_length and body.sheet_length > 0) else 122.0
+    sw = body.sheet_width if (body.sheet_width and body.sheet_width > 0) else 244.0
+    sheet_area = sl * sw
+    
+    cost_per_sqcm = round((body.buy_price or 0.0) / sheet_area, 4) if sheet_area > 0 else 0.0
+    
+    if body.price_normal_sqcm is not None and body.price_normal_sqcm > 0:
+        price_normal = round(body.price_normal_sqcm, 4)
+    else:
+        price_normal = round((body.sell_price or 0.0) / sheet_area, 4) if sheet_area > 0 else 0.0
+        
+    if body.price_small_sqcm is not None and body.price_small_sqcm > 0:
+        price_small = round(body.price_small_sqcm, 4)
+    else:
+        price_small = round(price_normal * 1.4, 4) if price_normal > 0 else 0.0
+
+    doc = {
+        'id': new_id(),
+        'name': body.name,
+        'thickness': body.thickness,
+        'color': body.color or '',
+        'sheet_length': sl,
+        'sheet_width': sw,
+        'sheet_area': sheet_area,
+        'buy_price': body.buy_price or 0.0,
+        'sell_price': body.sell_price or 0.0,
+        'cost_per_sqcm': cost_per_sqcm,
+        'price_normal_sqcm': price_normal,
+        'price_small_sqcm': price_small,
+        'min_area_sqcm': body.min_area_sqcm if body.min_area_sqcm is not None else 400.0,
+        'min_qty_bulk': body.min_qty_bulk if body.min_qty_bulk is not None else 5,
+        'notes': body.notes or '',
+        'created_at': now_str(),
+        'updated_at': now_str(),
+    }
+    await db.acrylics.insert_one(doc)
+    return clean(doc)
+
+@api.put('/acrylics/{acrylic_id}')
+async def update_acrylic(acrylic_id: str, body: AcrylicUpdate):
+    doc = await db.acrylics.find_one({'id': acrylic_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail='Bahan akrilik tidak ditemukan')
+    update = body.model_dump(exclude_none=True)
+    if not update:
+        raise HTTPException(status_code=400, detail='Tidak ada field yang diubah')
+    
+    sl = update.get('sheet_length', doc.get('sheet_length', 122.0)) or 122.0
+    sw = update.get('sheet_width', doc.get('sheet_width', 244.0)) or 244.0
+    sheet_area = sl * sw
+    update['sheet_area'] = sheet_area
+    
+    buy_price = update.get('buy_price', doc.get('buy_price', 0.0))
+    update['cost_per_sqcm'] = round(buy_price / sheet_area, 4) if sheet_area > 0 else 0.0
+    
+    sell_price = update.get('sell_price', doc.get('sell_price', 0.0))
+    if 'price_normal_sqcm' not in update and 'sell_price' in update:
+        update['price_normal_sqcm'] = round(sell_price / sheet_area, 4) if sheet_area > 0 else 0.0
+    
+    price_normal = update.get('price_normal_sqcm', doc.get('price_normal_sqcm', 0.0))
+    if 'price_small_sqcm' not in update and 'sell_price' in update:
+        update['price_small_sqcm'] = round(price_normal * 1.4, 4) if price_normal > 0 else 0.0
+        
+    update['updated_at'] = now_str()
+    await db.acrylics.update_one({'id': acrylic_id}, {'$set': update})
+    return await db.acrylics.find_one({'id': acrylic_id}, {'_id': 0})
+
+@api.delete('/acrylics/{acrylic_id}')
+async def delete_acrylic(acrylic_id: str):
+    res = await db.acrylics.delete_one({'id': acrylic_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail='Bahan akrilik tidak ditemukan')
+    return {'message': 'Bahan akrilik berhasil dihapus'}
 
 app.include_router(api)
 

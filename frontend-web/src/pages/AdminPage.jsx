@@ -11,6 +11,7 @@ import {
   verifyAdminPin, getAdminPinStatus, changeAdminPin, setupAdminPin,
   getKasbonByEmployeePaginated, getPrintJobsByEmployeePaginated, getCashflowByEmployeePaginated,
   resetDatabase, createCashDenomination, getLatestCashDenomination, updateCashDenomination,
+  getAcrylics, createAcrylic, updateAcrylic, deleteAcrylic,
 } from '../services/api'
 import DeviceSettingsModal from '../components/DeviceSettingsModal'
 import FloatingMenuSettings from '../components/FloatingMenuSettings'
@@ -22,7 +23,7 @@ import { getPrinterMAC, setPrinterMAC } from '../config/printer'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 
-const TAB = { CREW: 'crew', STOCK: 'stock', CASHFLOW: 'cashflow', EMPLOYEE_TX: 'employee_tx', HISTORY: 'history', SETTINGS: 'settings' }
+const TAB = { CREW: 'crew', STOCK: 'stock', CASHFLOW: 'cashflow', ACRYLIC: 'acrylic', EMPLOYEE_TX: 'employee_tx', HISTORY: 'history', SETTINGS: 'settings' }
 
 const DENOMINATIONS = [
   { value: 100000, label: '100.000' },
@@ -88,6 +89,18 @@ export default function AdminPage() {
   const [cfProjects, setCfProjects] = useState([])
   const [cfJobs, setCfJobs] = useState([])
   const [advances, setAdvances] = useState([])
+
+  // ── Acrylic State ──
+  const [acrylics, setAcrylics] = useState([])
+  const [acrylicLoading, setAcrylicLoading] = useState(false)
+  const [showAcrylicForm, setShowAcrylicForm] = useState(false)
+  const [editingAcrylic, setEditingAcrylic] = useState(null)
+  const [acrylicSaving, setAcrylicSaving] = useState(false)
+  const [acrylicForm, setAcrylicForm] = useState({
+    name: '', thickness: '', color: '', sheet_length: 122, sheet_width: 244,
+    buy_price: '', sell_price: '', price_normal_sqcm: '', price_small_sqcm: '',
+    min_area_sqcm: 400, min_qty_bulk: 5, notes: ''
+  })
   const [cfLoading, setCfLoading] = useState(false)
   const [cfSearch, setCfSearch] = useState('')
   const [showAddCf, setShowAddCf] = useState(false)
@@ -262,6 +275,96 @@ export default function AdminPage() {
     finally { setStockLoading(false) }
   }
 
+  const loadAcrylics = async () => {
+    if (acrylics.length === 0) setAcrylicLoading(true)
+    try {
+      const data = await getAcrylics()
+      setAcrylics(Array.isArray(data) ? data : [])
+    } catch {
+      showToast('Gagal memuat katalog akrilik', 'error')
+    } finally {
+      setAcrylicLoading(false)
+    }
+  }
+
+  const handleSaveAcrylic = async () => {
+    if (!acrylicForm.name || !acrylicForm.thickness) {
+      showToast('Nama dan ketebalan akrilik wajib diisi', 'error')
+      return
+    }
+    setAcrylicSaving(true)
+    try {
+      const payload = {
+        name: acrylicForm.name,
+        thickness: acrylicForm.thickness,
+        color: acrylicForm.color || '',
+        sheet_length: parseFloat(acrylicForm.sheet_length) || 122,
+        sheet_width: parseFloat(acrylicForm.sheet_width) || 244,
+        buy_price: parseFloat(acrylicForm.buy_price) || 0,
+        sell_price: parseFloat(acrylicForm.sell_price) || 0,
+        price_normal_sqcm: acrylicForm.price_normal_sqcm ? parseFloat(acrylicForm.price_normal_sqcm) : null,
+        price_small_sqcm: acrylicForm.price_small_sqcm ? parseFloat(acrylicForm.price_small_sqcm) : null,
+        min_area_sqcm: parseFloat(acrylicForm.min_area_sqcm) || 400,
+        min_qty_bulk: parseInt(acrylicForm.min_qty_bulk, 10) || 5,
+        notes: acrylicForm.notes || '',
+      }
+      if (editingAcrylic) {
+        await updateAcrylic(editingAcrylic.id, payload)
+        showToast('Data akrilik berhasil diperbarui', 'success')
+      } else {
+        await createAcrylic(payload)
+        showToast('Bahan akrilik baru berhasil ditambahkan', 'success')
+      }
+      setShowAcrylicForm(false)
+      setEditingAcrylic(null)
+      await loadAcrylics()
+    } catch (e) {
+      showToast(e.message || 'Gagal menyimpan akrilik', 'error')
+    } finally {
+      setAcrylicSaving(false)
+    }
+  }
+
+  const handleDeleteAcrylic = async (id) => {
+    if (!confirm('Yakin ingin menghapus bahan akrilik ini dari katalog?')) return
+    try {
+      await deleteAcrylic(id)
+      showToast('Bahan akrilik dihapus', 'info')
+      await loadAcrylics()
+    } catch (e) {
+      showToast(e.message || 'Gagal menghapus bahan', 'error')
+    }
+  }
+
+  const openAddAcrylic = () => {
+    setEditingAcrylic(null)
+    setAcrylicForm({
+      name: '', thickness: '', color: '', sheet_length: 122, sheet_width: 244,
+      buy_price: '', sell_price: '', price_normal_sqcm: '', price_small_sqcm: '',
+      min_area_sqcm: 400, min_qty_bulk: 5, notes: ''
+    })
+    setShowAcrylicForm(true)
+  }
+
+  const openEditAcrylic = (item) => {
+    setEditingAcrylic(item)
+    setAcrylicForm({
+      name: item.name || '',
+      thickness: item.thickness || '',
+      color: item.color || '',
+      sheet_length: item.sheet_length || 122,
+      sheet_width: item.sheet_width || 244,
+      buy_price: item.buy_price || '',
+      sell_price: item.sell_price || '',
+      price_normal_sqcm: item.price_normal_sqcm || '',
+      price_small_sqcm: item.price_small_sqcm || '',
+      min_area_sqcm: item.min_area_sqcm || 400,
+      min_qty_bulk: item.min_qty_bulk || 5,
+      notes: item.notes || '',
+    })
+    setShowAcrylicForm(true)
+  }
+
   const loadCashflow = async () => {
     if (cashflows.length === 0) setCfLoading(true)
     try {
@@ -292,6 +395,7 @@ export default function AdminPage() {
     if (tab === TAB.CREW) loadEmployees()
     if (tab === TAB.STOCK) loadStocks()
     if (tab === TAB.CASHFLOW) loadCashflow()
+    if (tab === TAB.ACRYLIC) loadAcrylics()
     if (tab === TAB.EMPLOYEE_TX) {
       loadEmployees() // Load employees for name mapping
       loadEmployeeTransactions()
@@ -936,8 +1040,8 @@ export default function AdminPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 px-4 py-3">
-        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => (
+      <div className="flex gap-1 px-4 py-3 overflow-x-auto no-scrollbar">
+        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.ACRYLIC, 'Akrilik'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === t ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-500 border border-gray-100'}`}>
             {label}
@@ -1445,6 +1549,300 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: AKRILIK ── */}
+      {tab === TAB.ACRYLIC && (
+        <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
+          {/* Left Panel */}
+          <div className="w-full md:w-1/3 flex flex-col gap-4">
+            <div className="bg-gradient-to-br from-cyan-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
+              <p className="text-xs text-white/80 uppercase tracking-wider font-semibold">Katalog Master Akrilik</p>
+              <p className="text-3xl font-extrabold mt-1">{acrylics.length} <span className="text-sm font-normal text-white/80">Jenis Bahan</span></p>
+              <p className="text-xs text-white/70 mt-2">
+                Atur modal kulakan lembaran, harga jual acuan, tarif eceran potongan kecil (&lt;400 cm²), dan batas partai.
+              </p>
+            </div>
+
+            <button
+              onClick={openAddAcrylic}
+              className="w-full py-3.5 rounded-2xl bg-cyan-600 text-white font-bold flex items-center justify-center gap-2 shadow-md hover:bg-cyan-700 active:scale-95 transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Tambah Bahan Akrilik
+            </button>
+          </div>
+
+          {/* Right Panel */}
+          <div className="w-full md:w-2/3 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-base font-bold text-gray-800">Daftar Bahan & Skema Harga</h2>
+              <span className="text-xs text-gray-400 font-medium">{acrylics.length} bahan terdaftar</span>
+            </div>
+
+            {acrylicLoading && acrylics.length === 0 ? (
+              <div className="flex justify-center py-12">
+                <svg className="w-7 h-7 animate-spin text-cyan-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              </div>
+            ) : acrylics.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <p className="font-semibold text-gray-600 mb-1">Belum ada bahan akrilik</p>
+                <p className="text-xs mb-3">Klik tombol "Tambah Bahan Akrilik" untuk memasukkan data pertama.</p>
+                <button onClick={openAddAcrylic} className="px-4 py-2 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-xl border border-cyan-200">
+                  + Tambah Sekarang
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {acrylics.map(item => (
+                  <div key={item.id} className="border border-gray-200 rounded-2xl p-4 hover:border-cyan-300 transition-colors bg-white">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-gray-900 text-sm truncate">{item.name}</h3>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-200">
+                            {item.thickness}
+                          </span>
+                          {item.color && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                              {item.color}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Rincian Harga */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100 text-xs">
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">Modal Lembar (Owner)</span>
+                            <span className="font-semibold text-gray-700">{formatRupiah(item.buy_price)}</span>
+                            <span className="text-[10px] text-gray-400 block">({formatRupiah(item.cost_per_sqcm)}/cm²)</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">Harga Jual Lembar</span>
+                            <span className="font-semibold text-gray-700">{formatRupiah(item.sell_price)}</span>
+                            <span className="text-[10px] text-emerald-600 font-bold block">Normal: {formatRupiah(item.price_normal_sqcm)}/cm²</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block text-[10px]">Eceran (&lt;{item.min_area_sqcm} cm²)</span>
+                            <span className="font-bold text-amber-700 block">{formatRupiah(item.price_small_sqcm)}/cm²</span>
+                            <span className="text-[10px] text-gray-400 block">Partai: ≥ {item.min_qty_bulk} pcs</span>
+                          </div>
+                        </div>
+
+                        {item.notes && (
+                          <p className="text-[11px] text-gray-400 mt-2 italic">Catatan: {item.notes}</p>
+                        )}
+                      </div>
+
+                      <div className="flex gap-1.5 shrink-0">
+                        <button
+                          onClick={() => openEditAcrylic(item)}
+                          className="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAcrylic(item.id)}
+                          className="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Tambah / Edit Akrilik ── */}
+      {showAcrylicForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">
+                {editingAcrylic ? 'Edit Bahan Akrilik' : 'Tambah Bahan Akrilik Baru'}
+              </h2>
+              <button
+                onClick={() => { setShowAcrylicForm(false); setEditingAcrylic(null) }}
+                className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Nama / Merk Bahan *</label>
+                <input
+                  type="text"
+                  value={acrylicForm.name}
+                  onChange={e => setAcrylicForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Contoh: Akrilik Bening (MC) / Akrilik Susu"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Ketebalan *</label>
+                  <input
+                    type="text"
+                    value={acrylicForm.thickness}
+                    onChange={e => setAcrylicForm(f => ({ ...f, thickness: e.target.value }))}
+                    placeholder="Contoh: 2mm, 3mm, 5mm"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Warna (Opsional)</label>
+                  <input
+                    type="text"
+                    value={acrylicForm.color}
+                    onChange={e => setAcrylicForm(f => ({ ...f, color: e.target.value }))}
+                    placeholder="Contoh: Bening, Susu, Hitam"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3.5 space-y-3">
+                <p className="text-xs font-bold text-blue-900">📐 Ukuran Lembar Acuan (cm)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[11px] text-blue-700 block mb-1">Panjang Lembar (cm)</span>
+                    <input
+                      type="number"
+                      value={acrylicForm.sheet_length}
+                      onChange={e => setAcrylicForm(f => ({ ...f, sheet_length: e.target.value }))}
+                      placeholder="122"
+                      className="w-full px-3 py-2 rounded-xl border border-blue-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-blue-700 block mb-1">Lebar Lembar (cm)</span>
+                    <input
+                      type="number"
+                      value={acrylicForm.sheet_width}
+                      onChange={e => setAcrylicForm(f => ({ ...f, sheet_width: e.target.value }))}
+                      placeholder="244"
+                      className="w-full px-3 py-2 rounded-xl border border-blue-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Harga Beli Modal (Lembar)</label>
+                  <input
+                    type="number"
+                    value={acrylicForm.buy_price}
+                    onChange={e => setAcrylicForm(f => ({ ...f, buy_price: e.target.value }))}
+                    placeholder="Contoh: 500000"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Privat (Hanya tampil di Owner)</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Harga Jual Normal (Lembar)</label>
+                  <input
+                    type="number"
+                    value={acrylicForm.sell_price}
+                    onChange={e => setAcrylicForm(f => ({ ...f, sell_price: e.target.value }))}
+                    placeholder="Contoh: 1000000"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <p className="text-[10px] text-emerald-600 font-semibold mt-1">
+                    {acrylicForm.sell_price && acrylicForm.sheet_length && acrylicForm.sheet_width ? (
+                      `≈ Rp ${(parseFloat(acrylicForm.sell_price) / (parseFloat(acrylicForm.sheet_length) * parseFloat(acrylicForm.sheet_width))).toFixed(2)}/cm²`
+                    ) : 'Acuan tarif normal per cm²'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Aturan Eceran & Minimal */}
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                  <span>⚡</span>
+                  <p>Aturan Potongan Kecil / Eceran</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div>
+                    <span className="text-[11px] text-amber-800 block mb-1">Batas Luas (cm²)</span>
+                    <input
+                      type="number"
+                      value={acrylicForm.min_area_sqcm}
+                      onChange={e => setAcrylicForm(f => ({ ...f, min_area_sqcm: e.target.value }))}
+                      placeholder="400"
+                      className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <span className="text-[9px] text-amber-700 block mt-0.5">400 cm² = 20x20</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-amber-800 block mb-1">Tarif Eceran (/cm²)</span>
+                    <input
+                      type="number"
+                      step="any"
+                      value={acrylicForm.price_small_sqcm}
+                      onChange={e => setAcrylicForm(f => ({ ...f, price_small_sqcm: e.target.value }))}
+                      placeholder="Auto (1.4x)"
+                      className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <span className="text-[9px] text-amber-700 block mt-0.5">Kosongkan jika auto</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-amber-800 block mb-1">Min Qty Partai</span>
+                    <input
+                      type="number"
+                      value={acrylicForm.min_qty_bulk}
+                      onChange={e => setAcrylicForm(f => ({ ...f, min_qty_bulk: e.target.value }))}
+                      placeholder="5"
+                      className="w-full px-3 py-2 rounded-xl border border-amber-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <span className="text-[9px] text-amber-700 block mt-0.5">≥ qty ini dpt normal</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Catatan Tambahan (Opsional)</label>
+                <input
+                  type="text"
+                  value={acrylicForm.notes}
+                  onChange={e => setAcrylicForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Misal: Merk MC / Marga Cipta"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  onClick={handleSaveAcrylic}
+                  disabled={acrylicSaving}
+                  className="flex-1 py-3.5 rounded-2xl bg-cyan-600 text-white font-bold hover:bg-cyan-700 active:scale-95 transition-all disabled:opacity-40"
+                >
+                  {acrylicSaving ? 'Menyimpan...' : (editingAcrylic ? 'Simpan Perubahan' : 'Tambah ke Katalog')}
+                </button>
+                <button
+                  onClick={() => { setShowAcrylicForm(false); setEditingAcrylic(null) }}
+                  disabled={acrylicSaving}
+                  className="px-5 py-3.5 rounded-2xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-100 transition-colors"
+                >
+                  Batal
+                </button>
+              </div>
             </div>
           </div>
         </div>

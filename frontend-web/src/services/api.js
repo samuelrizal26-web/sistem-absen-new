@@ -286,3 +286,13 @@ export const deletePiketGroup = (groupId) =>
 
 export const rotatePiket = (groupId) =>
   request(`/piket-groups/${groupId}/rotate`, { method: 'POST' })
+
+// ─── Acrylic Catalog ──────────────────────────────────────────
+export const getAcrylics = () => request('/acrylics')
+export const getAcrylic = (id) => request(`/acrylics/${id}`)
+export const createAcrylic = (data) =>
+  request('/acrylics', { method: 'POST', body: JSON.stringify(data) })
+export const updateAcrylic = (id, data) =>
+  request(`/acrylics/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteAcrylic = (id) =>
+  request(`/acrylics/${id}`, { method: 'DELETE' })

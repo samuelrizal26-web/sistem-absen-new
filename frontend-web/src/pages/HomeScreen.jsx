@@ -9,6 +9,7 @@ import CrewFormModal from '../components/CrewFormModal'
 import Toast from '../components/Toast'
 import FloatingButton from '../components/FloatingButton'
 import PiketModal from '../components/PiketModal'
+import AcrylicCalculatorModal from '../components/AcrylicCalculatorModal'
 import { useToast } from '../hooks/useToast'
 
 const NAV_BUTTONS = [
@@ -42,6 +43,17 @@ const NAV_BUTTONS = [
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
           d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Kalkulator Akrilik',
+    action: 'acrylic_calc',
+    color: 'from-cyan-500 to-blue-600',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>
     ),
   },
@@ -137,6 +149,7 @@ export default function HomeScreen() {
   const [stockForm, setStockForm] = useState({ name: '', quantity: '', unit: 'pcs', harga_normal: '', harga_diskon: '' })
   const [stockFormLoading, setStockFormLoading] = useState(false)
   const [showReduceStockModal, setShowReduceStockModal] = useState(false)
+  const [showAcrylicModal, setShowAcrylicModal] = useState(false)
   const [selectedStock, setSelectedStock] = useState(null)
   const [reduceForm, setReduceForm] = useState({ quantity: '' })
   const [reduceLoading, setReduceLoading] = useState(false)
@@ -349,6 +362,9 @@ export default function HomeScreen() {
     else if (btn.action === 'stok') {
       setShowStockModal(true)
       loadStock()
+    }
+    else if (btn.action === 'acrylic_calc') {
+      setShowAcrylicModal(true)
     }
     else if (btn.path) navigate(btn.path)
   }
@@ -997,6 +1013,14 @@ export default function HomeScreen() {
         <PiketModal
           groupId={selectedPiketGroupId}
           onClose={() => setShowPiketModal(false)}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Acrylic Calculator Modal */}
+      {showAcrylicModal && (
+        <AcrylicCalculatorModal
+          onClose={() => setShowAcrylicModal(false)}
           showToast={showToast}
         />
       )}
