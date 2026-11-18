@@ -92,7 +92,7 @@ export default function ProjectPage() {
     }
   }
 
-  // Handle navigation state from HomeScreen for editing
+  // Handle navigation state from HomeScreen for editing or from Advertising Calculator for prefilling
   useEffect(() => {
     if (location.state?.editingProject) {
       setEditingId(location.state.editingProject.id)
@@ -108,7 +108,22 @@ export default function ProjectPage() {
       })
       setMaterials(Array.isArray(location.state.editingProject.materials) ? location.state.editingProject.materials.map(m => ({ ...m })) : [])
       setStep(STEP.FORM)
-      // Clear the state to avoid re-triggering
+      navigate('/project', { replace: true, state: {} })
+    } else if (location.state?.prefillFromCalculator) {
+      const pre = location.state.prefillFromCalculator
+      setEditingId(null)
+      setForm({
+        date: new Date().toISOString().split('T')[0],
+        project_name: pre.project_name || '',
+        customer_name: '',
+        payment_method: 'transfer',
+        selling_price_raw: formatRupiahInput(String(pre.selling_price || '')),
+        dp_amount_raw: '',
+        progress_status: 'pending',
+        notes: pre.notes || '',
+      })
+      setMaterials(Array.isArray(pre.materials) ? pre.materials.map(m => ({ ...m })) : [])
+      setStep(STEP.FORM)
       navigate('/project', { replace: true, state: {} })
     }
   }, [location.state, navigate])
@@ -382,55 +397,11 @@ export default function ProjectPage() {
             </div>
           </div>
 
-          {/* ── Daftar Bahan ── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700">Bahan Digunakan</label>
-              <div className="flex gap-2">
-                <button onClick={() => { setPickerStock(null); setPickerQty(''); setShowStockPicker(true) }}
-                  className="text-xs px-3 py-1.5 rounded-xl bg-blue-600 text-white font-semibold">
-                  + Dari Stok
-                </button>
-                <button onClick={() => { setCustomMat({ name: '', quantity: '', unit: 'pcs', price_raw: '' }); setShowCustomMaterial(true) }}
-                  className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 font-semibold">
-                  + Bahan Lain
-                </button>
-              </div>
-            </div>
-
-            {materials.length === 0 ? (
-              <div className="text-center text-gray-400 text-sm py-4 border border-dashed border-gray-200 rounded-2xl">
-                Belum ada bahan — tambahkan dari stok atau bahan lain
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {materials.map((m, i) => (
-                  <div key={i} className="bg-gray-50 rounded-2xl px-4 py-3 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm">{m.name}</p>
-                      <p className="text-xs text-gray-500">{m.quantity} {m.unit} × {formatRupiah(m.price)} = <span className="font-semibold text-gray-700">{formatRupiah(m.price * m.quantity)}</span></p>
-                    </div>
-                    <button onClick={() => setMaterials(ms => ms.filter((_, j) => j !== i))}
-                      className="w-7 h-7 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-sm shrink-0">✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* HPP & Nilai Project */}
+          {/* Info Snapshot Kalkulator (Otomatis di Background) */}
           {materials.length > 0 && (
-            <div className="bg-blue-50 rounded-2xl px-4 py-3 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total HPP Bahan</span>
-                <span className="font-bold text-blue-700">{formatRupiah(hpp)}</span>
-              </div>
-              {sellingPrice > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Estimasi Profit</span>
-                  <span className={`font-bold ${sellingPrice - hpp >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatRupiah(sellingPrice - hpp)}</span>
-                </div>
-              )}
+            <div className="bg-cyan-50 border border-cyan-200 rounded-2xl px-4 py-3 flex items-center justify-between text-xs text-cyan-800">
+              <span>✨ Terhubung dari Kalkulator Advertising ({materials.length} komponen tercatat otomatis)</span>
+              <span className="font-bold">Siap Simpan</span>
             </div>
           )}
 
@@ -631,26 +602,16 @@ export default function ProjectPage() {
                 ['Nama Project', detailProject.project_name],
                 ['Customer', detailProject.customer_name],
                 ['Metode', detailProject.payment_method === 'cash' ? 'Cash' : 'Transfer'],
-                ['HPP Bahan', formatRupiah(detailProject.hpp || detailProject.total_material_cost || 0)],
                 ['Nilai Project', formatRupiah(detailProject.selling_price || detailProject.total_project_value || 0)],
-                ['Catatan', detailProject.notes || '-'],
+                ['DP Dibayar', formatRupiah(detailProject.dp_amount || 0)],
+                ['Sisa Pelunasan', formatRupiah(Math.max(0, (detailProject.selling_price || detailProject.total_project_value || 0) - (detailProject.dp_amount || 0)))],
+                ['Catatan Spesifikasi', detailProject.notes || '-'],
               ].map(([l, v]) => (
                 <div key={l} className="flex justify-between text-sm border-b border-gray-50 pb-2">
                   <span className="text-gray-500">{l}</span>
                   <span className="font-medium text-gray-800 text-right max-w-[60%]">{v}</span>
                 </div>
               ))}
-              {Array.isArray(detailProject.materials) && detailProject.materials.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Bahan Digunakan</p>
-                  {detailProject.materials.map((m, i) => (
-                    <div key={i} className="flex justify-between text-sm py-1">
-                      <span className="text-gray-600">{m.name} ({m.quantity} {m.unit})</span>
-                      <span className="font-medium">{formatRupiah(m.price * m.quantity)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>

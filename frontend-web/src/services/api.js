@@ -296,3 +296,8 @@ export const updateAcrylic = (id, data) =>
   request(`/acrylics/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteAcrylic = (id) =>
   request(`/acrylics/${id}`, { method: 'DELETE' })
+
+// ─── Advertising Master Config & Tariffs ──────────────────────
+export const getAdvertisingConfig = () => request('/advertising-config')
+export const updateAdvertisingConfig = (data) =>
+  request('/advertising-config', { method: 'PUT', body: JSON.stringify(data) })

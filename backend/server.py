@@ -1629,6 +1629,100 @@ async def delete_acrylic(acrylic_id: str):
         raise HTTPException(status_code=404, detail='Bahan akrilik tidak ditemukan')
     return {'message': 'Bahan akrilik berhasil dihapus'}
 
+# ── Advertising Calculator Master Config ─────────────────────────────────────
+DEFAULT_ADVERTISING_CONFIG = {
+    'id': 'master_config',
+    'nego_discount_pct': 15.0,
+    'rounding_step': 1000,
+    'neonbox': {
+        'min_order_price': 350000,
+        'small_max_area': 4000,
+        'mid_max_area': 8000,
+        'rate_small_1s': 320,
+        'rate_small_2s': 380,
+        'rate_mid_1s': 280,
+        'rate_mid_2s': 330,
+        'rate_big_1s': 250,
+        'rate_big_2s': 300,
+        'poles': [
+            {'id': 'none', 'name': 'Tanpa Tiang / Rangka Luar', 'buy_price': 0, 'sell_price': 0, 'unit': 'paket'},
+            {'id': 'rangka_hollow', 'name': 'Rangka Hollow Penguat Dalam', 'buy_price': 150000, 'sell_price': 250000, 'unit': 'paket'},
+            {'id': 'bracket_dinding', 'name': 'Bracket Besi Siku Dinding', 'buy_price': 150000, 'sell_price': 250000, 'unit': 'paket'},
+            {'id': 'tiang_2in', 'name': 'Paket Tiang Pipa 2" + Rangka + Pasang', 'buy_price': 1200000, 'sell_price': 1500000, 'unit': 'paket'},
+            {'id': 'tiang_25in', 'name': 'Paket Tiang Pipa 2.5" + Rangka + Pasang', 'buy_price': 1600000, 'sell_price': 1950000, 'unit': 'paket'},
+            {'id': 'tiang_3in', 'name': 'Paket Tiang Pipa 3" + Rangka + Pasang', 'buy_price': 2000000, 'sell_price': 2500000, 'unit': 'paket'},
+        ],
+    },
+    'huruf_timbul': {
+        'min_height_cm': 10,
+        'tier_threshold_cm': 30,
+        'logo_multiplier': 2.0,
+        'min_order_price': 250000,
+        'backdrop_acp_sell_sqcm': 55,
+        'backdrop_acp_buy_sqcm': 22,
+        'rangka_dudukan_sell_m': 85000,
+        'rangka_dudukan_buy_m': 45000,
+        'variants': [
+            {'id': 'akrilik_non', 'name': 'Akrilik Tanpa Lampu', 'has_led': False, 'rate_std': 6500, 'rate_big': 8000, 'buy_sqcm': 20},
+            {'id': 'akrilik_led', 'name': 'Akrilik + Lampu (Include Trafo)', 'has_led': True, 'rate_std': 11000, 'rate_big': 13500, 'buy_sqcm': 26},
+            {'id': 'stenlis_non', 'name': 'Stenlis Mirror Tanpa Lampu', 'has_led': False, 'rate_std': 7000, 'rate_big': 8500, 'buy_sqcm': 22},
+            {'id': 'stenlis_led', 'name': 'Stenlis Mirror + Lampu (Include Trafo)', 'has_led': True, 'rate_std': 12000, 'rate_big': 15000, 'buy_sqcm': 28},
+            {'id': 'galvanis_non', 'name': 'Galvanis Cat Duco Tanpa Lampu', 'has_led': False, 'rate_std': 7500, 'rate_big': 9000, 'buy_sqcm': 24},
+            {'id': 'galvanis_led', 'name': 'Galvanis Cat Duco + Lampu (Include Trafo)', 'has_led': True, 'rate_std': 12500, 'rate_big': 15500, 'buy_sqcm': 30},
+        ],
+    },
+    'rambu': {
+        'min_order_price': 100000,
+        'min_area_sqcm': 600,
+        'qty_mid_min': 3,
+        'qty_bulk_min': 5,
+        'pen_iklan_sell_pcs': 15000,
+        'pen_iklan_buy_pcs': 6000,
+        'rangka_hollow_sell_m': 60000,
+        'rangka_hollow_buy_m': 35000,
+        'tiang_pipa_sell_m': 150000,
+        'tiang_pipa_buy_m': 95000,
+        'packages': [
+            {'id': 'acp_reflective', 'name': 'ACP + Stiker Reflective Asahi (2 Warna)', 'board': 'ACP', 'rate_ecer': 150, 'rate_mid': 120, 'rate_bulk': 100, 'buy_sqcm': 34},
+            {'id': 'acp_oracal', 'name': 'ACP + Cutting Sticker Oracal 651', 'board': 'ACP', 'rate_ecer': 135, 'rate_mid': 110, 'rate_bulk': 90, 'buy_sqcm': 30},
+            {'id': 'acp_print', 'name': 'ACP + Print Vinyl Outdoor + Laminasi', 'board': 'ACP', 'rate_ecer': 120, 'rate_mid': 100, 'rate_bulk': 85, 'buy_sqcm': 26},
+            {'id': 'akrilik_reflective', 'name': 'Akrilik 3mm + Stiker Reflective Asahi', 'board': 'AKRILIK', 'rate_ecer': 140, 'rate_mid': 115, 'rate_bulk': 95, 'buy_sqcm': 30},
+            {'id': 'akrilik_oracal', 'name': 'Akrilik 3mm + Cutting Sticker Oracal 651', 'board': 'AKRILIK', 'rate_ecer': 130, 'rate_mid': 105, 'rate_bulk': 88, 'buy_sqcm': 27},
+            {'id': 'akrilik_print', 'name': 'Akrilik 3mm + Print UV / Vinyl Laminasi', 'board': 'AKRILIK', 'rate_ecer': 120, 'rate_mid': 95, 'rate_bulk': 80, 'buy_sqcm': 24},
+        ],
+    },
+    'neonflex': {
+        'min_order_price': 250000,
+        'mid_meter_min': 3.0,
+        'bulk_meter_min': 8.0,
+        'rate_meter_ecer': 220000,
+        'rate_meter_mid': 195000,
+        'rate_meter_bulk': 175000,
+        'buy_meter_default': 65000,
+        'adaptor_buy_default': 65000,
+        'acrylic_sell_sqcm': 38,
+        'acrylic_buy_sqcm': 17,
+        'contour_cut_pct': 15,
+        'pen_iklan_sell_pcs': 15000,
+        'pen_iklan_buy_pcs': 6000,
+    },
+}
+
+@api.get('/advertising-config')
+async def get_advertising_config():
+    doc = await db.advertising_config.find_one({'id': 'master_config'}, {'_id': 0})
+    if not doc:
+        return DEFAULT_ADVERTISING_CONFIG
+    merged = {**DEFAULT_ADVERTISING_CONFIG, **doc}
+    return merged
+
+@api.put('/advertising-config')
+async def update_advertising_config(body: dict):
+    payload = {**DEFAULT_ADVERTISING_CONFIG, **body, 'id': 'master_config', 'updated_at': now_str()}
+    payload.pop('_id', None)
+    await db.advertising_config.update_one({'id': 'master_config'}, {'$set': payload}, upsert=True)
+    return await db.advertising_config.find_one({'id': 'master_config'}, {'_id': 0})
+
 app.include_router(api)
 
 @app.get('/')

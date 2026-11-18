@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { getAcrylics } from '../services/api'
 import { formatRupiah } from '../utils/format'
 
-export default function AcrylicCalculatorModal({ onClose, showToast, embedded = false }) {
+export default function AcrylicCalculatorModal({ onClose, showToast, embedded = false, onSaveToProject }) {
   const [acrylics, setAcrylics] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState('')
@@ -214,16 +214,22 @@ _Harga dapat berubah sewaktu-waktu._`
                   </div>
 
                   {/* Highlight Box */}
-                  <div className="bg-white rounded-xl p-3 border border-cyan-100 text-center shadow-sm">
-                    <p className="text-xs text-gray-500 mb-0.5">Total Harga Jual ke Customer</p>
-                    <p className="text-2xl font-black text-cyan-800">
+                  <div className="bg-white rounded-xl p-3.5 border border-cyan-200 text-center shadow-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700 mb-0.5">🏷️ Harga Jual yang Disarankan</p>
+                    <p className="text-2xl font-black text-cyan-900">
                       {formatRupiah(calcResult.totalPrice)}
                     </p>
                     {calcResult.qty > 1 && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 mt-0.5">
                         (@ {formatRupiah(calcResult.pricePerPcs)} / pcs)
                       </p>
                     )}
+                    <div className="mt-2 pt-2 border-t border-dashed border-cyan-100 flex items-center justify-center gap-2 text-xs">
+                      <span className="text-gray-500">🔒 Batas Harga Net (Diskon Maks 15%):</span>
+                      <span className="font-bold text-amber-700">
+                        {formatRupiah(Math.ceil((calcResult.totalPrice * 0.85) / 500) * 500)}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Details */}
@@ -245,22 +251,48 @@ _Harga dapat berubah sewaktu-waktu._`
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      onClick={handleCopyWhatsApp}
-                      className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.275.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.043.072.043.419-.101.824z"/>
-                      </svg>
-                      Salin ke WhatsApp
-                    </button>
-                    <button
-                      onClick={handleReset}
-                      className="px-3 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold transition-colors"
-                    >
-                      Reset
-                    </button>
+                  <div className="space-y-2 pt-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCopyWhatsApp}
+                        className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.275.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.043.072.043.419-.101.824z"/>
+                        </svg>
+                        Salin ke WhatsApp
+                      </button>
+                      <button
+                        onClick={handleReset}
+                        className="px-3 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold transition-colors"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    {onSaveToProject && (
+                      <button
+                        onClick={() => {
+                          const hppUnit = Math.round(calcResult.areaPerPcs * (selectedItem.cost_per_sqcm || 16.8))
+                          onSaveToProject({
+                            project_name: `Akrilik ${selectedItem.name} ${selectedItem.thickness} (${calcResult.length}x${calcResult.width}cm × ${calcResult.qty} pcs)`,
+                            selling_price: calcResult.totalPrice,
+                            notes: `Kategori: ${calcResult.tierLabel} | Luas total: ${calcResult.totalArea} cm²`,
+                            materials: [
+                              {
+                                name: `${selectedItem.name} ${selectedItem.thickness} (${calcResult.length}x${calcResult.width}cm)`,
+                                quantity: calcResult.qty,
+                                unit: 'pcs',
+                                price: hppUnit,
+                                is_custom: true,
+                              },
+                            ],
+                          })
+                        }}
+                        className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
+                      >
+                        🚀 Simpan Langsung ke Project
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

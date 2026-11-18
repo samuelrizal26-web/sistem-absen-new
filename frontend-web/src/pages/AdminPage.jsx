@@ -23,6 +23,7 @@ import { getPrinterMAC, setPrinterMAC } from '../config/printer'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { STOCK_TABS, ADV_SUBS, STOCK_UNITS, EMPTY_STOCK_FORM, stockTabOf, advDerivedInfo, advSummaryLine, buildStockPayload, stockToForm } from '../utils/stockAdvertising'
+import AdminAdvertisingPanel from '../components/AdminAdvertisingPanel'
 
 const TAB = { CREW: 'crew', STOCK: 'stock', CASHFLOW: 'cashflow', ACRYLIC: 'acrylic', EMPLOYEE_TX: 'employee_tx', HISTORY: 'history', SETTINGS: 'settings' }
 
@@ -398,7 +399,7 @@ export default function AdminPage() {
     if (tab === TAB.CREW) loadEmployees()
     if (tab === TAB.STOCK) loadStocks()
     if (tab === TAB.CASHFLOW) loadCashflow()
-    if (tab === TAB.ACRYLIC) loadAcrylics()
+    if (tab === TAB.ACRYLIC) { loadAcrylics(); loadStocks() }
     if (tab === TAB.EMPLOYEE_TX) {
       loadEmployees() // Load employees for name mapping
       loadEmployeeTransactions()
@@ -1043,7 +1044,7 @@ export default function AdminPage() {
 
       {/* Tab Navigation */}
       <div className="flex gap-1 px-4 py-3 overflow-x-auto no-scrollbar">
-        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.ACRYLIC, 'Akrilik'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => (
+        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.ACRYLIC, 'Kalkulator & Tarif'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === t ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-500 border border-gray-100'}`}>
             {label}
@@ -1525,10 +1526,15 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ── TAB: AKRILIK ── */}
+      {/* ── TAB: KALKULATOR & TARIF ADVERTISING ── */}
       {tab === TAB.ACRYLIC && (
-        <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
-          {/* Left Panel */}
+        <AdminAdvertisingPanel
+          stocks={stocks}
+          acrylics={acrylics}
+          showToast={showToast}
+          renderAcrylicTab={() => (
+            <div className="flex-1 flex flex-col md:flex-row gap-4">
+              {/* Left Panel */}
           <div className="w-full md:w-1/3 flex flex-col gap-4">
             <div className="bg-gradient-to-br from-cyan-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
               <p className="text-xs text-white/80 uppercase tracking-wider font-semibold">Katalog Master Akrilik</p>
@@ -1634,6 +1640,8 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+          )}
+        />
       )}
 
       {/* ── MODAL: Tambah / Edit Akrilik ── */}
