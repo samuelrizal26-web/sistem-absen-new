@@ -9,7 +9,7 @@ import CrewFormModal from '../components/CrewFormModal'
 import Toast from '../components/Toast'
 import FloatingButton from '../components/FloatingButton'
 import PiketModal from '../components/PiketModal'
-import AcrylicCalculatorModal from '../components/AcrylicCalculatorModal'
+import AdvertisingCalculatorModal from '../components/AdvertisingCalculatorModal'
 import { useToast } from '../hooks/useToast'
 
 const NAV_BUTTONS = [
@@ -47,7 +47,7 @@ const NAV_BUTTONS = [
     ),
   },
   {
-    label: 'Kalkulator Akrilik',
+    label: 'Kalkulator',
     action: 'acrylic_calc',
     color: 'from-cyan-500 to-blue-600',
     icon: (
@@ -1017,9 +1017,9 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* Acrylic Calculator Modal */}
+      {/* Kalkulator Advertising (1 tombol, tab produk) */}
       {showAcrylicModal && (
-        <AcrylicCalculatorModal
+        <AdvertisingCalculatorModal
           onClose={() => setShowAcrylicModal(false)}
           showToast={showToast}
         />

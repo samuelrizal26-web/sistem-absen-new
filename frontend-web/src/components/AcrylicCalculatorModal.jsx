@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { getAcrylics } from '../services/api'
 import { formatRupiah } from '../utils/format'
 
-export default function AcrylicCalculatorModal({ onClose, showToast }) {
+export default function AcrylicCalculatorModal({ onClose, showToast, embedded = false }) {
   const [acrylics, setAcrylics] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState('')
@@ -116,36 +116,8 @@ _Harga dapat berubah sewaktu-waktu._`
     setQtyInput('1')
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div
-          className="px-6 py-4 flex items-center justify-between text-white"
-          style={{ background: 'linear-gradient(135deg, #0A4D68 0%, #088395 100%)' }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold">Kalkulator Akrilik</h2>
-              <p className="text-xs text-white/80">Hitung cepat harga potongan untuk customer</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-4">
+  const body = (
+    <>
           {loading ? (
             <div className="py-12 text-center text-gray-500">
               <svg className="w-8 h-8 animate-spin mx-auto text-primary mb-2" fill="none" viewBox="0 0 24 24">
@@ -294,6 +266,43 @@ _Harga dapat berubah sewaktu-waktu._`
               )}
             </>
           )}
+    </>
+  )
+
+  // Mode tertanam (dipakai di dalam Kalkulator Advertising bertab)
+  if (embedded) return <div className="p-6 space-y-4">{body}</div>
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div
+          className="px-6 py-4 flex items-center justify-between text-white"
+          style={{ background: 'linear-gradient(135deg, #0A4D68 0%, #088395 100%)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Kalkulator Akrilik</h2>
+              <p className="text-xs text-white/80">Hitung cepat harga potongan untuk customer</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto space-y-4">
+          {body}
         </div>
       </div>
     </div>
