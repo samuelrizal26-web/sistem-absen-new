@@ -54,13 +54,46 @@ export const DEFAULT_ADVERTISING_CONFIG = {
     rangka_hollow_buy_m: 35000,
     tiang_pipa_sell_m: 150000,
     tiang_pipa_buy_m: 95000,
-    packages: [
-      { id: 'acp_reflective', name: 'ACP + Stiker Reflective Asahi (2 Warna)', board: 'ACP', rate_ecer: 150, rate_mid: 120, rate_bulk: 100, buy_sqcm: 34 },
-      { id: 'acp_oracal', name: 'ACP + Cutting Sticker Oracal 651', board: 'ACP', rate_ecer: 135, rate_mid: 110, rate_bulk: 90, buy_sqcm: 30 },
-      { id: 'acp_print', name: 'ACP + Print Vinyl Outdoor + Laminasi', board: 'ACP', rate_ecer: 120, rate_mid: 100, rate_bulk: 85, buy_sqcm: 26 },
-      { id: 'akrilik_reflective', name: 'Akrilik 3mm + Stiker Reflective Asahi', board: 'AKRILIK', rate_ecer: 140, rate_mid: 115, rate_bulk: 95, buy_sqcm: 30 },
-      { id: 'akrilik_oracal', name: 'Akrilik 3mm + Cutting Sticker Oracal 651', board: 'AKRILIK', rate_ecer: 130, rate_mid: 105, rate_bulk: 88, buy_sqcm: 27 },
-      { id: 'akrilik_print', name: 'Akrilik 3mm + Print UV / Vinyl Laminasi', board: 'AKRILIK', rate_ecer: 120, rate_mid: 95, rate_bulk: 80, buy_sqcm: 24 },
+    boards: [
+      { id: 'ACP', name: 'ACP (Aluminium Composite Panel)', rate_ecer: 80, rate_mid: 65, rate_bulk: 55, buy_sqcm: 20 },
+      { id: 'AKRILIK', name: 'Akrilik (2mm / 3mm / 5mm)', rate_ecer: 75, rate_mid: 60, rate_bulk: 50, buy_sqcm: 17 },
+    ],
+    stickers: [
+      {
+        id: 'reflective_asahi',
+        name: 'Stiker Reflective Asahi / Scotchlite',
+        is_cutting: true,
+        rate_ecer: 40, rate_mid: 30, rate_bulk: 25, buy_sqcm: 7,
+        extra_color_ecer: 30, extra_color_mid: 25, extra_color_bulk: 20, extra_color_buy: 7,
+      },
+      {
+        id: 'reflective_3m',
+        name: 'Stiker Reflective 3M / Kiwalite',
+        is_cutting: true,
+        rate_ecer: 55, rate_mid: 45, rate_bulk: 35, buy_sqcm: 12,
+        extra_color_ecer: 35, extra_color_mid: 30, extra_color_bulk: 25, extra_color_buy: 10,
+      },
+      {
+        id: 'oracal_651',
+        name: 'Cutting Sticker Oracal 651',
+        is_cutting: true,
+        rate_ecer: 35, rate_mid: 25, rate_bulk: 20, buy_sqcm: 6,
+        extra_color_ecer: 25, extra_color_mid: 20, extra_color_bulk: 15, extra_color_buy: 6,
+      },
+      {
+        id: 'print_laminasi',
+        name: 'Print Vinyl Outdoor + Laminasi (Full Color)',
+        is_cutting: false,
+        rate_ecer: 40, rate_mid: 35, rate_bulk: 30, buy_sqcm: 6,
+        extra_color_ecer: 0, extra_color_mid: 0, extra_color_bulk: 0, extra_color_buy: 0,
+      },
+      {
+        id: 'print_uv',
+        name: 'Print UV Flatbed / Stiker UV (Full Color)',
+        is_cutting: false,
+        rate_ecer: 50, rate_mid: 40, rate_bulk: 35, buy_sqcm: 9,
+        extra_color_ecer: 0, extra_color_mid: 0, extra_color_bulk: 0, extra_color_buy: 0,
+      },
     ],
   },
   neonflex: {
@@ -318,23 +351,36 @@ export function calcRambu(input, rawConfig) {
   if (length <= 0 || width <= 0) return null
 
   const sides = num(input.sides, 1) === 2 ? 2 : 1
-  const packages = Array.isArray(rb.packages) ? rb.packages : DEFAULT_ADVERTISING_CONFIG.rambu.packages
-  const pkg = packages.find(p => p.id === input.packageId) || packages[0]
+  const boards = Array.isArray(rb.boards) && rb.boards.length > 0 ? rb.boards : DEFAULT_ADVERTISING_CONFIG.rambu.boards
+  const stickers = Array.isArray(rb.stickers) && rb.stickers.length > 0 ? rb.stickers : DEFAULT_ADVERTISING_CONFIG.rambu.stickers
+
+  const board = boards.find(b => b.id === input.boardId) || boards[0]
+  const sticker = stickers.find(s => s.id === input.stickerId) || stickers[0]
+  const isCutting = Boolean(sticker.is_cutting)
+  const colorCount = isCutting ? Math.max(1, parseInt(input.colorCount, 10) || 2) : 1
+  const extraColors = Math.max(0, colorCount - 1)
 
   const areaPerPcs = Math.round(length * width)
   const effectiveArea = Math.max(areaPerPcs, num(rb.min_area_sqcm, 600))
 
+  // Deteksi skala: Eceran / Menengah / Partai
+  let tierKey = 'mid'
   let tierLabel = 'Normal / Menengah'
-  let defaultRate = num(pkg.rate_mid, 120)
   if (qty >= num(rb.qty_bulk_min, 5) || areaPerPcs >= 8000) {
+    tierKey = 'bulk'
     tierLabel = `Partai / Besar (≥ ${rb.qty_bulk_min} pcs)`
-    defaultRate = num(pkg.rate_bulk, 100)
   } else if (qty < num(rb.qty_mid_min, 3) && areaPerPcs < 2000) {
+    tierKey = 'ecer'
     tierLabel = 'Eceran / Kecil'
-    defaultRate = num(pkg.rate_ecer, 150)
   }
 
+  const boardRate = tierKey === 'bulk' ? num(board.rate_bulk, 55) : tierKey === 'ecer' ? num(board.rate_ecer, 80) : num(board.rate_mid, 65)
+  const stickerBaseRate = tierKey === 'bulk' ? num(sticker.rate_bulk, 25) : tierKey === 'ecer' ? num(sticker.rate_ecer, 40) : num(sticker.rate_mid, 30)
+  const extraColorRate = tierKey === 'bulk' ? num(sticker.extra_color_bulk, 20) : tierKey === 'ecer' ? num(sticker.extra_color_ecer, 30) : num(sticker.extra_color_mid, 25)
+
+  const defaultRate = boardRate + stickerBaseRate + (extraColors * extraColorRate)
   const activeRate = input.overrideRate !== undefined && input.overrideRate !== '' ? num(input.overrideRate) : defaultRate
+
   const sideMult = sides === 2 ? 1.75 : 1.0
   const rawBoardSell = effectiveArea * activeRate * sideMult * qty
   const boardSellPrice = Math.max(num(rb.min_order_price, 100000), rawBoardSell)
@@ -352,15 +398,19 @@ export function calcRambu(input, rawConfig) {
   const negoPct = num(cfg.nego_discount_pct, 15)
   const netFloorPrice = roundPrice(recommendedSellPrice * (1 - negoPct / 100), cfg.rounding_step)
 
-  // HPP
-  const boardBuyCost = Math.round(areaPerPcs * num(pkg.buy_sqcm, 34) * (sides === 2 ? 1.6 : 1) * qty)
+  // HPP Modal Real
+  const unitBuySqcm = num(board.buy_sqcm, 20) + num(sticker.buy_sqcm, 7) + (extraColors * num(sticker.extra_color_buy, 7))
+  const boardBuyCost = Math.round(areaPerPcs * unitBuySqcm * (sides === 2 ? 1.6 : 1) * qty)
   const rangkaBuy = Math.round(rangkaMeter * num(rb.rangka_hollow_buy_m, 35000))
   const tiangBuy = Math.round(tiangMeter * num(rb.tiang_pipa_buy_m, 95000))
   const penBuy = Math.round(penIklanQty * num(rb.pen_iklan_buy_pcs, 6000))
   const totalHpp = boardBuyCost + rangkaBuy + tiangBuy + penBuy + extraCost
 
+  const colorLabel = isCutting ? `${colorCount} Warna` : 'Full Color'
+  const specName = `${board.id} + ${sticker.name} (${colorLabel})`
+
   const materials = [
-    { name: `${pkg.name} (${length}x${width}cm, ${sides} Sisi)`, quantity: qty, unit: 'pcs', price: Math.round(boardBuyCost / qty), is_custom: true },
+    { name: `${specName} (${length}x${width}cm, ${sides} Sisi)`, quantity: qty, unit: 'pcs', price: Math.round(boardBuyCost / qty), is_custom: true },
   ]
   if (rangkaMeter > 0) materials.push({ name: `Rangka Hollow (${rangkaMeter} m)`, quantity: rangkaMeter, unit: 'Meter', price: num(rb.rangka_hollow_buy_m, 35000), is_custom: true })
   if (tiangMeter > 0) materials.push({ name: `Tiang Pipa (${tiangMeter} m)`, quantity: tiangMeter, unit: 'Meter', price: num(rb.tiang_pipa_buy_m, 95000), is_custom: true })
@@ -369,13 +419,15 @@ export function calcRambu(input, rawConfig) {
 
   return {
     productType: 'RAMBU',
-    projectTitle: `Rambu/Plang ${pkg.name} ${length}x${width}cm (${qty} pcs)`,
-    length, width, qty, sides, pkg,
+    projectTitle: `Rambu ${specName} ${length}x${width}cm (${qty} pcs)`,
+    length, width, qty, sides,
+    board, sticker, isCutting, colorCount, colorLabel, specName,
+    boardRate, stickerBaseRate, extraColorRate,
     areaPerPcs, totalAreaSqcm: areaPerPcs * qty,
     tierLabel, rateSqcm: activeRate, defaultRateSqcm: defaultRate,
     boardSellPrice, rangkaMeter, rangkaSell, tiangMeter, tiangSell, penIklanQty, penSell, extraCost,
     recommendedSellPrice, netFloorPrice, negoPct,
-    boardBuyCost, totalHpp,
+    unitBuySqcm, boardBuyCost, totalHpp,
     profitAtRecommended: recommendedSellPrice - totalHpp,
     marginPctAtRecommended: recommendedSellPrice > 0 ? Math.round(((recommendedSellPrice - totalHpp) / recommendedSellPrice) * 1000) / 10 : 0,
     materials,

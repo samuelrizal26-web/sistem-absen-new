@@ -41,8 +41,9 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
   // ── Simulator State: Rambu (Dua Arah) ──
   const [rbSim, setRbSim] = useState({
+    boardId: 'ACP', stickerId: 'reflective_asahi', colorCount: '2',
     length: '60', width: '40', qty: '1', sides: 1,
-    packageId: 'acp_reflective', rangkaMeter: '0', tiangMeter: '0', penIklanQty: '0',
+    rangkaMeter: '0', tiangMeter: '0', penIklanQty: '0',
     extraCost: '0', customRate: '', customTotal: '',
   })
 
@@ -627,12 +628,21 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
       )}
 
       {/* ── SUB-TAB 4: RAMBU / PAPAN NAMA ── */}
-      {subTab === 'rambu' && (
+      {subTab === 'rambu' && (() => {
+        const boards = Array.isArray(config.rambu?.boards) && config.rambu.boards.length > 0
+          ? config.rambu.boards
+          : DEFAULT_ADVERTISING_CONFIG.rambu.boards
+        const stickers = Array.isArray(config.rambu?.stickers) && config.rambu.stickers.length > 0
+          ? config.rambu.stickers
+          : DEFAULT_ADVERTISING_CONFIG.rambu.stickers
+        const simSticker = stickers.find(s => s.id === rbSim.stickerId) || stickers[0]
+
+        return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Kiri: Master Tarif Rambu (Ecer / Menengah / Partai) */}
+          {/* Kiri: Master Tarif Rambu (Board + Stiker + Warna) */}
           <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
             <h3 className="font-bold text-gray-800 text-sm border-b pb-2">
-              ⚙️ Titik Mati Tarif Rambu / Plang (Per cm²)
+              ⚙️ Titik Mati Tarif Rambu (Board + Stiker + Warna)
             </h3>
 
             <div className="grid grid-cols-3 gap-2">
@@ -650,40 +660,107 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               </div>
             </div>
 
-            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-              {(config.rambu.packages || []).map((pkg, idx) => (
-                <div key={pkg.id} className="bg-gray-50 rounded-xl p-2.5 border border-gray-200 space-y-1.5">
-                  <p className="font-bold text-xs text-gray-800">{pkg.name}</p>
+            {/* 1. Master Board (ACP / Akrilik) */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-purple-800">1. Tarif Bahan Board (/cm²)</p>
+              {boards.map((b, idx) => (
+                <div key={b.id} className="bg-gray-50 rounded-xl p-2.5 border border-gray-200 space-y-1.5">
+                  <p className="font-bold text-xs text-gray-800">{b.name}</p>
                   <div className="grid grid-cols-4 gap-1.5">
                     <div>
-                      <span className="text-[10px] text-gray-400 block">Ecer (/cm²)</span>
-                      <input type="number" value={pkg.rate_ecer} onChange={e => {
-                        const list = [...config.rambu.packages]; list[idx] = { ...pkg, rate_ecer: parseFloat(e.target.value) || 0 }
-                        setConfig(c => ({ ...c, rambu: { ...c.rambu, packages: list } }))
+                      <span className="text-[10px] text-gray-400 block">Ecer</span>
+                      <input type="number" value={b.rate_ecer} onChange={e => {
+                        const list = [...boards]; list[idx] = { ...b, rate_ecer: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, boards: list } }))
                       }} className={inp} />
                     </div>
                     <div>
-                      <span className="text-[10px] text-gray-400 block">Sedang (/cm²)</span>
-                      <input type="number" value={pkg.rate_mid} onChange={e => {
-                        const list = [...config.rambu.packages]; list[idx] = { ...pkg, rate_mid: parseFloat(e.target.value) || 0 }
-                        setConfig(c => ({ ...c, rambu: { ...c.rambu, packages: list } }))
+                      <span className="text-[10px] text-gray-400 block">Sedang</span>
+                      <input type="number" value={b.rate_mid} onChange={e => {
+                        const list = [...boards]; list[idx] = { ...b, rate_mid: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, boards: list } }))
                       }} className={inp} />
                     </div>
                     <div>
-                      <span className="text-[10px] text-gray-400 block">Partai (/cm²)</span>
-                      <input type="number" value={pkg.rate_bulk} onChange={e => {
-                        const list = [...config.rambu.packages]; list[idx] = { ...pkg, rate_bulk: parseFloat(e.target.value) || 0 }
-                        setConfig(c => ({ ...c, rambu: { ...c.rambu, packages: list } }))
+                      <span className="text-[10px] text-gray-400 block">Partai</span>
+                      <input type="number" value={b.rate_bulk} onChange={e => {
+                        const list = [...boards]; list[idx] = { ...b, rate_bulk: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, boards: list } }))
                       }} className={inp} />
                     </div>
                     <div>
-                      <span className="text-[10px] text-gray-400 block">Modal (/cm²)</span>
-                      <input type="number" value={pkg.buy_sqcm} onChange={e => {
-                        const list = [...config.rambu.packages]; list[idx] = { ...pkg, buy_sqcm: parseFloat(e.target.value) || 0 }
-                        setConfig(c => ({ ...c, rambu: { ...c.rambu, packages: list } }))
+                      <span className="text-[10px] text-gray-400 block">Modal</span>
+                      <input type="number" value={b.buy_sqcm} onChange={e => {
+                        const list = [...boards]; list[idx] = { ...b, buy_sqcm: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, boards: list } }))
                       }} className={inp} />
                     </div>
                   </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 2. Master Stiker & Tambahan Warna */}
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-1 pt-2 border-t">
+              <p className="text-xs font-bold text-purple-800">2. Tarif Jenis Stiker & Tambahan Warna (/cm²)</p>
+              {stickers.map((st, idx) => (
+                <div key={st.id} className="bg-gray-50 rounded-xl p-2.5 border border-gray-200 space-y-1.5">
+                  <p className="font-bold text-xs text-gray-800">{st.name}</p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">1Wrn Ecer</span>
+                      <input type="number" value={st.rate_ecer} onChange={e => {
+                        const list = [...stickers]; list[idx] = { ...st, rate_ecer: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, stickers: list } }))
+                      }} className={inp} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">1Wrn Sdg</span>
+                      <input type="number" value={st.rate_mid} onChange={e => {
+                        const list = [...stickers]; list[idx] = { ...st, rate_mid: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, stickers: list } }))
+                      }} className={inp} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">1Wrn Prtai</span>
+                      <input type="number" value={st.rate_bulk} onChange={e => {
+                        const list = [...stickers]; list[idx] = { ...st, rate_bulk: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, stickers: list } }))
+                      }} className={inp} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">Modal/Wrn</span>
+                      <input type="number" value={st.buy_sqcm} onChange={e => {
+                        const list = [...stickers]; list[idx] = { ...st, buy_sqcm: parseFloat(e.target.value) || 0, extra_color_buy: parseFloat(e.target.value) || 0 }
+                        setConfig(c => ({ ...c, rambu: { ...c.rambu, stickers: list } }))
+                      }} className={inp} />
+                    </div>
+                  </div>
+                  {st.is_cutting && (
+                    <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-gray-200/60">
+                      <div>
+                        <span className="text-[10px] text-amber-700 block">+Wrn Ecer</span>
+                        <input type="number" value={st.extra_color_ecer} onChange={e => {
+                          const list = [...stickers]; list[idx] = { ...st, extra_color_ecer: parseFloat(e.target.value) || 0 }
+                          setConfig(c => ({ ...c, rambu: { ...c.rambu, stickers: list } }))
+                        }} className={inp} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-amber-700 block">+Wrn Sdg</span>
+                        <input type="number" value={st.extra_color_mid} onChange={e => {
+                          const list = [...stickers]; list[idx] = { ...st, extra_color_mid: parseFloat(e.target.value) || 0 }
+                          setConfig(c => ({ ...c, rambu: { ...c.rambu, stickers: list } }))
+                        }} className={inp} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-amber-700 block">+Wrn Partai</span>
+                        <input type="number" value={st.extra_color_bulk} onChange={e => {
+                          const list = [...stickers]; list[idx] = { ...st, extra_color_bulk: parseFloat(e.target.value) || 0 }
+                          setConfig(c => ({ ...c, rambu: { ...c.rambu, stickers: list } }))
+                        }} className={inp} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -699,13 +776,32 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               🧪 Simulator Dua Arah Rambu / Papan Nama (Contoh: 60 × 40 cm)
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div className="sm:col-span-2">
-                <label className="text-[11px] font-bold text-gray-600 block mb-1">Paket Bahan</label>
-                <select value={rbSim.packageId} onChange={e => setRbSim(s => ({ ...s, packageId: e.target.value }))} className={inp}>
-                  {(config.rambu.packages || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">1. Bahan Board</label>
+                <select value={rbSim.boardId} onChange={e => setRbSim(s => ({ ...s, boardId: e.target.value, customRate: '' }))} className={inp}>
+                  {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">2. Jenis Stiker</label>
+                <select value={rbSim.stickerId} onChange={e => setRbSim(s => ({ ...s, stickerId: e.target.value, customRate: '' }))} className={inp}>
+                  {stickers.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">3. Jumlah Warna Stiker</label>
+                {simSticker?.is_cutting ? (
+                  <select value={rbSim.colorCount} onChange={e => setRbSim(s => ({ ...s, colorCount: e.target.value, customRate: '' }))} className={inp}>
+                    {[1, 2, 3, 4, 5].map(c => <option key={c} value={String(c)}>{c} Warna</option>)}
+                  </select>
+                ) : (
+                  <div className="px-3 py-2 rounded-xl border border-gray-200 bg-gray-100 text-xs font-bold text-gray-500">Full Color</div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang (cm)</label>
                 <input type="number" value={rbSim.length} onChange={e => setRbSim(s => ({ ...s, length: e.target.value }))} className={inp} />
@@ -714,10 +810,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Lebar (cm)</label>
                 <input type="number" value={rbSim.width} onChange={e => setRbSim(s => ({ ...s, width: e.target.value }))} className={inp} />
               </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Jumlah (Pcs)</label>
+                <input type="number" value={rbSim.qty} onChange={e => setRbSim(s => ({ ...s, qty: e.target.value }))} className={inp} />
+              </div>
             </div>
 
             {rbRes && renderBidirectionalCompare({
-              rateLabel: `Tarif per cm² (${rbRes.tierLabel})`,
+              rateLabel: `Tarif Gabungan per cm² (${rbRes.tierLabel} · ${rbRes.colorLabel})`,
               activeRate: rbRes.rateSqcm,
               defaultRate: rbRes.defaultRateSqcm,
               onRateChange: val => setRbSim(s => ({ ...s, customRate: val })),
@@ -730,12 +830,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               negoPct: config.nego_discount_pct,
               onResetOverride: () => setRbSim(s => ({ ...s, customRate: '' })),
               hppRows: [
-                [`Modal Board + Stiker (${rbRes.length}×${rbRes.width}cm × ${rbRes.qty} pcs)`, formatRupiah(rbRes.boardBuyCost)],
+                [`Komponen Tarif Jual (/cm²)`, `Board Rp ${rbRes.boardRate} + Stiker Rp ${rbRes.stickerBaseRate + (Math.max(0, rbRes.colorCount - 1) * rbRes.extraColorRate)} = Rp ${rbRes.defaultRateSqcm}/cm²`],
+                [`Modal Board + Stiker (${rbRes.colorLabel}, Rp ${rbRes.unitBuySqcm}/cm²)`, formatRupiah(rbRes.boardBuyCost)],
               ],
             })}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* ── SUB-TAB 5: NEONFLEX ── */}
       {subTab === 'neonflex' && (

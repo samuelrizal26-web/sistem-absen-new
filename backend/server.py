@@ -1682,13 +1682,46 @@ DEFAULT_ADVERTISING_CONFIG = {
         'rangka_hollow_buy_m': 35000,
         'tiang_pipa_sell_m': 150000,
         'tiang_pipa_buy_m': 95000,
-        'packages': [
-            {'id': 'acp_reflective', 'name': 'ACP + Stiker Reflective Asahi (2 Warna)', 'board': 'ACP', 'rate_ecer': 150, 'rate_mid': 120, 'rate_bulk': 100, 'buy_sqcm': 34},
-            {'id': 'acp_oracal', 'name': 'ACP + Cutting Sticker Oracal 651', 'board': 'ACP', 'rate_ecer': 135, 'rate_mid': 110, 'rate_bulk': 90, 'buy_sqcm': 30},
-            {'id': 'acp_print', 'name': 'ACP + Print Vinyl Outdoor + Laminasi', 'board': 'ACP', 'rate_ecer': 120, 'rate_mid': 100, 'rate_bulk': 85, 'buy_sqcm': 26},
-            {'id': 'akrilik_reflective', 'name': 'Akrilik 3mm + Stiker Reflective Asahi', 'board': 'AKRILIK', 'rate_ecer': 140, 'rate_mid': 115, 'rate_bulk': 95, 'buy_sqcm': 30},
-            {'id': 'akrilik_oracal', 'name': 'Akrilik 3mm + Cutting Sticker Oracal 651', 'board': 'AKRILIK', 'rate_ecer': 130, 'rate_mid': 105, 'rate_bulk': 88, 'buy_sqcm': 27},
-            {'id': 'akrilik_print', 'name': 'Akrilik 3mm + Print UV / Vinyl Laminasi', 'board': 'AKRILIK', 'rate_ecer': 120, 'rate_mid': 95, 'rate_bulk': 80, 'buy_sqcm': 24},
+        'boards': [
+            {'id': 'ACP', 'name': 'ACP (Aluminium Composite Panel)', 'rate_ecer': 80, 'rate_mid': 65, 'rate_bulk': 55, 'buy_sqcm': 20},
+            {'id': 'AKRILIK', 'name': 'Akrilik (2mm / 3mm / 5mm)', 'rate_ecer': 75, 'rate_mid': 60, 'rate_bulk': 50, 'buy_sqcm': 17},
+        ],
+        'stickers': [
+            {
+                'id': 'reflective_asahi',
+                'name': 'Stiker Reflective Asahi / Scotchlite',
+                'is_cutting': True,
+                'rate_ecer': 40, 'rate_mid': 30, 'rate_bulk': 25, 'buy_sqcm': 7,
+                'extra_color_ecer': 30, 'extra_color_mid': 25, 'extra_color_bulk': 20, 'extra_color_buy': 7,
+            },
+            {
+                'id': 'reflective_3m',
+                'name': 'Stiker Reflective 3M / Kiwalite',
+                'is_cutting': True,
+                'rate_ecer': 55, 'rate_mid': 45, 'rate_bulk': 35, 'buy_sqcm': 12,
+                'extra_color_ecer': 35, 'extra_color_mid': 30, 'extra_color_bulk': 25, 'extra_color_buy': 10,
+            },
+            {
+                'id': 'oracal_651',
+                'name': 'Cutting Sticker Oracal 651',
+                'is_cutting': True,
+                'rate_ecer': 35, 'rate_mid': 25, 'rate_bulk': 20, 'buy_sqcm': 6,
+                'extra_color_ecer': 25, 'extra_color_mid': 20, 'extra_color_bulk': 15, 'extra_color_buy': 6,
+            },
+            {
+                'id': 'print_laminasi',
+                'name': 'Print Vinyl Outdoor + Laminasi (Full Color)',
+                'is_cutting': False,
+                'rate_ecer': 40, 'rate_mid': 35, 'rate_bulk': 30, 'buy_sqcm': 6,
+                'extra_color_ecer': 0, 'extra_color_mid': 0, 'extra_color_bulk': 0, 'extra_color_buy': 0,
+            },
+            {
+                'id': 'print_uv',
+                'name': 'Print UV Flatbed / Stiker UV (Full Color)',
+                'is_cutting': False,
+                'rate_ecer': 50, 'rate_mid': 40, 'rate_bulk': 35, 'buy_sqcm': 9,
+                'extra_color_ecer': 0, 'extra_color_mid': 0, 'extra_color_bulk': 0, 'extra_color_buy': 0,
+            },
         ],
     },
     'neonflex': {

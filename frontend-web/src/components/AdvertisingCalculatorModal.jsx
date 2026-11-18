@@ -43,8 +43,10 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
 
   // ── State Rambu / Papan Nama ──
   const [rbForm, setRbForm] = useState({
+    boardId: 'ACP',
+    stickerId: 'reflective_asahi',
+    colorCount: '2',
     length: '', width: '', qty: '1', sides: 1,
-    packageId: 'acp_reflective',
     rangkaMeter: '', tiangMeter: '', penIklanQty: '0',
     extraCostRaw: '', extraNote: '', customDealRaw: '',
   })
@@ -546,19 +548,63 @@ _Harga sudah termasuk trafo/power supply (untuk varian berlampu)._`,
           )}
 
           {/* ── TAB 4: RAMBU / PAPAN NAMA ── */}
-          {active === 'rambu' && (
+          {active === 'rambu' && (() => {
+            const boards = Array.isArray(config.rambu?.boards) && config.rambu.boards.length > 0
+              ? config.rambu.boards
+              : DEFAULT_ADVERTISING_CONFIG.rambu.boards
+            const stickers = Array.isArray(config.rambu?.stickers) && config.rambu.stickers.length > 0
+              ? config.rambu.stickers
+              : DEFAULT_ADVERTISING_CONFIG.rambu.stickers
+            const currentSticker = stickers.find(s => s.id === rbForm.stickerId) || stickers[0]
+
+            return (
             <div className="p-5 space-y-4">
+              {/* 1. Pilih Bahan Board */}
               <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Pilih Bahan Board & Stiker</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">1. Pilih Bahan Board (Dasaran)</label>
                 <select
-                  value={rbForm.packageId}
-                  onChange={e => setRbForm(f => ({ ...f, packageId: e.target.value }))}
+                  value={rbForm.boardId}
+                  onChange={e => setRbForm(f => ({ ...f, boardId: e.target.value }))}
                   className={inpCls}
                 >
-                  {(config.rambu?.packages || DEFAULT_ADVERTISING_CONFIG.rambu.packages).map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                  {boards.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* 2. Pilih Jenis Stiker & 3. Jumlah Warna Stiker */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">2. Pilih Jenis Stiker</label>
+                  <select
+                    value={rbForm.stickerId}
+                    onChange={e => setRbForm(f => ({ ...f, stickerId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {stickers.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">3. Jumlah Warna Stiker</label>
+                  {currentSticker?.is_cutting ? (
+                    <select
+                      value={rbForm.colorCount}
+                      onChange={e => setRbForm(f => ({ ...f, colorCount: e.target.value }))}
+                      className={inpCls}
+                    >
+                      {[1, 2, 3, 4, 5].map(c => (
+                        <option key={c} value={String(c)}>{c} Warna</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-xs font-bold text-gray-600">
+                      Full Color (Cetak)
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2.5">
@@ -668,9 +714,10 @@ _Harga sudah termasuk trafo/power supply (untuk varian berlampu)._`,
                 result: rbResult,
                 customDealRaw: rbForm.customDealRaw,
                 onCustomDealChange: v => setRbForm(f => ({ ...f, customDealRaw: v })),
-                onReset: () => setRbForm({ length: '', width: '', qty: '1', sides: 1, packageId: 'acp_reflective', rangkaMeter: '', tiangMeter: '', penIklanQty: '0', extraCostRaw: '', extraNote: '', customDealRaw: '' }),
+                onReset: () => setRbForm({ boardId: 'ACP', stickerId: 'reflective_asahi', colorCount: '2', length: '', width: '', qty: '1', sides: 1, rangkaMeter: '', tiangMeter: '', penIklanQty: '0', extraCostRaw: '', extraNote: '', customDealRaw: '' }),
                 summaryLines: rbResult ? [
-                  ['Spesifikasi:', rbResult.pkg.name],
+                  ['Bahan Board:', rbResult.board.name],
+                  ['Jenis Stiker & Warna:', `${rbResult.sticker.name} (${rbResult.colorLabel})`],
                   ['Ukuran & Qty:', `${rbResult.length} × ${rbResult.width} cm × ${rbResult.qty} pcs (${rbResult.sides} Sisi)`],
                   ['Harga Papan/Rambu:', formatRupiah(rbResult.boardSellPrice)],
                   ...(rbResult.rangkaSell > 0 ? [['Rangka Hollow:', `${rbResult.rangkaMeter} m (${formatRupiah(rbResult.rangkaSell)})`]] : []),
@@ -680,14 +727,16 @@ _Harga sudah termasuk trafo/power supply (untuk varian berlampu)._`,
                 waText: (finalPrice) =>
 `*Penawaran Rambu / Papan Nama - Labalaba Adv*
 ---------------------------------------
-Spesifikasi : ${rbResult.pkg.name}
+Bahan Board : ${rbResult.board.name}
+Stiker      : ${rbResult.sticker.name} (${rbResult.colorLabel})
 Ukuran      : ${rbResult.length} x ${rbResult.width} cm (${rbResult.sides} Sisi)
 Jumlah      : ${rbResult.qty} pcs${rbResult.tiangMeter > 0 ? `\nTiang Pipa  : ${rbResult.tiangMeter} meter` : ''}${rbResult.penIklanQty > 0 ? `\nPen Iklan   : ${rbResult.penIklanQty} pcs` : ''}
 ---------------------------------------
 *Total Harga: ${formatRupiah(finalPrice)}*`,
               })}
             </div>
-          )}
+            )
+          })()}
 
           {/* ── TAB 5: NEONFLEX ── */}
           {active === 'neonflex' && (
