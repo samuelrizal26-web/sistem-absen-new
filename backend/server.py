@@ -149,7 +149,24 @@ class StockCreate(BaseModel):
     unit: str
     price: float = 0
     notes: str = ''
-    usage_category: str = 'PRINT'
+    usage_category: str = 'PRINT'  # PRINT | UMUM | ADVERTISING
+    # ── Field khusus kategori ADVERTISING (semua opsional) ──
+    adv_sub_category: Optional[str] = None  # LAMP | TRAFO | SHEET | BAR | POLE | STICKER | ACCESSORY
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    watt: Optional[float] = None            # LAMP: watt per unit / per meter
+    watt_basis: Optional[str] = None        # LAMP: 'PER_UNIT' | 'PER_METER'
+    spacing_cm: Optional[float] = None      # LAMP: jarak sebar rekomendasi
+    watt_capacity: Optional[float] = None   # TRAFO: kapasitas watt
+    ampere: Optional[float] = None          # TRAFO: ampere
+    trafo_type: Optional[str] = None        # TRAFO: INDOOR | RAINPROOF
+    thickness_mm: Optional[float] = None    # SHEET: tebal
+    sheet_length: Optional[float] = None    # SHEET: cm
+    sheet_width: Optional[float] = None     # SHEET: cm
+    bar_length_m: Optional[float] = None    # BAR: panjang batang (meter)
+    diameter: Optional[str] = None          # POLE/BAR: ukuran pipa/hollow
+    roll_width_cm: Optional[float] = None   # STICKER: lebar roll (cm)
+    roll_length_m: Optional[float] = None   # STICKER: panjang roll (meter)
 
 class StockUpdate(BaseModel):
     name: Optional[str] = None
@@ -158,6 +175,22 @@ class StockUpdate(BaseModel):
     price: Optional[float] = None
     notes: Optional[str] = None
     usage_category: Optional[str] = None
+    adv_sub_category: Optional[str] = None
+    brand: Optional[str] = None
+    color: Optional[str] = None
+    watt: Optional[float] = None
+    watt_basis: Optional[str] = None
+    spacing_cm: Optional[float] = None
+    watt_capacity: Optional[float] = None
+    ampere: Optional[float] = None
+    trafo_type: Optional[str] = None
+    thickness_mm: Optional[float] = None
+    sheet_length: Optional[float] = None
+    sheet_width: Optional[float] = None
+    bar_length_m: Optional[float] = None
+    diameter: Optional[str] = None
+    roll_width_cm: Optional[float] = None
+    roll_length_m: Optional[float] = None
 
 class PrintJobMaterialIn(BaseModel):
     name: str
@@ -508,6 +541,11 @@ async def create_stock(body: StockCreate):
     doc = {'id': new_id(), 'name': body.name, 'quantity': body.quantity,
            'unit': body.unit, 'price': body.price, 'notes': body.notes,
            'usage_category': body.usage_category.upper(), 'created_at': now_str()}
+    # Simpan field khusus Advertising hanya jika diisi
+    extra = body.model_dump(exclude_none=True, exclude={'name', 'quantity', 'unit', 'price', 'notes', 'usage_category'})
+    if 'adv_sub_category' in extra:
+        extra['adv_sub_category'] = extra['adv_sub_category'].upper()
+    doc.update(extra)
     await db.stock.insert_one(doc)
     return clean(doc)
 
@@ -518,6 +556,8 @@ async def update_stock(stock_id: str, body: StockUpdate):
     update = body.model_dump(exclude_none=True)
     if 'usage_category' in update:
         update['usage_category'] = update['usage_category'].upper()
+    if 'adv_sub_category' in update:
+        update['adv_sub_category'] = update['adv_sub_category'].upper()
     await db.stock.update_one({'id': stock_id}, {'$set': update})
     return await db.stock.find_one({'id': stock_id}, {'_id': 0})
 

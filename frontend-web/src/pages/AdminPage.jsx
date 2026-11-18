@@ -22,6 +22,7 @@ import BluetoothPrinter from '../plugins/bluetoothPrinter'
 import { getPrinterMAC, setPrinterMAC } from '../config/printer'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import { STOCK_TABS, ADV_SUBS, STOCK_UNITS, EMPTY_STOCK_FORM, stockTabOf, advDerivedInfo, advSummaryLine, buildStockPayload, stockToForm } from '../utils/stockAdvertising'
 
 const TAB = { CREW: 'crew', STOCK: 'stock', CASHFLOW: 'cashflow', ACRYLIC: 'acrylic', EMPLOYEE_TX: 'employee_tx', HISTORY: 'history', SETTINGS: 'settings' }
 
@@ -77,7 +78,9 @@ export default function AdminPage() {
   const [stockLoading, setStockLoading] = useState(false)
   const [showAddStock, setShowAddStock] = useState(false)
   const [editStock, setEditStock] = useState(null)
-  const [stockForm, setStockForm] = useState({ name: '', quantity: '', unit: 'pcs', price: '', price_raw: '', usage_category: 'PRINT', notes: '' })
+  const [stockForm, setStockForm] = useState({ ...EMPTY_STOCK_FORM })
+  const [stockTab, setStockTab] = useState('PRINT')
+  const [advFilter, setAdvFilter] = useState('ALL')
   const [stockSaving, setStockSaving] = useState(false)
   const [viewStock, setViewStock] = useState(null)
 
@@ -519,21 +522,20 @@ export default function AdminPage() {
 
   // ─────────────────── STOCK CRUD ───────────────────
   const resetStockForm = () => {
-    setStockForm({ name: '', quantity: '', unit: 'pcs', price: '', price_raw: '', usage_category: 'PRINT', notes: '' })
+    setStockForm({ ...EMPTY_STOCK_FORM })
     setEditStock(null); setShowAddStock(false)
+  }
+
+  const openEditStock = (s) => {
+    setEditStock(s)
+    setStockForm(stockToForm(s, formatRupiahInput))
+    setShowAddStock(true)
   }
 
   const handleSaveStock = async () => {
     if (!stockForm.name || !stockForm.quantity) { showToast('Lengkapi nama dan jumlah', 'error'); return }
     setStockSaving(true)
-    const payload = {
-      name: stockForm.name,
-      quantity: parseFloat(stockForm.quantity),
-      unit: stockForm.unit,
-      price: parseRupiahInput(stockForm.price_raw) || parseFloat(stockForm.price) || 0,
-      usage_category: stockForm.usage_category,
-      notes: stockForm.notes || '',
-    }
+    const payload = buildStockPayload(stockForm, parseRupiahInput)
     try {
       if (editStock) { await updateStock(editStock.id, payload); showToast('Stok diperbarui', 'success') }
       else { await createStock(payload); showToast('Stok ditambahkan!', 'success') }
@@ -1134,117 +1136,86 @@ export default function AdminPage() {
       )}
 
       {/* ── TAB: STOCK ── */}
-      {tab === TAB.STOCK && (
-        <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
-          {/* Left Panel - Controls & Stats */}
-          <div className="w-full md:w-1/2 flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-purple-500 rounded-2xl p-4 text-white shadow">
-                <p className="text-xs opacity-80">Total Item</p>
-                <p className="text-2xl font-bold mt-0.5">{stocks.length}</p>
-              </div>
-              <div className="bg-orange-500 rounded-2xl p-4 text-white shadow">
-                <p className="text-xs opacity-80">Stok Menipis</p>
-                <p className="text-2xl font-bold mt-0.5">{stocks.filter(s => s.quantity <= 5).length}</p>
-              </div>
+      {tab === TAB.STOCK && (() => {
+        const tabCfg = STOCK_TABS.find(t => t.key === stockTab)
+        const inTab = stocks.filter(s => stockTabOf(s) === stockTab)
+        const visible = (stockTab === 'ADVERTISING' && advFilter !== 'ALL' ? inTab.filter(s => s.adv_sub_category === advFilter) : inTab)
+          .slice().sort((a, b) => a.name.localeCompare(b.name))
+        const activeCls = { orange: 'bg-orange-500 text-white shadow', blue: 'bg-blue-500 text-white shadow', purple: 'bg-purple-600 text-white shadow' }
+        const addLabel = { PRINT: '+ Tambah Bahan Print', UMUM: '+ Tambah Barang Umum', ADVERTISING: '+ Tambah Komponen Advertising' }[stockTab]
+        return (
+          <div className="flex-1 flex flex-col gap-4 p-4 max-w-3xl w-full mx-auto">
+            {/* Visual tabs */}
+            <div className="grid grid-cols-3 gap-2 bg-gray-100 rounded-2xl p-1.5">
+              {STOCK_TABS.map(t => (
+                <button key={t.key} onClick={() => { setStockTab(t.key); setAdvFilter('ALL') }}
+                  className={`py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${stockTab === t.key ? activeCls[t.color] : 'text-gray-500 hover:bg-white'}`}>
+                  <span className="mr-1">{t.icon}</span>{t.label}
+                  <span className={`ml-1 text-[10px] font-semibold ${stockTab === t.key ? 'opacity-80' : 'text-gray-400'}`}>
+                    ({stocks.filter(s => stockTabOf(s) === t.key).length})
+                  </span>
+                </button>
+              ))}
             </div>
-            
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-              <p className="text-sm font-semibold text-gray-600 mb-3">Ringkasan</p>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Kategori PRINT</span>
-                  <span className="font-semibold text-gray-800">{stocks.filter(s => s.usage_category === 'PRINT').length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Kategori UMUM</span>
-                  <span className="font-semibold text-gray-800">{stocks.filter(s => s.usage_category === 'UMUM').length}</span>
-                </div>
-              </div>
-            </div>
-            
-            <button onClick={() => { resetStockForm(); setShowAddStock(true) }}
-              className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-teal-600 active:scale-95 transition-all">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              Tambah Barang
-            </button>
-          </div>
+            <p className="text-xs text-gray-400 -mt-2 px-1">{tabCfg.hint}</p>
 
-          {/* Right Panel - List */}
-          <div className="w-full md:w-1/2 flex flex-col">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
-              <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Stock</h2>
+            {/* Add button (kontekstual) */}
+            <button onClick={() => { resetStockForm(); setStockForm({ ...EMPTY_STOCK_FORM, usage_category: stockTab, adv_sub_category: advFilter !== 'ALL' ? advFilter : 'LAMP', unit: stockTab === 'ADVERTISING' ? (ADV_SUBS.find(a => a.key === (advFilter !== 'ALL' ? advFilter : 'LAMP'))?.defaultUnit || 'pcs') : 'pcs' }); setShowAddStock(true) }}
+              className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-semibold shadow hover:bg-teal-600 active:scale-95 transition-all">
+              {addLabel}
+            </button>
+
+            {/* Filter sub-kategori Advertising */}
+            {stockTab === 'ADVERTISING' && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {[{ key: 'ALL', label: 'Semua', icon: '' }, ...ADV_SUBS].map(a => (
+                  <button key={a.key} onClick={() => setAdvFilter(a.key)}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${advFilter === a.key ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                    {a.icon} {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* List */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
               {stockLoading ? (
                 <div className="flex justify-center py-8"><svg className="w-7 h-7 animate-spin text-teal-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg></div>
-              ) : stocks.length === 0 ? (
-                <p className="text-center text-gray-400 py-16">Belum ada data stock.</p>
+              ) : visible.length === 0 ? (
+                <p className="text-center text-gray-400 py-12 text-sm">Belum ada data di kategori ini.</p>
               ) : (
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-                  {/* PRINT Group */}
-                  <div>
-                    <p className="text-xs font-bold text-orange-600 mb-2 uppercase tracking-wide">Print</p>
-                    <div className="space-y-2">
-                      {stocks.filter(s => s.usage_category === 'PRINT').sort((a, b) => a.name.localeCompare(b.name)).map(s => (
-                        <div key={s.id} onClick={() => handleViewStock(s)} className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-gray-800 text-sm truncate">{s.name}</p>
-                              {s.quantity <= 5 && <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 font-medium">Low</span>}
-                            </div>
-                            <p className="text-xs text-gray-400">{s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/unit' : '-'}</p>
+                <div className="space-y-2">
+                  {visible.map(s => {
+                    const sub = ADV_SUBS.find(a => a.key === s.adv_sub_category)
+                    return (
+                      <div key={s.id} onClick={() => handleViewStock(s)} className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            {stockTab === 'ADVERTISING' && sub && <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium shrink-0">{sub.icon} {sub.label}</span>}
+                            <p className="font-semibold text-gray-800 text-sm truncate">{s.name}</p>
+                            {s.quantity <= 5 && <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 font-medium shrink-0">Low</span>}
                           </div>
-                          <div className="flex gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => { setEditStock(s); setStockForm({ name: s.name, quantity: s.quantity, unit: s.unit, price: s.price || '', price_raw: formatRupiahInput(String(s.price || '')), usage_category: s.usage_category || 'PRINT', notes: s.notes || '' }); setShowAddStock(true) }}
-                              className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                            </button>
-                            <button onClick={() => handleDeleteStock(s.id)} className="w-8 h-8 rounded-xl bg-red-50 text-red-400 flex items-center justify-center">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                          </div>
+                          <p className="text-xs text-gray-400">{s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/' + (s.unit || 'unit') : '-'}</p>
+                          {stockTab === 'ADVERTISING' && advSummaryLine(s) && <p className="text-xs text-purple-500 mt-0.5 truncate">{advSummaryLine(s)}</p>}
                         </div>
-                      ))}
-                      {stocks.filter(s => s.usage_category === 'PRINT').length === 0 && (
-                        <p className="text-xs text-gray-400 text-center py-4">Tidak ada stok</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* UMUM Group */}
-                  <div>
-                    <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">Umum</p>
-                    <div className="space-y-2">
-                      {stocks.filter(s => s.usage_category !== 'PRINT').sort((a, b) => a.name.localeCompare(b.name)).map(s => (
-                        <div key={s.id} onClick={() => handleViewStock(s)} className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-gray-800 text-sm truncate">{s.name}</p>
-                              {s.quantity <= 5 && <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 font-medium">Low</span>}
-                            </div>
-                            <p className="text-xs text-gray-400">{s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/unit' : '-'}</p>
-                          </div>
-                          <div className="flex gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => { setEditStock(s); setStockForm({ name: s.name, quantity: s.quantity, unit: s.unit, price: s.price || '', price_raw: formatRupiahInput(String(s.price || '')), usage_category: s.usage_category || 'PRINT', notes: s.notes || '' }); setShowAddStock(true) }}
-                              className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                            </button>
-                            <button onClick={() => handleDeleteStock(s.id)} className="w-8 h-8 rounded-xl bg-red-50 text-red-400 flex items-center justify-center">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                          </div>
+                        <div className="flex gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => openEditStock(s)}
+                            className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button onClick={() => handleDeleteStock(s.id)} className="w-8 h-8 rounded-xl bg-red-50 text-red-400 flex items-center justify-center">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
-                      ))}
-                      {stocks.filter(s => s.usage_category !== 'PRINT').length === 0 && (
-                        <p className="text-xs text-gray-400 text-center py-4">Tidak ada stok</p>
-                      )}
-                    </div>
-                  </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── TAB: CASHFLOW ── */}
       {tab === TAB.CASHFLOW && (
@@ -2150,7 +2121,10 @@ export default function AdminPage() {
               {[
                 ['Jumlah', `${viewStock.quantity} ${viewStock.unit}`],
                 ['Harga/Unit', viewStock.price ? formatRupiah(viewStock.price) : '-'],
-                ['Kategori', viewStock.usage_category || 'UMUM'],
+                ['Kategori', stockTabOf(viewStock) + (viewStock.adv_sub_category ? ` · ${ADV_SUBS.find(a => a.key === viewStock.adv_sub_category)?.label || viewStock.adv_sub_category}` : '')],
+                ...(viewStock.brand ? [['Merk', viewStock.brand]] : []),
+                ...(viewStock.color ? [['Warna', viewStock.color]] : []),
+                ...advDerivedInfo(viewStock).map(i => [i.label, i.value]),
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between items-center py-2 border-b border-gray-50">
                   <span className="text-sm text-gray-500">{label}</span>
@@ -2159,7 +2133,7 @@ export default function AdminPage() {
               ))}
             </div>
             <div className="flex gap-2 mt-4">
-              <button onClick={() => { setViewStock(null); setEditStock(viewStock); setStockForm({ name: viewStock.name, quantity: viewStock.quantity, unit: viewStock.unit, price: viewStock.price || '', price_raw: formatRupiahInput(String(viewStock.price || '')), usage_category: viewStock.usage_category || 'PRINT', notes: viewStock.notes || '' }); setShowAddStock(true) }}
+              <button onClick={() => { const s = viewStock; setViewStock(null); openEditStock(s) }}
                 className="flex-1 py-3 rounded-2xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 active:scale-95">
                 Edit Data
               </button>
@@ -2602,49 +2576,122 @@ export default function AdminPage() {
       )}
 
       {/* ── MODAL: Add/Edit Stock ── */}
-      {showAddStock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
-            <div className="flex justify-between items-center mb-4">
-              <p className="font-bold text-gray-800">{editStock ? 'Edit Stok' : 'Tambah Stock Barang'}</p>
-              <button onClick={resetStockForm} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
-            </div>
-            <div className="space-y-3">
-              <input type="text" value={stockForm.name} onChange={e => setStockForm(f => ({ ...f, name: e.target.value }))} placeholder="Nama Barang *"
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-              <div className="grid grid-cols-2 gap-3">
-                <input type="number" value={stockForm.quantity} onChange={e => setStockForm(f => ({ ...f, quantity: e.target.value }))} placeholder="Jumlah *"
-                  className="px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-                <select value={stockForm.unit} onChange={e => setStockForm(f => ({ ...f, unit: e.target.value }))}
-                  className="px-4 py-3 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-300">
-                  {['pcs','Roll','Meter','Kg (Kilogram)','Liter','Box','Pack'].map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
+      {showAddStock && (() => {
+        const isAdv = stockForm.usage_category === 'ADVERTISING'
+        const sub = stockForm.adv_sub_category
+        const setF = (k) => (e) => setStockForm(f => ({ ...f, [k]: e.target.value }))
+        const inp = 'w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300'
+        const catLabel = { PRINT: '🖨️ PRINT', UMUM: '📦 UMUM', ADVERTISING: '💡 ADVERTISING' }[stockForm.usage_category]
+        const preview = isAdv ? advDerivedInfo({ ...stockForm, price: parseRupiahInput(stockForm.price_raw) }) : []
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <p className="font-bold text-gray-800">{editStock ? 'Edit Stok' : 'Tambah Barang'}</p>
+                  <p className="text-xs text-gray-400">Kategori: {catLabel}</p>
+                </div>
+                <button onClick={resetStockForm} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kategori Penggunaan</label>
-                <select value={stockForm.usage_category} onChange={e => setStockForm(f => ({ ...f, usage_category: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-300">
-                  <option value="PRINT">🖨️ PRINT — muncul di halaman Print Job</option>
-                  <option value="UMUM">📦 UMUM — muncul di halaman Project</option>
-                </select>
+              <div className="space-y-3">
+                {isAdv && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Komponen</label>
+                    <select value={sub} onChange={e => { const v = e.target.value; setStockForm(f => ({ ...f, adv_sub_category: v, unit: ADV_SUBS.find(a => a.key === v)?.defaultUnit || f.unit })) }}
+                      className={inp + ' bg-white'}>
+                      {ADV_SUBS.map(a => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}
+                    </select>
+                  </div>
+                )}
+                <input type="text" value={stockForm.name} onChange={setF('name')} placeholder="Nama Barang *" className={inp} />
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="number" value={stockForm.quantity} onChange={setF('quantity')} placeholder="Jumlah *" className={inp} />
+                  <select value={stockForm.unit} onChange={setF('unit')} className={inp + ' bg-white'}>
+                    {STOCK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{isAdv ? 'Harga Beli (Modal) per satuan' : 'Harga per satuan'}</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
+                    <input type="text" inputMode="numeric" value={stockForm.price_raw}
+                      onChange={e => { const v = formatRupiahInput(e.target.value); setStockForm(f => ({ ...f, price_raw: v, price: String(parseRupiahInput(v)) })) }}
+                      placeholder="0 (Opsional)" className={inp + ' pl-10'} />
+                  </div>
+                </div>
+
+                {isAdv && (
+                  <div className="space-y-3 bg-purple-50/60 border border-purple-100 rounded-2xl p-3">
+                    <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Spesifikasi {ADV_SUBS.find(a => a.key === sub)?.label}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input type="text" value={stockForm.brand} onChange={setF('brand')} placeholder="Merk" className={inp} />
+                      <input type="text" value={stockForm.color} onChange={setF('color')} placeholder="Warna" className={inp} />
+                    </div>
+
+                    {sub === 'LAMP' && (<>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input type="number" step="any" value={stockForm.watt} onChange={setF('watt')} placeholder="Daya (Watt)" className={inp} />
+                        <select value={stockForm.watt_basis} onChange={setF('watt_basis')} className={inp + ' bg-white'}>
+                          <option value="PER_UNIT">Watt per pcs</option>
+                          <option value="PER_METER">Watt per meter</option>
+                        </select>
+                      </div>
+                      <input type="number" step="any" value={stockForm.spacing_cm} onChange={setF('spacing_cm')} placeholder="Jarak sebar rekomendasi (cm) — opsional" className={inp} />
+                    </>)}
+
+                    {sub === 'TRAFO' && (<>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input type="number" step="any" value={stockForm.watt_capacity} onChange={setF('watt_capacity')} placeholder="Kapasitas (Watt)" className={inp} />
+                        <input type="number" step="any" value={stockForm.ampere} onChange={setF('ampere')} placeholder="Ampere (A)" className={inp} />
+                      </div>
+                      <select value={stockForm.trafo_type} onChange={setF('trafo_type')} className={inp + ' bg-white'}>
+                        <option value="RAINPROOF">Rainproof (outdoor)</option>
+                        <option value="INDOOR">Indoor</option>
+                      </select>
+                    </>)}
+
+                    {sub === 'SHEET' && (<>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input type="number" step="any" value={stockForm.sheet_length} onChange={setF('sheet_length')} placeholder="Panjang (cm)" className={inp} />
+                        <input type="number" step="any" value={stockForm.sheet_width} onChange={setF('sheet_width')} placeholder="Lebar (cm)" className={inp} />
+                      </div>
+                      <input type="number" step="any" value={stockForm.thickness_mm} onChange={setF('thickness_mm')} placeholder="Tebal (mm)" className={inp} />
+                    </>)}
+
+                    {sub === 'BAR' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <input type="number" step="any" value={stockForm.bar_length_m} onChange={setF('bar_length_m')} placeholder="Panjang batang (m)" className={inp} />
+                        <input type="text" value={stockForm.diameter} onChange={setF('diameter')} placeholder='Ukuran (mis. 4x4 / 2")' className={inp} />
+                      </div>
+                    )}
+
+                    {sub === 'STICKER' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <input type="number" step="any" value={stockForm.roll_width_cm} onChange={setF('roll_width_cm')} placeholder="Lebar roll (cm)" className={inp} />
+                        <input type="number" step="any" value={stockForm.roll_length_m} onChange={setF('roll_length_m')} placeholder="Panjang roll (m)" className={inp} />
+                      </div>
+                    )}
+
+                    {preview.length > 0 && (
+                      <div className="bg-white rounded-xl px-3 py-2 text-sm">
+                        {preview.map(p => (
+                          <div key={p.label} className="flex justify-between"><span className="text-gray-500">{p.label}</span><span className="font-bold text-purple-700">{p.value}</span></div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <input type="text" value={stockForm.notes} onChange={setF('notes')} placeholder="Catatan (Opsional)" className={inp} />
+                <button onClick={handleSaveStock} disabled={stockSaving || !stockForm.name || !stockForm.quantity}
+                  className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-40">
+                  {stockSaving ? 'Menyimpan...' : 'Simpan Stock'}
+                </button>
               </div>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">Rp</span>
-                <input type="text" inputMode="numeric" value={stockForm.price_raw}
-                  onChange={e => { const v = formatRupiahInput(e.target.value); setStockForm(f => ({ ...f, price_raw: v, price: String(parseRupiahInput(v)) })) }}
-                  placeholder="0 (Opsional)"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-              </div>
-              <input type="text" value={stockForm.notes} onChange={e => setStockForm(f => ({ ...f, notes: e.target.value }))} placeholder="Catatan (Opsional)"
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-              <button onClick={handleSaveStock} disabled={stockSaving || !stockForm.name || !stockForm.quantity}
-                className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-bold hover:bg-teal-600 disabled:opacity-40">
-                {stockSaving ? 'Menyimpan...' : 'Simpan Stock'}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── MODAL: Add Cashflow ── */}
       {showAddCf && (

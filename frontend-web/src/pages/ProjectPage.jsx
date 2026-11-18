@@ -546,14 +546,14 @@ export default function ProjectPage() {
                   <div className="flex-1">
                     <p className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">Umum</p>
                     <div className="space-y-2">
-                      {stocks.filter(s => s.usage_category !== 'PRINT').sort((a, b) => a.name.localeCompare(b.name)).map(s => (
+                      {stocks.filter(s => s.usage_category !== 'PRINT' && s.usage_category !== 'ADVERTISING').sort((a, b) => a.name.localeCompare(b.name)).map(s => (
                         <button key={s.id} onClick={() => setPickerStock(s)}
                           className="w-full text-left p-3 rounded-2xl border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all">
                           <p className="font-semibold text-gray-800 text-sm">{s.name}</p>
                           <p className="text-xs text-gray-500">Stok: {s.quantity} {s.unit}</p>
                         </button>
                       ))}
-                      {stocks.filter(s => s.usage_category !== 'PRINT').length === 0 && (
+                      {stocks.filter(s => s.usage_category !== 'PRINT' && s.usage_category !== 'ADVERTISING').length === 0 && (
                         <p className="text-xs text-gray-400 text-center py-4">Tidak ada stok</p>
                       )}
                     </div>
