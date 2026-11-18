@@ -5,6 +5,7 @@ import { formatRupiah, formatRupiahInput, parseRupiahInput } from '../utils/form
 import {
   DEFAULT_ADVERTISING_CONFIG,
   mergeAdvConfig,
+  buildMaterialCatalog,
   calcNeonbox,
   calcHurufTimbul,
   calcRambu,
@@ -27,8 +28,12 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
   const [stocks, setStocks] = useState([])
   const [acrylics, setAcrylics] = useState([])
 
+  // Katalog Dinamis dari Stok Material Admin & Master Akrilik
+  const catalog = useMemo(() => buildMaterialCatalog(stocks, acrylics), [stocks, acrylics])
+
   // ── State Neonbox ──
   const [nbForm, setNbForm] = useState({
+    faceBoardId: '', stickerId: '', lampStockId: '',
     length: '', width: '', sides: 2, frameThick: 13,
     poleId: 'none', extraCostRaw: '', extraNote: '', customDealRaw: '',
   })
@@ -36,15 +41,16 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
   // ── State Huruf Timbul ──
   const [htForm, setHtForm] = useState({
     text: '', heightCm: '', variantId: 'akrilik_led',
+    plateBoardId: '', lampStockId: '',
     logoCount: '0', logoHeightCm: '',
-    hasBackdrop: false, backdropLength: '', backdropWidth: '',
+    hasBackdrop: false, backdropBoardId: '', backdropLength: '', backdropWidth: '',
     rangkaMeter: '', extraCostRaw: '', extraNote: '', customDealRaw: '',
   })
 
   // ── State Rambu / Papan Nama ──
   const [rbForm, setRbForm] = useState({
-    boardId: 'ACP',
-    stickerId: 'reflective_asahi',
+    boardId: '',
+    stickerId: '',
     colorCount: '2',
     length: '', width: '', qty: '1', sides: 1,
     rangkaMeter: '', tiangMeter: '', penIklanQty: '0',
@@ -53,8 +59,9 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
 
   // ── State Neonflex ──
   const [nfForm, setNfForm] = useState({
+    lampStockId: '', backingBoardId: '',
     meterLength: '', acrylicLength: '', acrylicWidth: '',
-    cutShape: 'kotak', colorName: 'Warm White',
+    cutShape: 'kotak',
     penIklanQty: '4', extraCostRaw: '', extraNote: '', customDealRaw: '',
   })
 
@@ -66,6 +73,32 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
     })
   }, [])
 
+  // Set default pilihan dropdown pertama kali begitu katalog dari Stok Admin termuat
+  useEffect(() => {
+    if (catalog.boardOptions.length > 0) {
+      const firstAcr = catalog.boardOptions.find(b => b.source === 'ACRYLIC' && b.name.includes('3mm')) || catalog.boardOptions[0]
+      const firstAcp = catalog.boardOptions.find(b => b.name.toUpperCase().includes('ACP')) || catalog.boardOptions[0]
+      setRbForm(f => ({ ...f, boardId: f.boardId || firstAcp.id }))
+      setNbForm(f => ({ ...f, faceBoardId: f.faceBoardId || firstAcr.id }))
+      setHtForm(f => ({ ...f, plateBoardId: f.plateBoardId || firstAcr.id, backdropBoardId: f.backdropBoardId || firstAcp.id }))
+      setNfForm(f => ({ ...f, backingBoardId: f.backingBoardId || firstAcr.id }))
+    }
+    if (catalog.stickerOptions.length > 0) {
+      const firstRef = catalog.stickerOptions.find(s => s.name.toUpperCase().includes('REFLECTIVE')) || catalog.stickerOptions[0]
+      const firstBacklite = catalog.stickerOptions.find(s => s.name.toUpperCase().includes('BACKLITE')) || catalog.stickerOptions[0]
+      setRbForm(f => ({ ...f, stickerId: f.stickerId || firstRef.id }))
+      setNbForm(f => ({ ...f, stickerId: f.stickerId || firstBacklite.id }))
+    }
+    if (catalog.lampOptions.length > 0) {
+      const firstSide = catalog.lampOptions.find(l => l.name.toUpperCase().includes('SIDELIGHT')) || catalog.lampOptions[0]
+      const firstMod = catalog.lampOptions.find(l => l.name.toUpperCase().includes('MODUL')) || catalog.lampOptions[0]
+      const firstNf = catalog.lampOptions.find(l => l.name.toUpperCase().includes('NEONFLEX')) || catalog.lampOptions[0]
+      setNbForm(f => ({ ...f, lampStockId: f.lampStockId || firstSide.id }))
+      setHtForm(f => ({ ...f, lampStockId: f.lampStockId || firstMod.id }))
+      setNfForm(f => ({ ...f, lampStockId: f.lampStockId || firstNf.id }))
+    }
+  }, [catalog])
+
   // ── Live Calculations ──
   const nbResult = useMemo(() => calcNeonbox({
     ...nbForm,
@@ -75,17 +108,17 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
   const htResult = useMemo(() => calcHurufTimbul({
     ...htForm,
     extraCost: parseRupiahInput(htForm.extraCostRaw),
-  }, config, stocks), [htForm, config, stocks])
+  }, config, stocks, acrylics), [htForm, config, stocks, acrylics])
 
   const rbResult = useMemo(() => calcRambu({
     ...rbForm,
     extraCost: parseRupiahInput(rbForm.extraCostRaw),
-  }, config), [rbForm, config])
+  }, config, stocks, acrylics), [rbForm, config, stocks, acrylics])
 
   const nfResult = useMemo(() => calcNeonflex({
     ...nfForm,
     extraCost: parseRupiahInput(nfForm.extraCostRaw),
-  }, config, stocks), [nfForm, config, stocks])
+  }, config, stocks, acrylics), [nfForm, config, stocks, acrylics])
 
   const handleSaveToProject = (payload) => {
     onClose?.()
@@ -224,7 +257,7 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold">Kalkulator Advertising</h2>
-              <p className="text-[11px] text-white/80">Pilih produk untuk hitung harga penawaran customer</p>
+              <p className="text-[11px] text-white/80">Spesifikasi material langsung dari Stok Admin</p>
             </div>
           </div>
           <button
@@ -264,12 +297,12 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
             />
           )}
 
-          {/* ── TAB 2: NEONBOX ── */}
+          {/* ── TAB 2: NEONBOX (Spek Material dari Stok Admin) ── */}
           {active === 'neonbox' && (
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Panjang (cm)</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Panjang (cm) *</label>
                   <input
                     type="number"
                     min="1"
@@ -280,7 +313,7 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Lebar / Diameter (cm)</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Lebar / Diameter (cm) *</label>
                   <input
                     type="number"
                     min="1"
@@ -292,40 +325,77 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
                 </div>
               </div>
 
+              {/* Pilih Bahan Muka Akrilik/Board & Stiker dari Stok Admin */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">1. Pilih Bahan Muka (Dari Stok)</label>
+                  <select
+                    value={nbForm.faceBoardId}
+                    onChange={e => setNbForm(f => ({ ...f, faceBoardId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {catalog.boardOptions.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">2. Pilih Jenis Stiker (Dari Stok)</label>
+                  <select
+                    value={nbForm.stickerId}
+                    onChange={e => setNbForm(f => ({ ...f, stickerId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {catalog.stickerOptions.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                    <option value="NONE">Tanpa Stiker (Akrilik Polos)</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Tipe Visual Muka</label>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <label className="text-xs font-bold text-gray-700 block mb-1">3. Pilih Lampu LED (Dari Stok)</label>
+                  <select
+                    value={nbForm.lampStockId}
+                    onChange={e => setNbForm(f => ({ ...f, lampStockId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {catalog.lampOptions.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Jumlah Sisi & Tebal (cm)</label>
+                  <div className="grid grid-cols-3 gap-1">
                     {[1, 2].map(s => (
                       <button
                         key={s}
                         type="button"
                         onClick={() => setNbForm(f => ({ ...f, sides: s }))}
-                        className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
-                          nbForm.sides === s
-                            ? 'bg-cyan-700 text-white border-cyan-700'
-                            : 'bg-gray-50 text-gray-600 border-gray-200'
+                        className={`py-2 rounded-xl text-xs font-bold border ${
+                          nbForm.sides === s ? 'bg-cyan-700 text-white border-cyan-700' : 'bg-gray-50 text-gray-600 border-gray-200'
                         }`}
                       >
                         {s} Sisi
                       </button>
                     ))}
+                    <input
+                      type="number"
+                      value={nbForm.frameThick}
+                      onChange={e => setNbForm(f => ({ ...f, frameThick: e.target.value }))}
+                      placeholder="13cm"
+                      title="Tebal Frame (cm)"
+                      className="px-2 py-2 rounded-xl border border-gray-300 text-xs text-center font-bold"
+                    />
                   </div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Tebal Frame (cm)</label>
-                  <input
-                    type="number"
-                    value={nbForm.frameThick}
-                    onChange={e => setNbForm(f => ({ ...f, frameThick: e.target.value }))}
-                    placeholder="13"
-                    className={inpCls}
-                  />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Opsi Rangka / Tiang & Pasang</label>
+                <label className="text-xs font-bold text-gray-700 block mb-1">4. Opsi Rangka / Tiang & Pasang</label>
                 <select
                   value={nbForm.poleId}
                   onChange={e => setNbForm(f => ({ ...f, poleId: e.target.value }))}
@@ -367,10 +437,12 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
                 result: nbResult,
                 customDealRaw: nbForm.customDealRaw,
                 onCustomDealChange: v => setNbForm(f => ({ ...f, customDealRaw: v })),
-                onReset: () => setNbForm({ length: '', width: '', sides: 2, frameThick: 13, poleId: 'none', extraCostRaw: '', extraNote: '', customDealRaw: '' }),
+                onReset: () => setNbForm(f => ({ ...f, length: '', width: '', poleId: 'none', extraCostRaw: '', extraNote: '', customDealRaw: '' })),
                 summaryLines: nbResult ? [
-                  ['Ukuran & Luas:', `${nbResult.length} × ${nbResult.width} cm (${nbResult.areaSqcm.toLocaleString('id-ID')} cm²)`],
-                  ['Spesifikasi:', `${nbResult.sides} Sisi · Tebal ${nbResult.frameThick} cm · LED + Trafo Include`],
+                  ['Ukuran & Luas:', `${nbResult.length} × ${nbResult.width} cm (${nbResult.areaSqcm.toLocaleString('id-ID')} cm² · ${nbResult.sides} Sisi)`],
+                  ['Bahan Muka:', nbResult.faceItem?.name || '-'],
+                  ['Stiker Visual:', nbForm.stickerId === 'NONE' ? 'Tanpa Stiker' : (nbResult.stickerItem?.name || '-')],
+                  ['Lampu & Trafo:', `${nbResult.lampItem?.name} + ${nbResult.trafoName}`],
                   ['Harga Badan Neonbox:', formatRupiah(nbResult.bodySellPrice)],
                   ...(nbResult.poleSellPrice > 0 ? [['Tiang / Rangka:', `${nbResult.poleItem?.name} (${formatRupiah(nbResult.poleSellPrice)})`]] : []),
                   ...(nbResult.extraCost > 0 ? [['Biaya Tambahan:', formatRupiah(nbResult.extraCost)]] : []),
@@ -378,32 +450,45 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
                 waText: (finalPrice) =>
 `*Penawaran Neonbox - Labalaba Advertising*
 ---------------------------------------
-Ukuran      : ${nbResult.length} x ${nbResult.width} cm (${nbResult.sides} Sisi)
-Tebal Frame : ${nbResult.frameThick} cm
-Penerangan  : LED + Power Supply Rainproof (Include)
+Ukuran      : ${nbResult.length} x ${nbResult.width} cm (${nbResult.sides} Sisi, Tebal ${nbResult.frameThick}cm)
+Bahan Muka  : ${nbResult.faceItem?.name || 'Akrilik'}
+Visual      : ${nbForm.stickerId === 'NONE' ? 'Polos' : (nbResult.stickerItem?.name || 'Stiker Backlite')}
+Penerangan  : ${nbResult.lampItem?.name || 'LED'} + Trafo Rainproof
 Tiang/Rangka: ${nbResult.poleItem?.name || 'Tanpa Tiang'}${nbResult.extraCost > 0 ? `\nTambahan    : ${nbForm.extraNote || 'Biaya Tambahan'} (${formatRupiah(nbResult.extraCost)})` : ''}
 ---------------------------------------
-*Total Harga: ${formatRupiah(finalPrice)}*
-
-_Harga dapat berubah sewaktu-waktu._`,
+*Total Harga: ${formatRupiah(finalPrice)}*`,
               })}
             </div>
           )}
 
-          {/* ── TAB 3: HURUF TIMBUL ── */}
+          {/* ── TAB 3: HURUF TIMBUL (Spek Material dari Stok Admin) ── */}
           {active === 'huruf' && (
             <div className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Pilih Jenis Bahan Huruf Timbul</label>
-                <select
-                  value={htForm.variantId}
-                  onChange={e => setHtForm(f => ({ ...f, variantId: e.target.value }))}
-                  className={inpCls}
-                >
-                  {(config.huruf_timbul?.variants || DEFAULT_ADVERTISING_CONFIG.huruf_timbul.variants).map(v => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">1. Kategori Huruf Timbul</label>
+                  <select
+                    value={htForm.variantId}
+                    onChange={e => setHtForm(f => ({ ...f, variantId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {(config.huruf_timbul?.variants || DEFAULT_ADVERTISING_CONFIG.huruf_timbul.variants).map(v => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">2. Bahan Plat / Akrilik (Dari Stok)</label>
+                  <select
+                    value={htForm.plateBoardId}
+                    onChange={e => setHtForm(f => ({ ...f, plateBoardId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {catalog.boardOptions.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -464,7 +549,7 @@ _Harga dapat berubah sewaktu-waktu._`,
                 </div>
               )}
 
-              {/* Opsi Backdrop ACP & Rangka */}
+              {/* Opsi Backdrop dari Stok Board */}
               <div className="bg-gray-50 rounded-2xl p-3 border border-gray-200 space-y-2.5">
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
                   <input
@@ -473,24 +558,35 @@ _Harga dapat berubah sewaktu-waktu._`,
                     onChange={e => setHtForm(f => ({ ...f, hasBackdrop: e.target.checked }))}
                     className="rounded text-cyan-600 focus:ring-cyan-500"
                   />
-                  Tambah Backdrop / Dasaran ACP
+                  Tambah Backdrop / Dasaran Board (ACP / Akrilik)
                 </label>
                 {htForm.hasBackdrop && (
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <input
-                      type="number"
-                      value={htForm.backdropLength}
-                      onChange={e => setHtForm(f => ({ ...f, backdropLength: e.target.value }))}
-                      placeholder="Panjang Backdrop (cm)"
+                  <div className="space-y-2 pt-1">
+                    <select
+                      value={htForm.backdropBoardId}
+                      onChange={e => setHtForm(f => ({ ...f, backdropBoardId: e.target.value }))}
                       className={inpCls}
-                    />
-                    <input
-                      type="number"
-                      value={htForm.backdropWidth}
-                      onChange={e => setHtForm(f => ({ ...f, backdropWidth: e.target.value }))}
-                      placeholder="Lebar Backdrop (cm)"
-                      className={inpCls}
-                    />
+                    >
+                      {catalog.boardOptions.map(b => (
+                        <option key={b.id} value={b.id}>Backdrop: {b.name}</option>
+                      ))}
+                    </select>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <input
+                        type="number"
+                        value={htForm.backdropLength}
+                        onChange={e => setHtForm(f => ({ ...f, backdropLength: e.target.value }))}
+                        placeholder="Panjang Backdrop (cm)"
+                        className={inpCls}
+                      />
+                      <input
+                        type="number"
+                        value={htForm.backdropWidth}
+                        onChange={e => setHtForm(f => ({ ...f, backdropWidth: e.target.value }))}
+                        placeholder="Lebar Backdrop (cm)"
+                        className={inpCls}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -524,12 +620,12 @@ _Harga dapat berubah sewaktu-waktu._`,
                 result: htResult,
                 customDealRaw: htForm.customDealRaw,
                 onCustomDealChange: v => setHtForm(f => ({ ...f, customDealRaw: v })),
-                onReset: () => setHtForm({ text: '', heightCm: '', variantId: 'akrilik_led', logoCount: '0', logoHeightCm: '', hasBackdrop: false, backdropLength: '', backdropWidth: '', rangkaMeter: '', extraCostRaw: '', extraNote: '', customDealRaw: '' }),
+                onReset: () => setHtForm(f => ({ ...f, text: '', heightCm: '', logoCount: '0', logoHeightCm: '', hasBackdrop: false, backdropLength: '', backdropWidth: '', rangkaMeter: '', extraCostRaw: '', extraNote: '', customDealRaw: '' })),
                 summaryLines: htResult ? [
-                  ['Jenis Bahan:', htResult.variant.name],
+                  ['Spesifikasi:', `${htResult.variant.name} (${htResult.plateItem?.name || '-'})`],
                   ['Rincian Huruf:', `${htResult.letterCount} huruf × ${htResult.effectiveHeight} cm (${formatRupiah(htResult.lettersSellPrice)})`],
                   ...(htResult.logoCount > 0 ? [['Rincian Logo (2x):', `${htResult.logoCount} logo × ${htResult.logoHeightCm} cm (${formatRupiah(htResult.logosSellPrice)})`]] : []),
-                  ...(htResult.backdropSellPrice > 0 ? [['Backdrop ACP:', `${htResult.backdropL}×${htResult.backdropW} cm (${formatRupiah(htResult.backdropSellPrice)})`]] : []),
+                  ...(htResult.backdropSellPrice > 0 ? [['Backdrop:', `${htResult.backdropBoard?.name} ${htResult.backdropL}×${htResult.backdropW} cm (${formatRupiah(htResult.backdropSellPrice)})`]] : []),
                   ...(htResult.rangkaSellPrice > 0 ? [['Rangka Dudukan:', `${htResult.rangkaMeter} m (${formatRupiah(htResult.rangkaSellPrice)})`]] : []),
                   ...(htResult.extraCost > 0 ? [['Biaya Pasang/Lainnya:', formatRupiah(htResult.extraCost)]] : []),
                 ] : [],
@@ -537,8 +633,8 @@ _Harga dapat berubah sewaktu-waktu._`,
 `*Penawaran Huruf Timbul - Labalaba Advertising*
 ---------------------------------------
 Tulisan     : ${htResult.rawText || '-'} (${htResult.letterCount} huruf)
-Bahan       : ${htResult.variant.name}
-Tinggi Huruf: ${htResult.heightCm} cm${htResult.logoCount > 0 ? `\nLogo Khusus : ${htResult.logoCount} pcs (Tinggi ${htResult.logoHeightCm} cm)` : ''}${htResult.backdropArea > 0 ? `\nBackdrop ACP: ${htResult.backdropL} x ${htResult.backdropW} cm` : ''}${htResult.extraCost > 0 ? `\nBiaya Pasang: ${formatRupiah(htResult.extraCost)}` : ''}
+Spesifikasi : ${htResult.variant.name} (${htResult.plateItem?.name || ''})
+Tinggi Huruf: ${htResult.heightCm} cm${htResult.logoCount > 0 ? `\nLogo Khusus : ${htResult.logoCount} pcs (Tinggi ${htResult.logoHeightCm} cm)` : ''}${htResult.backdropArea > 0 ? `\nBackdrop    : ${htResult.backdropBoard?.name || 'ACP'} (${htResult.backdropL} x ${htResult.backdropW} cm)` : ''}${htResult.extraCost > 0 ? `\nBiaya Pasang: ${formatRupiah(htResult.extraCost)}` : ''}
 ---------------------------------------
 *Total Harga: ${formatRupiah(finalPrice)}*
 
@@ -547,184 +643,183 @@ _Harga sudah termasuk trafo/power supply (untuk varian berlampu)._`,
             </div>
           )}
 
-          {/* ── TAB 4: RAMBU / PAPAN NAMA ── */}
+          {/* ── TAB 4: RAMBU / PAPAN NAMA (100% dari Stok Board & Stiker Admin) ── */}
           {active === 'rambu' && (() => {
-            const boards = Array.isArray(config.rambu?.boards) && config.rambu.boards.length > 0
-              ? config.rambu.boards
-              : DEFAULT_ADVERTISING_CONFIG.rambu.boards
-            const stickers = Array.isArray(config.rambu?.stickers) && config.rambu.stickers.length > 0
-              ? config.rambu.stickers
-              : DEFAULT_ADVERTISING_CONFIG.rambu.stickers
-            const currentSticker = stickers.find(s => s.id === rbForm.stickerId) || stickers[0]
-
+            const currentSticker = catalog.stickerOptions.find(s => s.id === rbForm.stickerId) || catalog.stickerOptions[0]
             return (
-            <div className="p-5 space-y-4">
-              {/* 1. Pilih Bahan Board */}
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">1. Pilih Bahan Board (Dasaran)</label>
-                <select
-                  value={rbForm.boardId}
-                  onChange={e => setRbForm(f => ({ ...f, boardId: e.target.value }))}
-                  className={inpCls}
-                >
-                  {boards.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 2. Pilih Jenis Stiker & 3. Jumlah Warna Stiker */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-gray-700 block mb-1">2. Pilih Jenis Stiker</label>
+              <div className="p-5 space-y-4">
+                {/* 1. Pilih Bahan Board (Semua ACP, Plat & Akrilik dari Stok Admin) */}
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">
+                    1. Pilih Bahan Board (Dari Stok Admin & Akrilik)
+                  </label>
                   <select
-                    value={rbForm.stickerId}
-                    onChange={e => setRbForm(f => ({ ...f, stickerId: e.target.value }))}
+                    value={rbForm.boardId}
+                    onChange={e => setRbForm(f => ({ ...f, boardId: e.target.value }))}
                     className={inpCls}
                   >
-                    {stickers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                    {catalog.boardOptions.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">3. Jumlah Warna Stiker</label>
-                  {currentSticker?.is_cutting ? (
+
+                {/* 2. Pilih Jenis Stiker (Dari Stok Admin) & 3. Jumlah Warna Stiker */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      2. Pilih Jenis Stiker (Dari Stok Admin)
+                    </label>
                     <select
-                      value={rbForm.colorCount}
-                      onChange={e => setRbForm(f => ({ ...f, colorCount: e.target.value }))}
+                      value={rbForm.stickerId}
+                      onChange={e => setRbForm(f => ({ ...f, stickerId: e.target.value }))}
                       className={inpCls}
                     >
-                      {[1, 2, 3, 4, 5].map(c => (
-                        <option key={c} value={String(c)}>{c} Warna</option>
+                      {catalog.stickerOptions.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </select>
-                  ) : (
-                    <div className="px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-xs font-bold text-gray-600">
-                      Full Color (Cetak)
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Panjang (cm) *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={rbForm.length}
-                    onChange={e => setRbForm(f => ({ ...f, length: e.target.value }))}
-                    placeholder="60"
-                    className={inpCls}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Lebar (cm) *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={rbForm.width}
-                    onChange={e => setRbForm(f => ({ ...f, width: e.target.value }))}
-                    placeholder="40"
-                    className={inpCls}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Jumlah (Pcs)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={rbForm.qty}
-                    onChange={e => setRbForm(f => ({ ...f, qty: e.target.value }))}
-                    placeholder="1"
-                    className={inpCls}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Jumlah Sisi</label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {[1, 2].map(s => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setRbForm(f => ({ ...f, sides: s }))}
-                        className={`py-2 rounded-xl text-xs font-bold border ${
-                          rbForm.sides === s ? 'bg-cyan-700 text-white border-cyan-700' : 'bg-gray-50 text-gray-600 border-gray-200'
-                        }`}
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      3. Jumlah Warna Stiker
+                    </label>
+                    {currentSticker?.is_cutting !== false ? (
+                      <select
+                        value={rbForm.colorCount}
+                        onChange={e => setRbForm(f => ({ ...f, colorCount: e.target.value }))}
+                        className={inpCls}
                       >
-                        {s} Sisi
-                      </button>
-                    ))}
+                        {[1, 2, 3, 4, 5].map(c => (
+                          <option key={c} value={String(c)}>{c} Warna</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-xs font-bold text-gray-600">
+                        Full Color (Cetak)
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Baut Pen Iklan (Pcs)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={rbForm.penIklanQty}
-                    onChange={e => setRbForm(f => ({ ...f, penIklanQty: e.target.value }))}
-                    placeholder="0 (4 pcs untuk akrilik)"
-                    className={inpCls}
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Rangka Hollow (m)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={rbForm.rangkaMeter}
-                    onChange={e => setRbForm(f => ({ ...f, rangkaMeter: e.target.value }))}
-                    placeholder="0 m"
-                    className={inpCls}
-                  />
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Panjang (cm) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={rbForm.length}
+                      onChange={e => setRbForm(f => ({ ...f, length: e.target.value }))}
+                      placeholder="60"
+                      className={inpCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Lebar (cm) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={rbForm.width}
+                      onChange={e => setRbForm(f => ({ ...f, width: e.target.value }))}
+                      placeholder="40"
+                      className={inpCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Jumlah (Pcs)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={rbForm.qty}
+                      onChange={e => setRbForm(f => ({ ...f, qty: e.target.value }))}
+                      placeholder="1"
+                      className={inpCls}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Tiang Pipa (m)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={rbForm.tiangMeter}
-                    onChange={e => setRbForm(f => ({ ...f, tiangMeter: e.target.value }))}
-                    placeholder="0 m"
-                    className={inpCls}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Biaya Lainnya</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={rbForm.extraCostRaw}
-                    onChange={e => setRbForm(f => ({ ...f, extraCostRaw: formatRupiahInput(e.target.value) }))}
-                    placeholder="Rp 0"
-                    className={inpCls}
-                  />
-                </div>
-              </div>
 
-              {renderKasirResultCard({
-                result: rbResult,
-                customDealRaw: rbForm.customDealRaw,
-                onCustomDealChange: v => setRbForm(f => ({ ...f, customDealRaw: v })),
-                onReset: () => setRbForm({ boardId: 'ACP', stickerId: 'reflective_asahi', colorCount: '2', length: '', width: '', qty: '1', sides: 1, rangkaMeter: '', tiangMeter: '', penIklanQty: '0', extraCostRaw: '', extraNote: '', customDealRaw: '' }),
-                summaryLines: rbResult ? [
-                  ['Bahan Board:', rbResult.board.name],
-                  ['Jenis Stiker & Warna:', `${rbResult.sticker.name} (${rbResult.colorLabel})`],
-                  ['Ukuran & Qty:', `${rbResult.length} × ${rbResult.width} cm × ${rbResult.qty} pcs (${rbResult.sides} Sisi)`],
-                  ['Harga Papan/Rambu:', formatRupiah(rbResult.boardSellPrice)],
-                  ...(rbResult.rangkaSell > 0 ? [['Rangka Hollow:', `${rbResult.rangkaMeter} m (${formatRupiah(rbResult.rangkaSell)})`]] : []),
-                  ...(rbResult.tiangSell > 0 ? [['Tiang Pipa:', `${rbResult.tiangMeter} m (${formatRupiah(rbResult.tiangSell)})`]] : []),
-                  ...(rbResult.penSell > 0 ? [['Baut Pen Iklan:', `${rbResult.penIklanQty} pcs (${formatRupiah(rbResult.penSell)})`]] : []),
-                ] : [],
-                waText: (finalPrice) =>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Jumlah Sisi</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[1, 2].map(s => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setRbForm(f => ({ ...f, sides: s }))}
+                          className={`py-2 rounded-xl text-xs font-bold border ${
+                            rbForm.sides === s ? 'bg-cyan-700 text-white border-cyan-700' : 'bg-gray-50 text-gray-600 border-gray-200'
+                          }`}
+                        >
+                          {s} Sisi
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Baut Pen Iklan (Pcs)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={rbForm.penIklanQty}
+                      onChange={e => setRbForm(f => ({ ...f, penIklanQty: e.target.value }))}
+                      placeholder="0 (4 pcs untuk akrilik)"
+                      className={inpCls}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Rangka Hollow (m)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={rbForm.rangkaMeter}
+                      onChange={e => setRbForm(f => ({ ...f, rangkaMeter: e.target.value }))}
+                      placeholder="0 m"
+                      className={inpCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Tiang Pipa (m)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={rbForm.tiangMeter}
+                      onChange={e => setRbForm(f => ({ ...f, tiangMeter: e.target.value }))}
+                      placeholder="0 m"
+                      className={inpCls}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Biaya Lainnya</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={rbForm.extraCostRaw}
+                      onChange={e => setRbForm(f => ({ ...f, extraCostRaw: formatRupiahInput(e.target.value) }))}
+                      placeholder="Rp 0"
+                      className={inpCls}
+                    />
+                  </div>
+                </div>
+
+                {renderKasirResultCard({
+                  result: rbResult,
+                  customDealRaw: rbForm.customDealRaw,
+                  onCustomDealChange: v => setRbForm(f => ({ ...f, customDealRaw: v })),
+                  onReset: () => setRbForm(f => ({ ...f, colorCount: '2', length: '', width: '', qty: '1', sides: 1, rangkaMeter: '', tiangMeter: '', penIklanQty: '0', extraCostRaw: '', extraNote: '', customDealRaw: '' })),
+                  summaryLines: rbResult ? [
+                    ['Bahan Board:', rbResult.board.name],
+                    ['Jenis Stiker & Warna:', `${rbResult.sticker.name} (${rbResult.colorLabel})`],
+                    ['Ukuran & Qty:', `${rbResult.length} × ${rbResult.width} cm × ${rbResult.qty} pcs (${rbResult.sides} Sisi)`],
+                    ['Harga Papan/Rambu:', formatRupiah(rbResult.boardSellPrice)],
+                    ...(rbResult.rangkaSell > 0 ? [['Rangka Hollow:', `${rbResult.rangkaMeter} m (${formatRupiah(rbResult.rangkaSell)})`]] : []),
+                    ...(rbResult.tiangSell > 0 ? [['Tiang Pipa:', `${rbResult.tiangMeter} m (${formatRupiah(rbResult.tiangSell)})`]] : []),
+                    ...(rbResult.penSell > 0 ? [['Baut Pen Iklan:', `${rbResult.penIklanQty} pcs (${formatRupiah(rbResult.penSell)})`]] : []),
+                  ] : [],
+                  waText: (finalPrice) =>
 `*Penawaran Rambu / Papan Nama - Labalaba Adv*
 ---------------------------------------
 Bahan Board : ${rbResult.board.name}
@@ -733,44 +828,58 @@ Ukuran      : ${rbResult.length} x ${rbResult.width} cm (${rbResult.sides} Sisi)
 Jumlah      : ${rbResult.qty} pcs${rbResult.tiangMeter > 0 ? `\nTiang Pipa  : ${rbResult.tiangMeter} meter` : ''}${rbResult.penIklanQty > 0 ? `\nPen Iklan   : ${rbResult.penIklanQty} pcs` : ''}
 ---------------------------------------
 *Total Harga: ${formatRupiah(finalPrice)}*`,
-              })}
-            </div>
+                })}
+              </div>
             )
           })()}
 
-          {/* ── TAB 5: NEONFLEX ── */}
+          {/* ── TAB 5: NEONFLEX (Spek Lampu & Akrilik dari Stok Admin) ── */}
           {active === 'neonflex' && (
             <div className="p-5 space-y-4">
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs text-purple-900">
-                💡 <b>Panduan Cepat:</b> Cek total panjang kurva lampu di plugin <b>eCut CorelDRAW</b>, lalu masukkan angka meternya di bawah ini beserta ukuran akrilik backing.
+                💡 <b>Panduan Cepat:</b> Cek total panjang kurva lampu di plugin <b>eCut CorelDRAW</b>, pilih bahan lampu & akrilik dari stok, lalu isi ukurannya.
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Total Panjang Neonflex (Meter) *</label>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">1. Pilih Lampu Neonflex (Dari Stok)</label>
+                  <select
+                    value={nfForm.lampStockId}
+                    onChange={e => setNfForm(f => ({ ...f, lampStockId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {catalog.lampOptions.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">2. Pilih Akrilik Backing (Dari Stok)</label>
+                  <select
+                    value={nfForm.backingBoardId}
+                    onChange={e => setNfForm(f => ({ ...f, backingBoardId: e.target.value }))}
+                    className={inpCls}
+                  >
+                    {catalog.boardOptions.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Panjang LED eCut (m) *</label>
                   <input
                     type="number"
                     step="any"
                     min="0.1"
                     value={nfForm.meterLength}
                     onChange={e => setNfForm(f => ({ ...f, meterLength: e.target.value }))}
-                    placeholder="Misal dari eCut: 4.5"
+                    placeholder="Mis: 4.5"
                     className={inpCls}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Warna / Catatan Lampu</label>
-                  <input
-                    type="text"
-                    value={nfForm.colorName}
-                    onChange={e => setNfForm(f => ({ ...f, colorName: e.target.value }))}
-                    placeholder="Warm White / Ice Blue / Pink"
-                    className={inpCls}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">Panjang Akrilik (cm) *</label>
                   <input
@@ -778,7 +887,7 @@ Jumlah      : ${rbResult.qty} pcs${rbResult.tiangMeter > 0 ? `\nTiang Pipa  : ${
                     min="1"
                     value={nfForm.acrylicLength}
                     onChange={e => setNfForm(f => ({ ...f, acrylicLength: e.target.value }))}
-                    placeholder="Contoh: 80"
+                    placeholder="80"
                     className={inpCls}
                   />
                 </div>
@@ -789,7 +898,7 @@ Jumlah      : ${rbResult.qty} pcs${rbResult.tiangMeter > 0 ? `\nTiang Pipa  : ${
                     min="1"
                     value={nfForm.acrylicWidth}
                     onChange={e => setNfForm(f => ({ ...f, acrylicWidth: e.target.value }))}
-                    placeholder="Contoh: 40"
+                    placeholder="40"
                     className={inpCls}
                   />
                 </div>
@@ -835,17 +944,17 @@ Jumlah      : ${rbResult.qty} pcs${rbResult.tiangMeter > 0 ? `\nTiang Pipa  : ${
                 result: nfResult,
                 customDealRaw: nfForm.customDealRaw,
                 onCustomDealChange: v => setNfForm(f => ({ ...f, customDealRaw: v })),
-                onReset: () => setNfForm({ meterLength: '', acrylicLength: '', acrylicWidth: '', cutShape: 'kotak', colorName: 'Warm White', penIklanQty: '4', extraCostRaw: '', extraNote: '', customDealRaw: '' }),
+                onReset: () => setNfForm(f => ({ ...f, meterLength: '', acrylicLength: '', acrylicWidth: '', cutShape: 'kotak', penIklanQty: '4', extraCostRaw: '', extraNote: '', customDealRaw: '' })),
                 summaryLines: nfResult ? [
-                  ['Panjang Jalur LED:', `${nfResult.meterLength} meter (${nfResult.colorName}) — Include Adaptor`],
-                  ['Akrilik Backing:', `${nfResult.acrylicLength} × ${nfResult.acrylicWidth} cm (${nfResult.isContour ? 'Potong Pola' : 'Potong Kotak'})`],
+                  ['Lampu Neonflex:', `${nfResult.lampItem?.name} (${nfResult.meterLength} m) — Include Adaptor`],
+                  ['Akrilik Backing:', `${nfResult.backingItem?.name} (${nfResult.acrylicLength} × ${nfResult.acrylicWidth} cm · ${nfResult.isContour ? 'Potong Pola' : 'Kotak'})`],
                   ...(nfResult.penSellPrice > 0 ? [['Baut Pen Iklan:', `${nfResult.penIklanQty} pcs (${formatRupiah(nfResult.penSellPrice)})`]] : []),
                 ] : [],
                 waText: (finalPrice) =>
 `*Penawaran Custom Neonflex - Labalaba Adv*
 ---------------------------------------
-Panjang LED : ${nfResult.meterLength} meter (Warna: ${nfResult.colorName})
-Akrilik     : ${nfResult.acrylicLength} x ${nfResult.acrylicWidth} cm (${nfResult.isContour ? 'Cutting Pola Kontur' : 'Potong Kotak'})
+Lampu LED   : ${nfResult.lampItem?.name} (${nfResult.meterLength} meter)
+Akrilik     : ${nfResult.backingItem?.name} (${nfResult.acrylicLength} x ${nfResult.acrylicWidth} cm - ${nfResult.isContour ? 'Cutting Pola Kontur' : 'Potong Kotak'})
 Kelengkapan : Adaptor 12V + ${nfResult.penIklanQty} pcs Baut Pen Iklan
 ---------------------------------------
 *Total Harga: ${formatRupiah(finalPrice)}*`,

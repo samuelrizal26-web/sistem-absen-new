@@ -526,8 +526,50 @@ async def delete_employee(emp_id: str):
     return {'message': 'Karyawan dihapus'}
 
 # ── Stock ────────────────────────────────────────────────────────────────────
+INITIAL_ADVERTISING_STOCK = [
+    # SHEET (Plat & Lembaran Board)
+    {'name': 'ACP 3mm Indoor/Standar', 'quantity': 10, 'unit': 'lembar', 'price': 600000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'SHEET', 'thickness_mm': 3, 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran ACP 3mm 122x244 cm'},
+    {'name': 'ACP 4mm Outdoor PVDF', 'quantity': 10, 'unit': 'lembar', 'price': 750000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'SHEET', 'thickness_mm': 4, 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran ACP 4mm Outdoor 122x244 cm'},
+    {'name': 'Plat Stenlis Mirror 0.8mm', 'quantity': 5, 'unit': 'lembar', 'price': 650000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'SHEET', 'thickness_mm': 0.8, 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Plat Stainless Mirror huruf timbul'},
+    {'name': 'Plat Galvanil 0.8mm (Bahan Cat Duco)', 'quantity': 5, 'unit': 'lembar', 'price': 480000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'SHEET', 'thickness_mm': 0.8, 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Plat Galvanil untuk huruf timbul cat duco'},
+    # STICKER (Semua Jenis Stiker Advertising)
+    {'name': 'Stiker Reflective Asahi / Scotchlite', 'quantity': 50, 'unit': 'Meter', 'price': 40000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'STICKER', 'brand': 'Asahi', 'roll_width_cm': 60, 'roll_length_m': 1, 'notes': 'Harga per 60x100 cm (Cutting Reflective)'},
+    {'name': 'Stiker Reflective 3M / Kiwalite', 'quantity': 30, 'unit': 'Meter', 'price': 65000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'STICKER', 'brand': '3M/Kiwalite', 'roll_width_cm': 60, 'roll_length_m': 1, 'notes': 'Harga per 60x100 cm (Cutting Reflective)'},
+    {'name': 'Cutting Sticker Oracal 651', 'quantity': 50, 'unit': 'Meter', 'price': 55000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'STICKER', 'brand': 'Oracal 651', 'roll_width_cm': 126, 'roll_length_m': 1, 'notes': 'Harga per 126x100 cm (Cutting Vinyl)'},
+    {'name': 'Stiker Print Vinyl Outdoor + Laminasi', 'quantity': 50, 'unit': 'Meter', 'price': 45000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'STICKER', 'brand': 'Ritrama/Orajet', 'roll_width_cm': 100, 'roll_length_m': 1, 'notes': 'Stiker Digital Print Full Color + Laminasi'},
+    {'name': 'Stiker Print Backlite UV (Neonbox)', 'quantity': 50, 'unit': 'Meter', 'price': 65000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'STICKER', 'brand': 'Backlite UV', 'roll_width_cm': 100, 'roll_length_m': 1, 'notes': 'Cetak UV Backlite khusus Neonbox'},
+    # LAMP (Lampu LED Modul, Sidelight, Bar, Neonflex)
+    {'name': 'Lampu LED Sidelight 1.5W', 'quantity': 200, 'unit': 'pcs', 'price': 3000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'LAMP', 'watt': 1.5, 'watt_basis': 'PER_UNIT', 'spacing_cm': 10, 'color': 'Putih', 'notes': 'Sidelight sorot samping neonbox'},
+    {'name': 'Lampu Modul Samsung 3 Mata 1.2W', 'quantity': 500, 'unit': 'pcs', 'price': 2500, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'LAMP', 'brand': 'Samsung', 'watt': 1.2, 'watt_basis': 'PER_UNIT', 'spacing_cm': 12, 'color': 'Putih', 'notes': 'Modul 3 mata backdoor neonbox & huruf timbul'},
+    {'name': 'LED Bar Rigid 12V (1 Meter)', 'quantity': 50, 'unit': 'batang', 'price': 18000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'LAMP', 'watt': 12, 'watt_basis': 'PER_UNIT', 'spacing_cm': 12, 'color': 'Putih', 'notes': 'LED Bar panjang 1m'},
+    {'name': 'LED Neonflex 12V Warm White', 'quantity': 50, 'unit': 'Meter', 'price': 65000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'LAMP', 'watt': 9, 'watt_basis': 'PER_METER', 'color': 'Warm White', 'notes': 'Neonflex 6x12mm per meter'},
+    {'name': 'LED Neonflex 12V Ice Blue', 'quantity': 50, 'unit': 'Meter', 'price': 65000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'LAMP', 'watt': 9, 'watt_basis': 'PER_METER', 'color': 'Ice Blue', 'notes': 'Neonflex 6x12mm per meter'},
+    {'name': 'LED Neonflex 12V Pink / Red / Yellow', 'quantity': 50, 'unit': 'Meter', 'price': 65000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'LAMP', 'watt': 9, 'watt_basis': 'PER_METER', 'color': 'Warna-Warni', 'notes': 'Neonflex 6x12mm per meter'},
+    # TRAFO (Power Supply 12V)
+    {'name': 'Trafo Rainproof 60W (5A 12V)', 'quantity': 20, 'unit': 'pcs', 'price': 60000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'TRAFO', 'watt_capacity': 60, 'ampere': 5, 'trafo_type': 'RAINPROOF'},
+    {'name': 'Trafo Rainproof 100W (8.5A 12V)', 'quantity': 20, 'unit': 'pcs', 'price': 120000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'TRAFO', 'watt_capacity': 100, 'ampere': 8.5, 'trafo_type': 'RAINPROOF'},
+    {'name': 'Trafo Rainproof 200W (16.5A 12V)', 'quantity': 15, 'unit': 'pcs', 'price': 165000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'TRAFO', 'watt_capacity': 200, 'ampere': 16.5, 'trafo_type': 'RAINPROOF'},
+    {'name': 'Trafo Rainproof 300W (25A 12V)', 'quantity': 10, 'unit': 'pcs', 'price': 220000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'TRAFO', 'watt_capacity': 300, 'ampere': 25, 'trafo_type': 'RAINPROOF'},
+    {'name': 'Adaptor 12V 5A Indoor (Neonflex)', 'quantity': 20, 'unit': 'pcs', 'price': 55000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'TRAFO', 'watt_capacity': 60, 'ampere': 5, 'trafo_type': 'INDOOR'},
+    # BAR (Hollow, Profil, Pipa Tiang)
+    {'name': 'Besi Hollow Galvanis 3x3 (Batang 6m)', 'quantity': 20, 'unit': 'batang', 'price': 95000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'BAR', 'bar_length_m': 6, 'diameter': '3x3 cm'},
+    {'name': 'Profil Aluminium Neonbox (Batang 6m)', 'quantity': 15, 'unit': 'batang', 'price': 165000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'BAR', 'bar_length_m': 6, 'diameter': '13 cm'},
+    {'name': 'Pipa Besi Tiang 2 Inch (Batang 6m)', 'quantity': 10, 'unit': 'batang', 'price': 280000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'BAR', 'bar_length_m': 6, 'diameter': '2 inch'},
+    {'name': 'Pipa Besi Tiang 2.5 Inch (Batang 6m)', 'quantity': 10, 'unit': 'batang', 'price': 360000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'BAR', 'bar_length_m': 6, 'diameter': '2.5 inch'},
+    # ACCESSORY
+    {'name': 'Baut Pen Iklan / Sign Standoff Stainless', 'quantity': 100, 'unit': 'pcs', 'price': 6000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACCESSORY', 'notes': 'Pen iklan kaca/akrilik'},
+]
+
 @api.get('/stock')
 async def get_stock():
+    adv_count = await db.stock.count_documents({'usage_category': 'ADVERTISING'})
+    if adv_count == 0:
+        seed_flag = await db.advertising_config.find_one({'id': 'adv_stock_seeded'})
+        if not seed_flag:
+            now = now_str()
+            docs = [{'id': new_id(), 'created_at': now, **item} for item in INITIAL_ADVERTISING_STOCK]
+            await db.stock.insert_many(docs)
+            await db.advertising_config.update_one({'id': 'adv_stock_seeded'}, {'$set': {'id': 'adv_stock_seeded', 'seeded_at': now}}, upsert=True)
     return await db.stock.find({}, {'_id': 0}).to_list(None)
 
 @api.get('/stock/{stock_id}')
@@ -1541,9 +1583,49 @@ async def reset_database(x_admin_pin: Optional[str] = Header(None, alias='X-Admi
     return {'message': 'Database berhasil di-reset. Data stok dan anggota dipertahankan.'}
 
 # ── Acrylic Catalog Endpoints ─────────────────────────────────────────────────
+INITIAL_ACRYLICS = [
+    {'name': 'Akrilik Bening', 'thickness': '2mm', 'color': 'Bening', 'buy_price': 360000, 'sell_price': 720000},
+    {'name': 'Akrilik Bening', 'thickness': '3mm', 'color': 'Bening', 'buy_price': 500000, 'sell_price': 1000000},
+    {'name': 'Akrilik Putih Susu', 'thickness': '3mm', 'color': 'Putih Susu', 'buy_price': 520000, 'sell_price': 1040000},
+    {'name': 'Akrilik Hitam', 'thickness': '3mm', 'color': 'Hitam', 'buy_price': 540000, 'sell_price': 1080000},
+    {'name': 'Akrilik Bening', 'thickness': '5mm', 'color': 'Bening', 'buy_price': 820000, 'sell_price': 1640000},
+    {'name': 'Akrilik Putih Susu', 'thickness': '5mm', 'color': 'Putih Susu', 'buy_price': 850000, 'sell_price': 1700000},
+    {'name': 'Akrilik Bening', 'thickness': '10mm', 'color': 'Bening', 'buy_price': 1650000, 'sell_price': 3300000},
+]
+
 @api.get('/acrylics')
 async def get_acrylics():
-    docs = await db.acrylics.find({}, {'_id': 0}).sort('created_at', -1).to_list(None)
+    cnt = await db.acrylics.count_documents({})
+    if cnt == 0:
+        seed_flag = await db.advertising_config.find_one({'id': 'acrylic_seeded'})
+        if not seed_flag:
+            now = now_str()
+            area = 122.0 * 244.0
+            docs = []
+            for item in INITIAL_ACRYLICS:
+                p_norm = round(item['sell_price'] / area, 4)
+                docs.append({
+                    'id': new_id(),
+                    'name': item['name'],
+                    'thickness': item['thickness'],
+                    'color': item['color'],
+                    'sheet_length': 122.0,
+                    'sheet_width': 244.0,
+                    'sheet_area': area,
+                    'buy_price': item['buy_price'],
+                    'sell_price': item['sell_price'],
+                    'cost_per_sqcm': round(item['buy_price'] / area, 4),
+                    'price_normal_sqcm': p_norm,
+                    'price_small_sqcm': round(p_norm * 1.4, 4),
+                    'min_area_sqcm': 400.0,
+                    'min_qty_bulk': 5,
+                    'notes': 'Data awal standar 122x244 cm',
+                    'created_at': now,
+                    'updated_at': now,
+                })
+            await db.acrylics.insert_many(docs)
+            await db.advertising_config.update_one({'id': 'acrylic_seeded'}, {'$set': {'id': 'acrylic_seeded', 'seeded_at': now}}, upsert=True)
+    docs = await db.acrylics.find({}, {'_id': 0}).sort('created_at', 1).to_list(None)
     return docs
 
 @api.get('/acrylics/{acrylic_id}')
