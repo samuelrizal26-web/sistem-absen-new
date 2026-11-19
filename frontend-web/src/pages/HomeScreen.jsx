@@ -9,6 +9,7 @@ import CrewFormModal from '../components/CrewFormModal'
 import Toast from '../components/Toast'
 import AdvertisingCalculatorModal from '../components/AdvertisingCalculatorModal'
 import { useToast } from '../hooks/useToast'
+import { STOCK_TABS, ADV_SUBS, STOCK_UNITS, stockTabOf, isStockIncomplete } from '../utils/stockAdvertising'
 
 const NAV_BUTTONS = [
   {
@@ -134,14 +135,25 @@ export default function HomeScreen() {
   const [editForm, setEditForm] = useState({ completed_qty: '' })
   const [isAdmin, setIsAdmin] = useState(false)
 
-  // Stock state
+  // Stock state (Home Crew Mode: Cek, Ambil, Restok, & Tambah Barang Baru tanpa Harga/Spek)
   const [showStockModal, setShowStockModal] = useState(false)
   const [stockList, setStockList] = useState([])
   const [loadingStock, setLoadingStock] = useState(false)
+  const [homeStockTab, setHomeStockTab] = useState('PRINT')
+  const [homeAdvFilter, setHomeAdvFilter] = useState('ALL')
+  const [homeStockSearch, setHomeStockSearch] = useState('')
   const [showAddStockForm, setShowAddStockForm] = useState(false)
-  const [stockForm, setStockForm] = useState({ name: '', quantity: '', unit: 'pcs', harga_normal: '', harga_diskon: '' })
+  const [stockForm, setStockForm] = useState({
+    name: '',
+    quantity: '',
+    unit: 'pcs',
+    usage_category: 'PRINT',
+    adv_sub_category: 'ACRYLIC',
+    notes: '',
+  })
   const [stockFormLoading, setStockFormLoading] = useState(false)
   const [showReduceStockModal, setShowReduceStockModal] = useState(false)
+  const [stockActionMode, setStockActionMode] = useState('take') // 'take' | 'restock'
   const [showAcrylicModal, setShowAcrylicModal] = useState(false)
   const [selectedStock, setSelectedStock] = useState(null)
   const [reduceForm, setReduceForm] = useState({ quantity: '' })
@@ -175,22 +187,46 @@ export default function HomeScreen() {
       .finally(() => setLoadingStock(false))
   }
 
+  const openHomeAddStockForm = () => {
+    const defSub = homeAdvFilter !== 'ALL' ? homeAdvFilter : 'ACRYLIC'
+    const defUnit = homeStockTab === 'ADVERTISING'
+      ? (ADV_SUBS.find(a => a.key === defSub)?.defaultUnit || 'lembar')
+      : 'pcs'
+    setStockForm({
+      name: '',
+      quantity: '',
+      unit: defUnit,
+      usage_category: homeStockTab,
+      adv_sub_category: defSub,
+      notes: '',
+    })
+    setShowAddStockForm(true)
+  }
+
   const handleAddStock = () => {
-    if (!stockForm.name || !stockForm.quantity) {
-      showToast('Nama stok dan jumlah wajib diisi', 'error')
+    if (!stockForm.name.trim() || !stockForm.quantity) {
+      showToast('Nama barang dan jumlah stok wajib diisi', 'error')
       return
     }
     setStockFormLoading(true)
-    createStock({
-      name: stockForm.name,
-      quantity: parseFloat(stockForm.quantity),
-      unit: stockForm.unit,
-      harga_normal: parseFloat(stockForm.harga_normal) || 0,
-      harga_diskon: stockForm.harga_diskon ? parseFloat(stockForm.harga_diskon) : null
-    })
+    const payload = {
+      name: stockForm.name.trim(),
+      quantity: parseFloat(stockForm.quantity) || 0,
+      unit: stockForm.unit || 'pcs',
+      price: 0,
+      usage_category: stockForm.usage_category,
+      notes: stockForm.notes.trim() || 'Input cepat karyawan (Menunggu harga/spek Admin)',
+    }
+    if (stockForm.usage_category === 'ADVERTISING') {
+      payload.adv_sub_category = stockForm.adv_sub_category || 'ACRYLIC'
+    }
+    createStock(payload)
       .then(() => {
-        showToast('Stok berhasil ditambahkan', 'success')
-        setStockForm({ name: '', quantity: '', unit: 'pcs', harga_normal: '', harga_diskon: '' })
+        showToast('Barang ditambahkan! Otomatis ditandai merah di Admin untuk dilengkapi harga/spek.', 'success')
+        setHomeStockTab(stockForm.usage_category)
+        if (stockForm.usage_category === 'ADVERTISING') {
+          setHomeAdvFilter(stockForm.adv_sub_category)
+        }
         setShowAddStockForm(false)
         loadStock()
       })
@@ -198,32 +234,36 @@ export default function HomeScreen() {
       .finally(() => setStockFormLoading(false))
   }
 
-  const handleStockClick = (stock) => {
+  const handleStockClick = (stock, mode = 'take') => {
     setSelectedStock(stock)
+    setStockActionMode(mode)
     setReduceForm({ quantity: '' })
     setShowReduceStockModal(true)
   }
 
   const handleReduceStock = () => {
-    if (!reduceForm.quantity || parseFloat(reduceForm.quantity) <= 0) {
-      showToast('Jumlah pengambilan harus lebih dari 0', 'error')
+    const qty = parseFloat(reduceForm.quantity)
+    if (!qty || qty <= 0) {
+      showToast('Masukkan jumlah lebih dari 0', 'error')
       return
     }
-    const reduceQty = parseFloat(reduceForm.quantity)
-    if (reduceQty > selectedStock.quantity) {
+    if (stockActionMode === 'take' && qty > selectedStock.quantity) {
       showToast('Jumlah pengambilan melebihi stok tersedia', 'error')
       return
     }
+    const newQuantity = stockActionMode === 'restock'
+      ? Number(selectedStock.quantity || 0) + qty
+      : Number(selectedStock.quantity || 0) - qty
     setReduceLoading(true)
-    updateStock(selectedStock.id, { quantity: selectedStock.quantity - reduceQty })
+    updateStock(selectedStock.id, { quantity: newQuantity })
       .then(() => {
-        showToast('Stok berhasil dikurangi', 'success')
+        showToast(stockActionMode === 'restock' ? 'Jumlah stok berhasil ditambah' : 'Stok berhasil diambil', 'success')
         setShowReduceStockModal(false)
         setSelectedStock(null)
         setReduceForm({ quantity: '' })
         loadStock()
       })
-      .catch((e) => showToast(e.message || 'Gagal mengurangi stok', 'error'))
+      .catch((e) => showToast(e.message || 'Gagal memperbarui stok', 'error'))
       .finally(() => setReduceLoading(false))
   }
 
@@ -821,152 +861,324 @@ export default function HomeScreen() {
         </div>
       )}
 
-      {/* Stock Modal */}
-      {showStockModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 pb-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <p className="font-bold text-gray-800 text-lg">Daftar Stok</p>
-              <button onClick={() => { setShowStockModal(false); setShowAddStockForm(false) }} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
-            </div>
+      {/* Stock Modal (Mode Crew/Karyawan: Cek, Ambil, Restok, & Tambah Barang Baru tanpa Harga/Spek) */}
+      {showStockModal && (() => {
+        const activeTabCls = {
+          orange: 'bg-orange-500 text-white shadow',
+          blue: 'bg-blue-500 text-white shadow',
+          purple: 'bg-purple-600 text-white shadow',
+        }
+        const inTab = stockList.filter(s => stockTabOf(s) === homeStockTab)
+        const bySub = homeStockTab === 'ADVERTISING' && homeAdvFilter !== 'ALL'
+          ? inTab.filter(s => s.adv_sub_category === homeAdvFilter)
+          : inTab
+        const filteredStock = bySub
+          .filter(s => !homeStockSearch.trim() || (s.name || '').toLowerCase().includes(homeStockSearch.trim().toLowerCase()))
+          .slice()
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 
-            {!showAddStockForm ? (
-              <>
-                <button
-                  onClick={() => setShowAddStockForm(true)}
-                  className="w-full py-3 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all mb-4"
-                >
-                  + Tambah Stok
-                </button>
-
-                {loadingStock ? (
-                  <div className="text-center py-8 text-gray-500">Memuat...</div>
-                ) : stockList.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">Belum ada stok</div>
-                ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {stockList.map((stock) => {
-                      const isLowStock = stock.quantity <= 10 && stock.quantity > 1
-                      const isCriticalStock = stock.quantity <= 1
-                      return (
-                        <div
-                          key={stock.id}
-                          onClick={() => handleStockClick(stock)}
-                          className={`p-3 rounded-xl cursor-pointer hover:bg-gray-100 active:scale-98 transition-all ${
-                            isCriticalStock ? 'bg-red-100 border-2 border-red-300' :
-                            isLowStock ? 'bg-yellow-100 border-2 border-yellow-300' :
-                            'bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className={`font-semibold ${isCriticalStock ? 'text-red-800' : isLowStock ? 'text-yellow-800' : 'text-gray-800'}`}>
-                                {stock.name}
-                              </p>
-                              <p className={`text-sm ${isCriticalStock ? 'text-red-600' : isLowStock ? 'text-yellow-600' : 'text-gray-600'}`}>
-                                {stock.quantity} {stock.unit}
-                              </p>
-                              {stock.harga_normal && (
-                                <p className="text-xs text-gray-500">
-                                  Normal: {formatRupiah(stock.harga_normal)}
-                                  {stock.harga_diskon && ` | Diskon: ${formatRupiah(stock.harga_diskon)}`}
-                                </p>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-400">→</span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-3">
-                <button
-                  onClick={() => setShowAddStockForm(false)}
-                  className="text-sm text-gray-600 hover:text-gray-800 mb-2"
-                >
-                  ← Kembali ke daftar
-                </button>
-                <input
-                  type="text"
-                  value={stockForm.name}
-                  onChange={e => setStockForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Nama Stok *"
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                />
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={stockForm.quantity}
-                    onChange={e => setStockForm(f => ({ ...f, quantity: e.target.value }))}
-                    placeholder="Jumlah *"
-                    className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                  />
-                  <select
-                    value={stockForm.unit}
-                    onChange={e => setStockForm(f => ({ ...f, unit: e.target.value }))}
-                    className="px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                  >
-                    <option value="pcs">pcs</option>
-                    <option value="kg">kg</option>
-                    <option value="liter">liter</option>
-                    <option value="meter">meter</option>
-                    <option value="roll">roll</option>
-                  </select>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-5 pb-7 max-h-[90vh] flex flex-col">
+              <div className="flex justify-between items-center mb-3 shrink-0">
+                <div>
+                  <p className="font-bold text-gray-800 text-lg">📦 Gudang & Stok Barang</p>
+                  <p className="text-xs text-gray-400">Cek sisa stok, ambil pemakaian, atau tambah stok barang baru</p>
                 </div>
-                <input
-                  type="number"
-                  value={stockForm.harga_normal}
-                  onChange={e => setStockForm(f => ({ ...f, harga_normal: e.target.value }))}
-                  placeholder="Harga Normal (Opsional)"
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                />
-                <input
-                  type="number"
-                  value={stockForm.harga_diskon}
-                  onChange={e => setStockForm(f => ({ ...f, harga_diskon: e.target.value }))}
-                  placeholder="Harga Diskon (Opsional)"
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                />
                 <button
-                  onClick={handleAddStock}
-                  disabled={stockFormLoading}
-                  className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => { setShowStockModal(false); setShowAddStockForm(false) }}
+                  className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200"
                 >
-                  {stockFormLoading ? 'Menyimpan...' : 'Simpan'}
+                  ✕
                 </button>
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Reduce Stock Modal */}
+              {!showAddStockForm ? (
+                <div className="flex-1 flex flex-col min-h-0 space-y-3">
+                  {/* 3 Tab Kategori */}
+                  <div className="grid grid-cols-3 gap-1.5 bg-gray-100 rounded-2xl p-1 shrink-0">
+                    {STOCK_TABS.map(t => (
+                      <button
+                        key={t.key}
+                        onClick={() => { setHomeStockTab(t.key); setHomeAdvFilter('ALL') }}
+                        className={`py-2.5 rounded-xl text-xs font-bold transition-all ${homeStockTab === t.key ? activeTabCls[t.color] : 'text-gray-500 hover:bg-white'}`}
+                      >
+                        <span className="mr-1">{t.icon}</span>{t.label}
+                        <span className={`ml-1 text-[10px] ${homeStockTab === t.key ? 'opacity-85' : 'text-gray-400'}`}>
+                          ({stockList.filter(s => stockTabOf(s) === t.key).length})
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Filter Sub-Kategori khusus Advertising */}
+                  {homeStockTab === 'ADVERTISING' && (
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 shrink-0">
+                      {[{ key: 'ALL', label: 'Semua', icon: '' }, ...ADV_SUBS].map(a => (
+                        <button
+                          key={a.key}
+                          onClick={() => setHomeAdvFilter(a.key)}
+                          className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                            homeAdvFilter === a.key
+                              ? 'bg-purple-600 text-white border-purple-600'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {a.icon} {a.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Search & Tombol Tambah Barang Baru */}
+                  <div className="flex gap-2 shrink-0">
+                    <input
+                      type="text"
+                      value={homeStockSearch}
+                      onChange={e => setHomeStockSearch(e.target.value)}
+                      placeholder="Cari nama barang di kategori ini..."
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                    <button
+                      onClick={openHomeAddStockForm}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-xs sm:text-sm font-bold hover:bg-emerald-600 active:scale-95 transition-all shrink-0 shadow-sm"
+                    >
+                      + Barang Baru
+                    </button>
+                  </div>
+
+                  {/* Daftar Barang */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    {loadingStock ? (
+                      <div className="text-center py-10 text-gray-500 text-sm">Memuat daftar stok...</div>
+                    ) : filteredStock.length === 0 ? (
+                      <div className="text-center py-10 text-gray-400 text-sm">
+                        Belum ada barang di kategori ini.
+                      </div>
+                    ) : (
+                      filteredStock.map((stock) => {
+                        const isLowStock = stock.quantity <= 10 && stock.quantity > 1
+                        const isCriticalStock = stock.quantity <= 1
+                        const sub = ADV_SUBS.find(a => a.key === stock.adv_sub_category)
+                        const { incomplete } = isStockIncomplete(stock)
+
+                        return (
+                          <div
+                            key={stock.id}
+                            className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                              isCriticalStock
+                                ? 'bg-red-50 border-red-300'
+                                : isLowStock
+                                ? 'bg-amber-50 border-amber-300'
+                                : 'bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {homeStockTab === 'ADVERTISING' && sub && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-bold">
+                                    {sub.icon} {sub.label}
+                                  </span>
+                                )}
+                                <p className={`font-bold text-sm truncate ${isCriticalStock ? 'text-red-800' : isLowStock ? 'text-amber-900' : 'text-gray-800'}`}>
+                                  {stock.name}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <span className={`text-xs font-extrabold px-2 py-0.5 rounded-lg ${
+                                  isCriticalStock ? 'bg-red-200 text-red-900' : isLowStock ? 'bg-amber-200 text-amber-900' : 'bg-white text-gray-700 border border-gray-200'
+                                }`}>
+                                  Sisa: {stock.quantity} {stock.unit}
+                                </span>
+                                {incomplete && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold border border-red-200">
+                                    ⏳ Menunggu Harga/Spek Admin
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Tombol Cepat Ambil & Restok */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => handleStockClick(stock, 'take')}
+                                className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
+                                title="Kurangi stok (Ambil barang)"
+                              >
+                                📤 Ambil
+                              </button>
+                              <button
+                                onClick={() => handleStockClick(stock, 'restock')}
+                                className="px-2.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
+                                title="Tambah jumlah stok masuk"
+                              >
+                                📥 +Stok
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5 overflow-y-auto pr-1">
+                  <button
+                    onClick={() => setShowAddStockForm(false)}
+                    className="text-xs font-bold text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                  >
+                    ← Kembali ke Daftar Stok
+                  </button>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-900">
+                    <p className="font-bold">💡 Input Cepat Stok Gudang (Karyawan)</p>
+                    <p className="text-[11px] text-amber-800 mt-0.5">
+                      Cukup pilih kategori, nama barang, dan jumlah fisik. <b>Harga modal & spesifikasi teknis</b> tidak perlu diisi di sini — otomatis ditandai merah di menu Admin untuk dilengkapi Owner.
+                    </p>
+                  </div>
+
+                  {/* 1. Pilih Kategori */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">1. Kategori Barang *</label>
+                    <div className="grid grid-cols-3 gap-1.5 bg-gray-100 rounded-2xl p-1">
+                      {STOCK_TABS.map(t => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => {
+                            const defUnit = t.key === 'ADVERTISING'
+                              ? (ADV_SUBS.find(a => a.key === stockForm.adv_sub_category)?.defaultUnit || 'lembar')
+                              : 'pcs'
+                            setStockForm(f => ({ ...f, usage_category: t.key, unit: defUnit }))
+                          }}
+                          className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                            stockForm.usage_category === t.key ? activeTabCls[t.color] : 'text-gray-500 hover:bg-white'
+                          }`}
+                        >
+                          {t.icon} {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. Pilih Jenis Komponen (Jika ADVERTISING) */}
+                  {stockForm.usage_category === 'ADVERTISING' && (
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">2. Jenis Komponen Advertising *</label>
+                      <select
+                        value={stockForm.adv_sub_category}
+                        onChange={e => {
+                          const subKey = e.target.value
+                          const defUnit = ADV_SUBS.find(a => a.key === subKey)?.defaultUnit || 'pcs'
+                          setStockForm(f => ({ ...f, adv_sub_category: subKey, unit: defUnit }))
+                        }}
+                        className="w-full px-4 py-3 rounded-2xl border border-purple-200 bg-purple-50/40 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      >
+                        {ADV_SUBS.map(a => (
+                          <option key={a.key} value={a.key}>{a.icon} {a.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 3. Nama Barang */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Nama Barang *</label>
+                    <input
+                      type="text"
+                      value={stockForm.name}
+                      onChange={e => setStockForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder={
+                        stockForm.usage_category === 'ADVERTISING'
+                          ? 'Contoh: Akrilik Putih Susu 3mm / Stiker Oracal Merah'
+                          : stockForm.usage_category === 'PRINT'
+                          ? 'Contoh: Art Paper 260gr A3+ / Banner Flexi 280gr'
+                          : 'Contoh: Lakban Bening / Lem Korea'
+                      }
+                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+
+                  {/* 4. Jumlah & Satuan */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">Jumlah Stok Masuk *</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={stockForm.quantity}
+                        onChange={e => setStockForm(f => ({ ...f, quantity: e.target.value }))}
+                        placeholder="Contoh: 10"
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">Satuan *</label>
+                      <select
+                        value={stockForm.unit}
+                        onChange={e => setStockForm(f => ({ ...f, unit: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      >
+                        {STOCK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 5. Catatan Singkat (Opsional) */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-600 block mb-1">Catatan (Opsional)</label>
+                    <input
+                      type="text"
+                      value={stockForm.notes}
+                      onChange={e => setStockForm(f => ({ ...f, notes: e.target.value }))}
+                      placeholder="Contoh: Barang baru datang dari supplier"
+                      className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleAddStock}
+                    disabled={stockFormLoading}
+                    className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                  >
+                    {stockFormLoading ? 'Menyimpan...' : 'Simpan Jumlah Stok'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Ambil / Tambah Jumlah Stok Modal */}
       {showReduceStockModal && selectedStock && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 pb-8">
             <div className="flex justify-between items-center mb-4">
-              <p className="font-bold text-gray-800">Ambil Stok</p>
+              <p className="font-bold text-gray-800">
+                {stockActionMode === 'restock' ? '📥 Tambah Jumlah Stok' : '📤 Ambil Stok Gudang'}
+              </p>
               <button onClick={() => { setShowReduceStockModal(false); setSelectedStock(null) }} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
             </div>
             <div className="space-y-3">
-              <p className="text-sm text-gray-600 font-semibold">{selectedStock.name}</p>
-              <p className="text-xs text-gray-500">Tersedia: {selectedStock.quantity} {selectedStock.unit}</p>
+              <p className="text-sm text-gray-800 font-bold">{selectedStock.name}</p>
+              <p className="text-xs text-gray-500">Stok saat ini: <b>{selectedStock.quantity} {selectedStock.unit}</b></p>
               <input
                 type="number"
+                step="any"
                 value={reduceForm.quantity}
                 onChange={e => setReduceForm(f => ({ ...f, quantity: e.target.value }))}
-                placeholder="Jumlah diambil *"
+                placeholder={stockActionMode === 'restock' ? `Jumlah masuk (${selectedStock.unit}) *` : `Jumlah diambil (${selectedStock.unit}) *`}
                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
               />
               <button
                 onClick={handleReduceStock}
                 disabled={reduceLoading}
-                className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full py-3.5 rounded-2xl text-white font-bold active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  stockActionMode === 'restock' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-amber-500 hover:bg-amber-600'
+                }`}
               >
-                {reduceLoading ? 'Memproses...' : 'AMBIL'}
+                {reduceLoading ? 'Memproses...' : stockActionMode === 'restock' ? 'TAMBAH STOK' : 'AMBIL STOK'}
               </button>
             </div>
           </div>

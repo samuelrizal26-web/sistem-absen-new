@@ -21,7 +21,7 @@ import BluetoothPrinter from '../plugins/bluetoothPrinter'
 import { getPrinterMAC, setPrinterMAC } from '../config/printer'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
-import { STOCK_TABS, ADV_SUBS, STOCK_UNITS, EMPTY_STOCK_FORM, stockTabOf, advDerivedInfo, advSummaryLine, buildStockPayload, stockToForm } from '../utils/stockAdvertising'
+import { STOCK_TABS, ADV_SUBS, STOCK_UNITS, EMPTY_STOCK_FORM, stockTabOf, advDerivedInfo, advSummaryLine, buildStockPayload, stockToForm, isStockIncomplete } from '../utils/stockAdvertising'
 import AdminAdvertisingPanel from '../components/AdminAdvertisingPanel'
 
 const TAB = { CREW: 'crew', STOCK: 'stock', CASHFLOW: 'cashflow', ACRYLIC: 'acrylic', EMPLOYEE_TX: 'employee_tx', HISTORY: 'history', SETTINGS: 'settings' }
@@ -405,10 +405,11 @@ export default function AdminPage() {
     if (tab === TAB.HISTORY) loadHistory()
   }, [authed, tab, cfSearch, empTxSearchMonth])
 
-  // Initialize browser notifications
+  // Initialize browser notifications & preload stocks for incomplete badge indicator
   useEffect(() => {
     if (authed) {
       initNotifications()
+      loadStocks()
     }
   }, [authed])
 
@@ -1042,12 +1043,20 @@ export default function AdminPage() {
 
       {/* Tab Navigation */}
       <div className="flex gap-1 px-4 py-3 overflow-x-auto no-scrollbar">
-        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.ACRYLIC, 'Kalkulator & Tarif'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === t ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-500 border border-gray-100'}`}>
-            {label}
-          </button>
-        ))}
+        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.ACRYLIC, 'Kalkulator & Tarif'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => {
+          const incompleteCount = t === TAB.STOCK ? stocks.filter(s => isStockIncomplete(s).incomplete).length : 0
+          return (
+            <button key={t} onClick={() => setTab(t)}
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${tab === t ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-500 border border-gray-100'}`}>
+              <span>{label}</span>
+              {incompleteCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-red-500 text-white shadow-sm animate-pulse">
+                  {incompleteCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {/* ── TAB: CREW ── */}
@@ -1138,23 +1147,70 @@ export default function AdminPage() {
       {tab === TAB.STOCK && (() => {
         const tabCfg = STOCK_TABS.find(t => t.key === stockTab)
         const inTab = stocks.filter(s => stockTabOf(s) === stockTab)
+        const allIncomplete = stocks.filter(s => isStockIncomplete(s).incomplete)
         const visible = (stockTab === 'ADVERTISING' && advFilter !== 'ALL' ? inTab.filter(s => s.adv_sub_category === advFilter) : inTab)
-          .slice().sort((a, b) => a.name.localeCompare(b.name))
+          .slice()
+          .sort((a, b) => {
+            const incA = isStockIncomplete(a).incomplete ? 1 : 0
+            const incB = isStockIncomplete(b).incomplete ? 1 : 0
+            if (incA !== incB) return incB - incA // Item merah (belum lengkap) selalu di paling atas
+            return (a.name || '').localeCompare(b.name || '')
+          })
         const activeCls = { orange: 'bg-orange-500 text-white shadow', blue: 'bg-blue-500 text-white shadow', purple: 'bg-purple-600 text-white shadow' }
         const addLabel = { PRINT: '+ Tambah Bahan Print', UMUM: '+ Tambah Barang Umum', ADVERTISING: '+ Tambah Komponen Advertising' }[stockTab]
         return (
           <div className="flex-1 flex flex-col gap-4 p-4 max-w-3xl w-full mx-auto">
+            {/* Banner Peringatan Barang Baru dari Karyawan yang Belum Dilengkapi */}
+            {allIncomplete.length > 0 && (
+              <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-4 shadow-sm space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-red-800 flex items-center gap-1.5">
+                      <span>🔴</span>
+                      <span>Ada {allIncomplete.length} Barang yang Belum Dilengkapi Harga / Spesifikasi!</span>
+                    </p>
+                    <p className="text-xs text-red-700 mt-0.5">
+                      Barang yang diinput karyawan dari Home hanya berisi nama & jumlah fisik. Klik tombol <b>Lengkapi Harga & Spek</b> pada barang bertanda merah di bawah.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {STOCK_TABS.map(t => {
+                    const cnt = allIncomplete.filter(s => stockTabOf(s) === t.key).length
+                    if (cnt === 0) return null
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => { setStockTab(t.key); setAdvFilter('ALL') }}
+                        className="px-3 py-1 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-sm transition-all"
+                      >
+                        Lihat {cnt} di Tab {t.icon} {t.label} →
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Visual tabs */}
             <div className="grid grid-cols-3 gap-2 bg-gray-100 rounded-2xl p-1.5">
-              {STOCK_TABS.map(t => (
-                <button key={t.key} onClick={() => { setStockTab(t.key); setAdvFilter('ALL') }}
-                  className={`py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${stockTab === t.key ? activeCls[t.color] : 'text-gray-500 hover:bg-white'}`}>
-                  <span className="mr-1">{t.icon}</span>{t.label}
-                  <span className={`ml-1 text-[10px] font-semibold ${stockTab === t.key ? 'opacity-80' : 'text-gray-400'}`}>
-                    ({stocks.filter(s => stockTabOf(s) === t.key).length})
-                  </span>
-                </button>
-              ))}
+              {STOCK_TABS.map(t => {
+                const incInTab = stocks.filter(s => stockTabOf(s) === t.key && isStockIncomplete(s).incomplete).length
+                return (
+                  <button key={t.key} onClick={() => { setStockTab(t.key); setAdvFilter('ALL') }}
+                    className={`py-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1 ${stockTab === t.key ? activeCls[t.color] : 'text-gray-500 hover:bg-white'}`}>
+                    <span>{t.icon} {t.label}</span>
+                    <span className={`text-[10px] font-semibold ${stockTab === t.key ? 'opacity-80' : 'text-gray-400'}`}>
+                      ({stocks.filter(s => stockTabOf(s) === t.key).length})
+                    </span>
+                    {incInTab > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white shadow-sm">
+                        ! {incInTab}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
             <p className="text-xs text-gray-400 -mt-2 px-1">{tabCfg.hint}</p>
 
@@ -1167,12 +1223,22 @@ export default function AdminPage() {
             {/* Filter sub-kategori Advertising */}
             {stockTab === 'ADVERTISING' && (
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {[{ key: 'ALL', label: 'Semua', icon: '' }, ...ADV_SUBS].map(a => (
-                  <button key={a.key} onClick={() => setAdvFilter(a.key)}
-                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${advFilter === a.key ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'}`}>
-                    {a.icon} {a.label}
-                  </button>
-                ))}
+                {[{ key: 'ALL', label: 'Semua', icon: '' }, ...ADV_SUBS].map(a => {
+                  const incSub = a.key === 'ALL'
+                    ? inTab.filter(s => isStockIncomplete(s).incomplete).length
+                    : inTab.filter(s => s.adv_sub_category === a.key && isStockIncomplete(s).incomplete).length
+                  return (
+                    <button key={a.key} onClick={() => setAdvFilter(a.key)}
+                      className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1 ${advFilter === a.key ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'}`}>
+                      <span>{a.icon} {a.label}</span>
+                      {incSub > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-red-500 text-white">
+                          {incSub}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             )}
 
@@ -1183,26 +1249,70 @@ export default function AdminPage() {
               ) : visible.length === 0 ? (
                 <p className="text-center text-gray-400 py-12 text-sm">Belum ada data di kategori ini.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {visible.map(s => {
                     const sub = ADV_SUBS.find(a => a.key === s.adv_sub_category)
+                    const { incomplete, reasons } = isStockIncomplete(s)
                     return (
-                      <div key={s.id} onClick={() => handleViewStock(s)} className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all">
+                      <div
+                        key={s.id}
+                        onClick={() => incomplete ? openEditStock(s) : handleViewStock(s)}
+                        className={`rounded-2xl px-4 py-3.5 flex items-center gap-3 cursor-pointer transition-all ${
+                          incomplete
+                            ? 'bg-red-50 border-2 border-red-400 hover:bg-red-100/70 shadow-sm'
+                            : 'bg-gray-50 border border-gray-100 hover:bg-gray-100'
+                        }`}
+                      >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            {stockTab === 'ADVERTISING' && sub && <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium shrink-0">{sub.icon} {sub.label}</span>}
-                            <p className="font-semibold text-gray-800 text-sm truncate">{s.name}</p>
-                            {s.quantity <= 5 && <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 font-medium shrink-0">Low</span>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {incomplete && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-black tracking-wide shrink-0">
+                                🔴 HARGA / SPEK BELUM DIISI
+                              </span>
+                            )}
+                            {stockTab === 'ADVERTISING' && sub && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium shrink-0">
+                                {sub.icon} {sub.label}
+                              </span>
+                            )}
+                            <p className={`font-bold text-sm truncate ${incomplete ? 'text-red-900' : 'text-gray-800'}`}>
+                              {s.name}
+                            </p>
+                            {s.quantity <= 5 && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 font-medium shrink-0">
+                                Low
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-400">{s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/' + (s.unit || 'unit') : '-'}</p>
-                          {stockTab === 'ADVERTISING' && advSummaryLine(s) && <p className="text-xs text-purple-500 mt-0.5 truncate">{advSummaryLine(s)}</p>}
+                          <p className={`text-xs mt-0.5 ${incomplete ? 'text-red-700 font-semibold' : 'text-gray-400'}`}>
+                            Stok: {s.quantity} {s.unit} · {s.price ? formatRupiah(s.price) + '/' + (s.unit || 'unit') : 'Harga Modal: Belum Diisi'}
+                          </p>
+                          {incomplete && reasons.length > 0 && (
+                            <p className="text-[11px] text-red-600 font-bold mt-1">
+                              ⚠️ Belum lengkap: {reasons.join(' & ')}
+                            </p>
+                          )}
+                          {!incomplete && stockTab === 'ADVERTISING' && advSummaryLine(s) && (
+                            <p className="text-xs text-purple-500 mt-0.5 truncate">{advSummaryLine(s)}</p>
+                          )}
                         </div>
-                        <div className="flex gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => openEditStock(s)}
-                            className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                          </button>
-                          <button onClick={() => handleDeleteStock(s.id)} className="w-8 h-8 rounded-xl bg-red-50 text-red-400 flex items-center justify-center">
+                        <div className="flex gap-2 shrink-0 items-center" onClick={e => e.stopPropagation()}>
+                          {incomplete ? (
+                            <button
+                              onClick={() => openEditStock(s)}
+                              className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
+                            >
+                              ✎ Lengkapi Harga & Spek
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openEditStock(s)}
+                              className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-100"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                          )}
+                          <button onClick={() => handleDeleteStock(s.id)} className="w-8 h-8 rounded-xl bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-100">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           </button>
                         </div>

@@ -111,10 +111,52 @@ export function buildStockPayload(form, parseRupiahInput) {
   return { ...payload, ...extra }
 }
 
+// Cek apakah stok baru (misal inputan karyawan dari Home) belum lengkap Harga Modal atau Spesifikasinya
+export function isStockIncomplete(s) {
+  if (!s) return { incomplete: false, reasons: [] }
+  const reasons = []
+  const tab = stockTabOf(s)
+  const price = num(s.price)
+
+  if (price <= 0) {
+    reasons.push('Harga Beli (Modal) belum diisi')
+  }
+
+  if (tab === 'ADVERTISING') {
+    const sub = s.adv_sub_category || 'ACRYLIC'
+    if (sub === 'ACRYLIC' || sub === 'SHEET') {
+      if (num(s.thickness_mm) <= 0 || num(s.sheet_length) <= 0 || num(s.sheet_width) <= 0) {
+        reasons.push('Spesifikasi lembar (P×L / Ketebalan mm) belum diisi')
+      }
+    } else if (sub === 'STICKER') {
+      if (num(s.roll_width_cm) <= 0 || num(s.roll_length_m) <= 0) {
+        reasons.push('Spesifikasi ukuran stiker (Lebar × Panjang) belum diisi')
+      }
+    } else if (sub === 'LAMP') {
+      if (num(s.watt) <= 0) {
+        reasons.push('Spesifikasi daya lampu (Watt) belum diisi')
+      }
+    } else if (sub === 'TRAFO') {
+      if (num(s.watt_capacity) <= 0) {
+        reasons.push('Spesifikasi kapasitas trafo (Watt) belum diisi')
+      }
+    } else if (sub === 'BAR') {
+      if (num(s.bar_length_m) <= 0) {
+        reasons.push('Spesifikasi panjang batang (Meter) belum diisi')
+      }
+    }
+  }
+
+  return {
+    incomplete: reasons.length > 0,
+    reasons,
+  }
+}
+
 // Isi form dari item yang diedit
 export function stockToForm(s, formatRupiahInput) {
   const f = { ...EMPTY_STOCK_FORM }
-  Object.keys(f).forEach(k => { if (s[k] !== undefined && s[k] !== null) f[k] = s[k] })
+  Object.keys(f).forEach(k => { if (s[k] !== undefined && s[k] !== null && s[k] !== '') f[k] = s[k] })
   f.usage_category = stockTabOf(s)
   f.price = s.price || ''
   f.price_raw = formatRupiahInput(String(s.price || ''))
