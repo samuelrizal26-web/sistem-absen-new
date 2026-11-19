@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getProjects, createProject, updateProject, deleteProject, getStock, getFloatingMenu } from '../services/api'
+import { getProjects, createProject, updateProject, deleteProject, getStock } from '../services/api'
 import { formatRupiah, formatDate, formatRupiahInput, parseRupiahInput } from '../utils/format'
 import Toast from '../components/Toast'
-import FloatingButton from '../components/FloatingButton'
-import PiketModal from '../components/PiketModal'
 import { useToast } from '../hooks/useToast'
 
 const STEP = { DASHBOARD: 'dashboard', FORM: 'form', EDIT: 'edit' }
@@ -43,9 +41,6 @@ export default function ProjectPage() {
   const [editingId, setEditingId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [keypadField, setKeypadField] = useState(null) // 'selling_price' or null
-  const [menuItems, setMenuItems] = useState([])
-  const [showPiketModal, setShowPiketModal] = useState(false)
-  const [selectedPiketGroupId, setSelectedPiketGroupId] = useState(null)
 
   const hpp = materials.reduce((s, m) => s + (parseFloat(m.price || 0) * parseFloat(m.quantity || 0)), 0)
   const sellingPrice = parseRupiahInput(form.selling_price_raw)
@@ -69,28 +64,6 @@ export default function ProjectPage() {
   useEffect(() => {
     if (step === STEP.DASHBOARD) loadData()
   }, [step, searchMonth])
-
-  useEffect(() => {
-    loadFloatingMenu()
-  }, [])
-
-  const loadFloatingMenu = async () => {
-    try {
-      const data = await getFloatingMenu()
-      setMenuItems(data || [])
-    } catch {
-      setMenuItems([])
-    }
-  }
-
-  const handleFloatingMenuItemClick = (item) => {
-    if (item.type === 'navigation' && item.target) {
-      navigate(item.target)
-    } else if (item.type === 'piket' && item.target) {
-      setSelectedPiketGroupId(item.target)
-      setShowPiketModal(true)
-    }
-  }
 
   // Handle navigation state from HomeScreen for editing or from Advertising Calculator for prefilling
   useEffect(() => {
@@ -680,14 +653,6 @@ export default function ProjectPage() {
       )}
 
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}
-      <FloatingButton menuItems={menuItems} onItemClick={handleFloatingMenuItemClick} />
-      {showPiketModal && (
-        <PiketModal
-          groupId={selectedPiketGroupId}
-          onClose={() => setShowPiketModal(false)}
-          showToast={showToast}
-        />
-      )}
     </div>
   )
 }
