@@ -143,6 +143,7 @@ export default function HomeScreen() {
   const [homeAdvFilter, setHomeAdvFilter] = useState('ALL')
   const [homeStockSearch, setHomeStockSearch] = useState('')
   const [showAddStockForm, setShowAddStockForm] = useState(false)
+  const [editingStock, setEditingStock] = useState(null)
   const [stockForm, setStockForm] = useState({
     name: '',
     quantity: '',
@@ -188,6 +189,7 @@ export default function HomeScreen() {
   }
 
   const openHomeAddStockForm = () => {
+    setEditingStock(null)
     const defSub = homeAdvFilter !== 'ALL' ? homeAdvFilter : 'ACRYLIC'
     const defUnit = homeStockTab === 'ADVERTISING'
       ? (ADV_SUBS.find(a => a.key === defSub)?.defaultUnit || 'lembar')
@@ -203,35 +205,76 @@ export default function HomeScreen() {
     setShowAddStockForm(true)
   }
 
-  const handleAddStock = () => {
-    if (!stockForm.name.trim() || !stockForm.quantity) {
+  const openHomeEditStockForm = (stock) => {
+    setEditingStock(stock)
+    const cat = stockTabOf(stock)
+    const defSub = stock.adv_sub_category || 'ACRYLIC'
+    setStockForm({
+      name: stock.name || '',
+      quantity: stock.quantity !== undefined && stock.quantity !== null ? String(stock.quantity) : '0',
+      unit: stock.unit || 'pcs',
+      usage_category: cat,
+      adv_sub_category: defSub,
+      notes: stock.notes || '',
+    })
+    setShowAddStockForm(true)
+  }
+
+  const handleSaveStock = () => {
+    if (!stockForm.name.trim() || stockForm.quantity === '' || stockForm.quantity === undefined) {
       showToast('Nama barang dan jumlah stok wajib diisi', 'error')
+      return
+    }
+    const qty = parseFloat(stockForm.quantity)
+    if (isNaN(qty) || qty < 0) {
+      showToast('Jumlah stok harus berupa angka valid (minimal 0)', 'error')
       return
     }
     setStockFormLoading(true)
     const payload = {
       name: stockForm.name.trim(),
-      quantity: parseFloat(stockForm.quantity) || 0,
+      quantity: qty,
       unit: stockForm.unit || 'pcs',
-      price: 0,
       usage_category: stockForm.usage_category,
-      notes: stockForm.notes.trim() || 'Input cepat karyawan (Menunggu harga/spek Admin)',
+      notes: stockForm.notes ? stockForm.notes.trim() : '',
     }
     if (stockForm.usage_category === 'ADVERTISING') {
       payload.adv_sub_category = stockForm.adv_sub_category || 'ACRYLIC'
     }
-    createStock(payload)
-      .then(() => {
-        showToast('Barang ditambahkan! Otomatis ditandai merah di Admin untuk dilengkapi harga/spek.', 'success')
-        setHomeStockTab(stockForm.usage_category)
-        if (stockForm.usage_category === 'ADVERTISING') {
-          setHomeAdvFilter(stockForm.adv_sub_category)
-        }
-        setShowAddStockForm(false)
-        loadStock()
-      })
-      .catch((e) => showToast(e.message || 'Gagal menambah stok', 'error'))
-      .finally(() => setStockFormLoading(false))
+
+    if (editingStock) {
+      updateStock(editingStock.id, payload)
+        .then(() => {
+          showToast(`Stok "${payload.name}" berhasil diperbarui`, 'success')
+          setHomeStockTab(stockForm.usage_category)
+          if (stockForm.usage_category === 'ADVERTISING') {
+            setHomeAdvFilter(stockForm.adv_sub_category)
+          }
+          setShowAddStockForm(false)
+          setEditingStock(null)
+          loadStock()
+        })
+        .catch((e) => showToast(e.message || 'Gagal memperbarui stok', 'error'))
+        .finally(() => setStockFormLoading(false))
+    } else {
+      payload.price = 0
+      if (!payload.notes) {
+        payload.notes = 'Input cepat karyawan (Menunggu harga/spek Admin)'
+      }
+      createStock(payload)
+        .then(() => {
+          showToast('Barang ditambahkan! Otomatis ditandai merah di Admin untuk dilengkapi harga/spek.', 'success')
+          setHomeStockTab(stockForm.usage_category)
+          if (stockForm.usage_category === 'ADVERTISING') {
+            setHomeAdvFilter(stockForm.adv_sub_category)
+          }
+          setShowAddStockForm(false)
+          setEditingStock(null)
+          loadStock()
+        })
+        .catch((e) => showToast(e.message || 'Gagal menambah stok', 'error'))
+        .finally(() => setStockFormLoading(false))
+    }
   }
 
   const handleStockClick = (stock, mode = 'take') => {
@@ -886,7 +929,7 @@ export default function HomeScreen() {
                   <p className="text-xs text-gray-400">Cek sisa stok, ambil pemakaian, atau tambah stok barang baru</p>
                 </div>
                 <button
-                  onClick={() => { setShowStockModal(false); setShowAddStockForm(false) }}
+                  onClick={() => { setShowStockModal(false); setShowAddStockForm(false); setEditingStock(null) }}
                   className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200"
                 >
                   ✕
@@ -965,7 +1008,7 @@ export default function HomeScreen() {
                         return (
                           <div
                             key={stock.id}
-                            className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                            className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 sm:gap-3 ${
                               isCriticalStock
                                 ? 'bg-red-50 border-red-300'
                                 : isLowStock
@@ -998,18 +1041,25 @@ export default function HomeScreen() {
                               </div>
                             </div>
 
-                            {/* Tombol Cepat Ambil & Restok */}
+                            {/* Tombol Aksi: Edit, Ambil, Restok */}
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button
+                                onClick={() => openHomeEditStockForm(stock)}
+                                className="px-2.5 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
+                                title="Edit info & sesuaikan jumlah stok fisik"
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
                                 onClick={() => handleStockClick(stock, 'take')}
-                                className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
+                                className="px-2.5 sm:px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
                                 title="Kurangi stok (Ambil barang)"
                               >
                                 📤 Ambil
                               </button>
                               <button
                                 onClick={() => handleStockClick(stock, 'restock')}
-                                className="px-2.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
+                                className="px-2 sm:px-2.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm active:scale-95 transition-all"
                                 title="Tambah jumlah stok masuk"
                               >
                                 📥 +Stok
@@ -1024,18 +1074,29 @@ export default function HomeScreen() {
               ) : (
                 <div className="space-y-3.5 overflow-y-auto pr-1">
                   <button
-                    onClick={() => setShowAddStockForm(false)}
+                    onClick={() => { setShowAddStockForm(false); setEditingStock(null) }}
                     className="text-xs font-bold text-gray-600 hover:text-gray-900 flex items-center gap-1"
                   >
                     ← Kembali ke Daftar Stok
                   </button>
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-900">
-                    <p className="font-bold">💡 Input Cepat Stok Gudang (Karyawan)</p>
-                    <p className="text-[11px] text-amber-800 mt-0.5">
-                      Cukup pilih kategori, nama barang, dan jumlah fisik. <b>Harga modal & spesifikasi teknis</b> tidak perlu diisi di sini — otomatis ditandai merah di menu Admin untuk dilengkapi Owner.
-                    </p>
-                  </div>
+                  {editingStock ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-xs text-blue-900">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <span>✏️</span> Edit & Update Stok: <span className="underline">{editingStock.name}</span>
+                      </p>
+                      <p className="text-[11px] text-blue-800 mt-0.5">
+                        Ubah nama barang, kategori, satuan, catatan, atau langsung sesuaikan jumlah fisik stok saat ini.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-900">
+                      <p className="font-bold">💡 Input Cepat Stok Gudang (Karyawan)</p>
+                      <p className="text-[11px] text-amber-800 mt-0.5">
+                        Cukup pilih kategori, nama barang, dan jumlah fisik. <b>Harga modal & spesifikasi teknis</b> tidak perlu diisi di sini — otomatis ditandai merah di menu Admin untuk dilengkapi Owner.
+                      </p>
+                    </div>
+                  )}
 
                   {/* 1. Pilih Kategori */}
                   <div>
@@ -1102,13 +1163,15 @@ export default function HomeScreen() {
                   {/* 4. Jumlah & Satuan */}
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                      <label className="text-xs font-bold text-gray-600 block mb-1">Jumlah Stok Masuk *</label>
+                      <label className="text-xs font-bold text-gray-600 block mb-1">
+                        {editingStock ? 'Jumlah Sisa Stok Aktual *' : 'Jumlah Stok Masuk *'}
+                      </label>
                       <input
                         type="number"
                         step="any"
                         value={stockForm.quantity}
                         onChange={e => setStockForm(f => ({ ...f, quantity: e.target.value }))}
-                        placeholder="Contoh: 10"
+                        placeholder={editingStock ? 'Contoh: 25' : 'Contoh: 10'}
                         className="w-full px-4 py-3 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                       />
                     </div>
@@ -1131,17 +1194,17 @@ export default function HomeScreen() {
                       type="text"
                       value={stockForm.notes}
                       onChange={e => setStockForm(f => ({ ...f, notes: e.target.value }))}
-                      placeholder="Contoh: Barang baru datang dari supplier"
+                      placeholder={editingStock ? 'Catatan tambahan...' : 'Contoh: Barang baru datang dari supplier'}
                       className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                     />
                   </div>
 
                   <button
-                    onClick={handleAddStock}
+                    onClick={handleSaveStock}
                     disabled={stockFormLoading}
                     className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                   >
-                    {stockFormLoading ? 'Menyimpan...' : 'Simpan Jumlah Stok'}
+                    {stockFormLoading ? 'Menyimpan...' : editingStock ? 'Simpan Perubahan Stok' : 'Simpan Barang Baru'}
                   </button>
                 </div>
               )}
