@@ -357,81 +357,154 @@ export default function CashflowPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-5"
-        style={{ background: 'linear-gradient(160deg, #0d9488 0%, #0f766e 100%)', borderBottomLeftRadius: '1.5rem', borderBottomRightRadius: '1.5rem' }}>
-        <button onClick={() => navigate('/home')}
-          className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white shrink-0">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="flex-1">
-          <h1 className="text-white text-lg font-bold">Cashflow</h1>
-          <p className="text-white/70 text-xs">Catat pemasukan & pengeluaran</p>
+    <div className="min-h-screen flex flex-col bg-slate-100/90 text-slate-800">
+      {/* Modern Header */}
+      <div
+        className="px-4 sm:px-6 pt-10 pb-5 shadow-xl shadow-teal-950/15 border-b border-teal-400/20"
+        style={{
+          background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%)',
+          borderBottomLeftRadius: '2rem',
+          borderBottomRightRadius: '2rem',
+        }}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3.5">
+            <button
+              onClick={() => navigate('/home')}
+              className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all shadow-sm shrink-0"
+              title="Kembali ke Beranda"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-black/15 text-white/95 border border-white/10">
+                  FINANCIAL REGISTER
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                <span className="text-[10px] text-teal-100/90 font-bold hidden sm:inline">DRAWER SYNC</span>
+              </div>
+              <h1 className="text-white text-xl sm:text-2xl font-black tracking-tight leading-tight">
+                Cashflow Management
+              </h1>
+              <p className="text-teal-100/80 text-xs font-medium">Labalaba Advertising · Catat arus kas masuk, pengeluaran & tukar uang</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col md:flex-row gap-5">
         {/* Left Panel - Cards & Controls */}
         <div className="w-full md:w-1/2 flex flex-col gap-4">
           {/* Previous Month Summary */}
           {prevMonthSummary && (
-            <div className="bg-gray-100 rounded-2xl p-3 border border-gray-200">
-              <p className="text-xs font-semibold text-gray-500 mb-2">Ringkasan Bulan Lalu ({prevMonthSummary.month})</p>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-600">Pemasukan:</span>
-                <span className="font-semibold text-green-600">{formatRupiah(prevMonthSummary.manual_income)}</span>
+            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm shadow-slate-900/5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">📅</span>
+                <p className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                  Ringkasan Bulan Lalu ({prevMonthSummary.month})
+                </p>
               </div>
-              <div className="flex justify-between text-xs mt-1">
-                <span className="text-gray-600">Pengeluaran:</span>
-                <span className="font-semibold text-red-500">{formatRupiah(prevMonthSummary.manual_expense)}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100">
+                  <span className="text-[11px] font-bold text-emerald-800 block">Pemasukan</span>
+                  <span className="text-sm font-black text-emerald-700">{formatRupiah(prevMonthSummary.manual_income)}</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-100">
+                  <span className="text-[11px] font-bold text-rose-800 block">Pengeluaran</span>
+                  <span className="text-sm font-black text-rose-700">{formatRupiah(prevMonthSummary.manual_expense)}</span>
+                </div>
               </div>
             </div>
           )}
+
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-green-500 rounded-2xl p-4 text-white shadow">
-              <p className="text-xs opacity-80">Pemasukan</p>
-              <p className="text-xl font-bold mt-1">{formatRupiah(summary?.manual_income || summary?.total_income || 0)}</p>
+          <div className="grid grid-cols-2 gap-3.5">
+            {/* Pemasukan Card */}
+            <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl shadow-emerald-950/15 border border-emerald-400/30 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-700 transition-all">
+              <div className="absolute -top-10 -right-10 w-28 h-28 bg-white/15 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-100/90">Total Pemasukan</span>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black tracking-widest text-white border border-white/25">
+                  ↓ IN
+                </span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black tracking-tight drop-shadow-sm">
+                {formatRupiah(summary?.manual_income || summary?.total_income || 0)}
+              </p>
             </div>
-            <div className="bg-red-500 rounded-2xl p-4 text-white shadow">
-              <p className="text-xs opacity-80">Pengeluaran</p>
-              <p className="text-xl font-bold mt-1">{formatRupiah(summary?.manual_expense || summary?.total_expense || 0)}</p>
+
+            {/* Pengeluaran Card */}
+            <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl shadow-rose-950/15 border border-rose-400/30 bg-gradient-to-br from-rose-600 via-rose-500 to-red-700 transition-all">
+              <div className="absolute -top-10 -right-10 w-28 h-28 bg-white/15 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-100/90">Total Pengeluaran</span>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black tracking-widest text-white border border-white/25">
+                  ↑ OUT
+                </span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black tracking-tight drop-shadow-sm">
+                {formatRupiah(summary?.manual_expense || summary?.total_expense || 0)}
+              </p>
             </div>
           </div>
 
           {/* Search */}
           <div className="flex gap-2">
-            <input type="month" value={searchMonth} onChange={e => setSearchMonth(e.target.value)}
-              className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <div className="relative flex-1">
+              <input
+                type="month"
+                value={searchMonth}
+                onChange={e => setSearchMonth(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200/90 bg-white shadow-sm text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+              />
+            </div>
             {searchMonth && (
-              <button onClick={() => setSearchMonth('')} className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm">Reset</button>
+              <button
+                onClick={() => setSearchMonth('')}
+                className="px-4 py-3 rounded-2xl bg-slate-200/80 hover:bg-slate-300 text-slate-700 text-xs font-black transition-all shadow-sm"
+              >
+                Reset
+              </button>
             )}
           </div>
 
           {/* Add & Tukar Uang Buttons */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button onClick={() => setShowTypePicker(true)}
-              className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-teal-600 active:scale-95 transition-all text-sm">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Tambah Cashflow
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setShowTypePicker(true)}
+              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-teal-600 via-teal-500 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black flex items-center justify-center gap-2.5 shadow-lg shadow-teal-600/20 active:scale-[0.98] transition-all text-sm border border-teal-400/25"
+            >
+              <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <span>Tambah Cashflow</span>
             </button>
-            <button onClick={openExchangeModal}
-              className="w-full py-3.5 rounded-2xl bg-amber-500 text-white font-bold flex items-center justify-center gap-2 shadow hover:bg-amber-600 active:scale-95 transition-all text-sm">
-              <span>🔄</span>
+            <button
+              onClick={openExchangeModal}
+              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all text-sm border border-amber-300/30"
+            >
+              <span className="text-base">🔄</span>
               <span>Tukar Uang</span>
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex bg-gray-100 rounded-2xl p-1 gap-1">
+          <div className="flex bg-slate-200/70 p-1.5 rounded-2xl gap-1.5 border border-slate-300/60 shadow-inner">
             {[['CASH', TAB.CASH], ['TRANSFER', TAB.TRANSFER], ['PENGELUARAN', TAB.PENGELUARAN], ['TUKAR', TAB.TUKAR]].map(([label, val]) => (
-              <button key={val} onClick={() => setTab(val)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${tab === val ? 'bg-white text-primary shadow' : 'text-gray-500'}`}>
+              <button
+                key={val}
+                onClick={() => setTab(val)}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${
+                  tab === val
+                    ? 'bg-white text-slate-900 shadow-md border border-slate-200/60'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
                 {label}
               </button>
             ))}
@@ -441,47 +514,89 @@ export default function CashflowPage() {
 
         {/* Right Panel - List */}
         <div className="w-full md:w-1/2 flex flex-col">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
-            <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Transaksi</h2>
+          <div className="bg-white rounded-3xl shadow-xl shadow-slate-900/5 border border-slate-200/80 p-5 sm:p-6 flex-1 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-teal-500 rounded-full" />
+                <h2 className="text-slate-900 font-black text-lg tracking-tight">Daftar Transaksi</h2>
+              </div>
+              <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                {filteredItems.length} Transaksi
+              </span>
+            </div>
             {loading && items.length === 0 ? (
-              <div className="flex justify-center py-8">
-                <svg className="w-7 h-7 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+              <div className="flex justify-center items-center py-20">
+                <svg className="w-8 h-8 animate-spin text-teal-600" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
               </div>
             ) : filteredItems.length === 0 ? (
-              <p className="text-center text-gray-400 py-16">Belum ada transaksi.</p>
+              <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3 border border-slate-200">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="font-bold text-slate-600 text-sm">Belum ada transaksi.</p>
+                <p className="text-xs text-slate-400 mt-1">Gunakan tombol "Tambah Cashflow" atau "Tukar Uang".</p>
+              </div>
             ) : (
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-1">
                 {Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, list]) => (
                   <div key={month}>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2.5 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                       {new Date(month + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
                     </p>
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {list.map(item => (
-                        <div key={item.id} className={`rounded-xl p-3 flex items-center gap-3 border transition-colors ${item.is_edited ? 'bg-amber-50/70 border-amber-200' : item.type === 'exchange' ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'income' ? 'bg-green-100' : item.type === 'exchange' ? 'bg-blue-100 text-blue-600 font-bold' : 'bg-red-100'}`}>
+                        <div
+                          key={item.id}
+                          className={`rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 border transition-all ${
+                            item.is_edited
+                              ? 'bg-amber-50/70 border-amber-200/90 shadow-xs'
+                              : item.type === 'exchange'
+                              ? 'bg-sky-50/50 hover:bg-sky-50 border-sky-100 hover:border-sky-200 shadow-xs'
+                              : item.type === 'income'
+                              ? 'bg-emerald-50/40 hover:bg-emerald-50/70 border-emerald-100 hover:border-emerald-200 shadow-xs'
+                              : 'bg-rose-50/40 hover:bg-rose-50/70 border-rose-100 hover:border-rose-200 shadow-xs'
+                          }`}
+                        >
+                          <div
+                            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs border ${
+                              item.type === 'income'
+                                ? 'bg-emerald-500 text-white border-emerald-400/40'
+                                : item.type === 'exchange'
+                                ? 'bg-sky-500 text-white border-sky-400/40 text-lg'
+                                : 'bg-rose-500 text-white border-rose-400/40'
+                            }`}
+                          >
                             {item.type === 'exchange' ? (
                               <span>🔄</span>
                             ) : (
-                              <svg className={`w-5 h-5 ${item.type === 'income' ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.type === 'income' ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={item.type === 'income' ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
                               </svg>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-semibold text-gray-800 text-sm truncate">{item.description}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate">{item.description}</p>
                               {item.is_edited && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-200 text-amber-900 border border-amber-300">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-amber-200 text-amber-900 border border-amber-300">
                                   Diedit oleh: {item.edited_by || 'Karyawan'}
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-400">{formatDateTime(item.created_at || item.date)}{item.handled_by ? ` · Dicatat: ${item.handled_by}` : ''}</p>
-                            {item.notes && <p className="text-xs text-gray-600 mt-0.5 whitespace-normal">{item.notes}</p>}
+                            <p className="text-xs text-slate-400 font-medium mt-0.5">
+                              {formatDateTime(item.created_at || item.date)}{item.handled_by ? ` · Dicatat: ${item.handled_by}` : ''}
+                            </p>
+                            {item.notes && (
+                              <p className="text-xs text-slate-600 bg-white/70 p-1.5 rounded-xl border border-slate-200/60 mt-1.5 whitespace-normal">
+                                {item.notes}
+                              </p>
+                            )}
                           </div>
                           {editingId === item.id ? (
                             <div className="flex flex-col gap-2 shrink-0 min-w-[140px]">
@@ -490,30 +605,30 @@ export default function CashflowPage() {
                                 readOnly
                                 value={editAmountRaw || 'Rp 0'}
                                 onClick={() => { setEditAmountRaw(''); setKeypadField('edit_amount') }}
-                                className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+                                className="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer bg-white"
                                 disabled={saving}
                               />
                               <select
                                 value={editPaymentMethod}
                                 onChange={e => setEditPaymentMethod(e.target.value)}
-                                className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                className="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/30 bg-white"
                                 disabled={saving}
                               >
                                 <option value="cash">Cash</option>
                                 <option value="transfer">Transfer</option>
                               </select>
-                              <div className="flex gap-1">
+                              <div className="flex gap-1.5">
                                 <button
                                   onClick={() => handleEditSave(item.id)}
                                   disabled={saving}
-                                  className="flex-1 py-1 rounded-lg bg-teal-500 text-white text-xs font-semibold disabled:opacity-40"
+                                  className="flex-1 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white text-xs font-black shadow-xs disabled:opacity-40"
                                 >
                                   Simpan
                                 </button>
                                 <button
                                   onClick={handleEditCancel}
                                   disabled={saving}
-                                  className="flex-1 py-1 rounded-lg bg-gray-200 text-gray-600 text-xs font-semibold disabled:opacity-40"
+                                  className="flex-1 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-black disabled:opacity-40"
                                 >
                                   Batal
                                 </button>
@@ -522,15 +637,28 @@ export default function CashflowPage() {
                           ) : (
                             <div className="text-right shrink-0">
                               {item.is_edited && item.original_amount !== undefined && item.original_amount !== item.amount && (
-                                <p className="text-[11px] text-gray-400 line-through">
+                                <p className="text-[11px] text-slate-400 line-through font-semibold">
                                   {formatRupiah(item.original_amount)}
                                 </p>
                               )}
-                              <p className={`font-bold text-sm ${item.is_edited ? 'text-amber-700' : item.type === 'income' ? 'text-green-600' : item.type === 'exchange' ? 'text-blue-600' : 'text-red-500'}`}>
+                              <p className={`font-black text-sm sm:text-base tracking-tight ${
+                                item.is_edited
+                                  ? 'text-amber-800'
+                                  : item.type === 'income'
+                                  ? 'text-emerald-600'
+                                  : item.type === 'exchange'
+                                  ? 'text-sky-600'
+                                  : 'text-rose-600'
+                              }`}>
                                 {item.type === 'income' ? '+' : item.type === 'exchange' ? '🔄 ' : '-'}{formatRupiah(item.amount)}
                               </p>
                               {item.type !== 'exchange' && (
-                                <button onClick={() => handleEditClick(item)} className="text-xs text-gray-300 hover:text-teal-500 mt-0.5">edit</button>
+                                <button
+                                  onClick={() => handleEditClick(item)}
+                                  className="text-[11px] font-bold text-slate-400 hover:text-teal-600 mt-1 inline-block px-2 py-0.5 rounded-md hover:bg-teal-50 transition-colors"
+                                >
+                                  edit
+                                </button>
                               )}
                             </div>
                           )}
