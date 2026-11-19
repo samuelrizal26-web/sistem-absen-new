@@ -965,48 +965,45 @@ export default function CashflowPage() {
 
       {/* Custom Numeric Keypad */}
       {keypadField && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleCloseKeypad}>
-          <div className="bg-white p-4 rounded-2xl w-80" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={handleCloseKeypad}>
+          <div className="bg-white p-5 rounded-3xl w-full max-w-[340px] sm:max-w-[360px] mx-auto shadow-2xl border border-slate-100 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-semibold text-gray-700">
-                {keypadField === 'customer_cash' ? 'Uang Customer (Rp)' : keypadField === 'edit_amount' ? 'Edit Jumlah (Rp)' : 'Jumlah (Rp)'}
+              <span className="text-sm font-black text-slate-800">
+                {keypadField === 'customer_cash' ? '💵 Uang Customer (Rp)' : keypadField === 'edit_amount' ? '✏️ Edit Jumlah (Rp)' : '💵 Jumlah (Rp)'}
               </span>
-              <button onClick={handleCloseKeypad} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button onClick={handleCloseKeypad} className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center text-sm font-bold transition-all">
+                ✕
               </button>
             </div>
             {/* Display current value */}
-            <div className="bg-gray-100 rounded-xl p-3 mb-3 text-center">
-              <span className="text-xl font-bold text-gray-800">
-                {keypadField === 'customer_cash' ? (form.customer_cash || 'Rp 0') : keypadField === 'edit_amount' ? (editAmountRaw || 'Rp 0') : (form.amount_raw || 'Rp 0')}
-              </span>
+            <div className="w-full bg-slate-900 text-emerald-400 rounded-2xl py-3.5 px-4 mb-3.5 text-center font-mono font-black text-2xl tracking-wider shadow-inner">
+              {keypadField === 'customer_cash' ? (form.customer_cash || 'Rp 0') : keypadField === 'edit_amount' ? (editAmountRaw || 'Rp 0') : (form.amount_raw || 'Rp 0')}
             </div>
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="grid grid-cols-3 gap-2.5 mb-2.5">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                 <button
                   key={num}
+                  type="button"
                   onClick={() => handleKeypadInput(num)}
-                  className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all"
+                  className="h-12 w-full rounded-2xl bg-slate-100 text-slate-800 font-black text-xl hover:bg-slate-200 active:scale-95 transition-all shadow-xs flex items-center justify-center"
                 >
                   {num}
                 </button>
               ))}
-              <button onClick={handleKeypadClear} className="py-3 rounded-xl bg-red-100 text-lg font-semibold text-red-600 hover:bg-red-200 active:bg-red-300 transition-all">
+              <button type="button" onClick={handleKeypadClear} className="h-12 w-full rounded-2xl bg-red-100 text-red-600 font-black text-lg hover:bg-red-200 active:scale-95 transition-all shadow-xs flex items-center justify-center">
                 C
               </button>
-              <button onClick={() => handleKeypadInput(0)} className="py-3 rounded-xl bg-gray-100 text-xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 transition-all">
+              <button type="button" onClick={() => handleKeypadInput(0)} className="h-12 w-full rounded-2xl bg-slate-100 text-slate-800 font-black text-xl hover:bg-slate-200 active:scale-95 transition-all shadow-xs flex items-center justify-center">
                 0
               </button>
-              <button onClick={handleKeypadBackspace} className="py-3 rounded-xl bg-gray-100 text-lg font-semibold text-gray-600 hover:bg-gray-200 active:bg-gray-300 transition-all">
+              <button type="button" onClick={handleKeypadBackspace} className="h-12 w-full rounded-2xl bg-amber-100 text-amber-700 font-black text-lg hover:bg-amber-200 active:scale-95 transition-all shadow-xs flex items-center justify-center">
                 ⌫
               </button>
             </div>
-            <button onClick={() => handleKeypadInput(1000)} className="w-full py-3 rounded-xl bg-gray-100 text-lg font-semibold text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-all mb-2">
-              000
+            <button type="button" onClick={() => handleKeypadInput(1000)} className="h-11 w-full rounded-2xl bg-blue-100 text-blue-700 font-black text-sm hover:bg-blue-200 active:scale-95 transition-all mb-2 flex items-center justify-center shadow-xs">
+              +000 (Ribu)
             </button>
-            <button onClick={handleCloseKeypad} className="w-full py-3 rounded-xl bg-teal-500 text-white font-semibold text-sm">
+            <button type="button" onClick={handleCloseKeypad} className="h-12 w-full rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-black text-sm shadow-md shadow-teal-500/25 active:scale-95 transition-all flex items-center justify-center">
               Selesai
             </button>
           </div>
