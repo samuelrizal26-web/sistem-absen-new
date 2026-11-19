@@ -15,7 +15,7 @@ const NAV_BUTTONS = [
   {
     label: 'Print',
     path: '/print',
-    color: 'from-orange-400 to-orange-500',
+    color: 'from-orange-500 via-amber-500 to-orange-600',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -26,7 +26,7 @@ const NAV_BUTTONS = [
   {
     label: 'Cashflow',
     path: '/cashflow',
-    color: 'from-teal-400 to-teal-500',
+    color: 'from-teal-500 via-emerald-500 to-teal-600',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -37,7 +37,7 @@ const NAV_BUTTONS = [
   {
     label: 'Project',
     path: '/project',
-    color: 'from-blue-500 to-blue-600',
+    color: 'from-blue-600 via-indigo-600 to-blue-700',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -48,7 +48,7 @@ const NAV_BUTTONS = [
   {
     label: 'Kalkulator',
     action: 'acrylic_calc',
-    color: 'from-cyan-500 to-blue-600',
+    color: 'from-cyan-500 via-sky-500 to-blue-600',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -59,7 +59,7 @@ const NAV_BUTTONS = [
   {
     label: 'Stok',
     action: 'stok',
-    color: 'from-emerald-400 to-emerald-500',
+    color: 'from-emerald-500 via-teal-500 to-green-600',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -70,7 +70,7 @@ const NAV_BUTTONS = [
   {
     label: 'Admin',
     path: '/admin',
-    color: 'from-purple-500 to-purple-600',
+    color: 'from-purple-600 via-fuchsia-600 to-indigo-600',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -82,7 +82,7 @@ const NAV_BUTTONS = [
   {
     label: 'Kasbon',
     action: 'kasbon',
-    color: 'from-amber-400 to-amber-500',
+    color: 'from-amber-500 via-yellow-500 to-orange-500',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -515,80 +515,143 @@ export default function HomeScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100">
-      {/* Header dengan Logo Besar */}
+    <div className="min-h-screen flex flex-col bg-slate-100/90 text-slate-800">
+      {/* Header dengan Logo Besar & Modern Tech Command Header */}
       <div
-        className="relative flex flex-col items-center pt-8 pb-6 px-5"
+        className="relative flex flex-col items-center pt-7 pb-6 px-5 shadow-xl shadow-slate-900/10 border-b border-cyan-500/20"
         style={{
-          background: 'linear-gradient(160deg, #0A4D68 0%, #0d7fa8 70%, #1ab3e8 100%)',
+          background: 'linear-gradient(165deg, #071927 0%, #0A4D68 60%, #083344 100%)',
+          borderBottomLeftRadius: '2rem',
+          borderBottomRightRadius: '2rem',
         }}
       >
+        {/* Ambient Top Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-20 bg-cyan-400/15 rounded-full blur-2xl pointer-events-none" />
+
+        {/* Live Terminal Badge */}
+        <div className="flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] font-black tracking-widest text-cyan-200 uppercase">LABALABA WORKSPACE</span>
+        </div>
+
         {/* Logo Besar */}
-        <img src="/icon-512.png" alt="Logo" className="w-24 h-24 object-contain mb-2" />
-        <p className="text-white/60 text-sm tracking-widest uppercase mb-1">
+        <div className="relative group">
+          <img
+            src="/icon-512.png"
+            alt="Logo"
+            className="w-24 h-24 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.3)] transition-transform duration-300 group-hover:scale-105"
+          />
+        </div>
+
+        <p className="text-cyan-200/80 text-[11px] sm:text-xs font-bold tracking-[0.25em] uppercase mt-1 text-center drop-shadow-sm">
           ONE_STOP CUTTING STICKER & ADVERTISING
         </p>
       </div>
 
       {/* 2 Column Layout */}
-      <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col md:flex-row gap-5">
         {/* Left Panel - Navigation Buttons */}
         <div className="w-full md:w-1/2 flex flex-col gap-3">
-          <div className="bg-white rounded-2xl shadow-lg p-5 flex-1"
+          <div
+            className="relative rounded-3xl p-5 sm:p-6 text-white shadow-xl shadow-slate-900/15 border border-cyan-500/20 flex-1 flex flex-col justify-between overflow-hidden"
             style={{
-              background: 'linear-gradient(160deg, #0A4D68 0%, #0d7fa8 70%, #1ab3e8 100%)',
+              background: 'linear-gradient(165deg, #071927 0%, #0A4D68 55%, #052c3c 100%)',
             }}
           >
-            <div className="space-y-3">
+            {/* Ambient Corner Glow */}
+            <div className="absolute -top-20 -left-20 w-56 h-56 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-3 relative z-10">
               {NAV_BUTTONS.map((btn) => (
                 <button
                   key={btn.label}
                   onClick={() => handleNavClick(btn)}
-                  className={`w-full flex items-center gap-3 py-4 px-5 rounded-xl text-white font-semibold shadow-lg active:scale-95 transition-all bg-gradient-to-r ${btn.color}`}
+                  className={`group w-full flex items-center justify-between py-3.5 px-4 sm:px-5 rounded-2xl text-white font-black shadow-lg hover:brightness-105 active:scale-[0.98] transition-all bg-gradient-to-r ${btn.color} border border-white/20`}
                 >
-                  {btn.icon}
-                  {btn.label}
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      {btn.icon}
+                    </div>
+                    <span className="text-base sm:text-lg tracking-wide drop-shadow truncate">
+                      {btn.label}
+                    </span>
+                  </div>
+                  <div className="w-8 h-8 rounded-xl bg-black/10 flex items-center justify-center shrink-0 text-white/80 group-hover:translate-x-1 group-hover:text-white transition-all">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </button>
               ))}
             </div>
 
             {/* Work Tracking Section */}
-            <div className="mt-4 pt-4 border-t border-white/20">
+            <div className="mt-6 pt-5 border-t border-white/15 relative z-10">
               <div className="flex justify-between items-center mb-3">
-                <p className="text-white font-semibold text-sm">Work Tracking</p>
-                <button onClick={() => setShowWorkModal(true)} className="text-white/80 hover:text-white text-xs bg-white/20 px-2 py-1 rounded-lg">
-                  + Tambah
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                  <p className="text-white font-black text-sm uppercase tracking-wider">Work Tracking</p>
+                </div>
+                <button
+                  onClick={() => setShowWorkModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 text-white text-xs font-bold border border-white/20 backdrop-blur-sm transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Tambah
                 </button>
               </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
                 {workTracking.map((item) => {
                   const progress = (item.completed_qty / item.initial_qty) * 100
-                  let bgColor = 'bg-green-500'
-                  if (progress < 25) bgColor = 'bg-red-500'
-                  else if (progress < 50) bgColor = 'bg-yellow-500'
-                  else if (progress < 75) bgColor = 'bg-orange-500'
+                  let barColor = 'from-emerald-500 to-teal-400'
+                  if (progress < 25) barColor = 'from-red-500 to-rose-400'
+                  else if (progress < 50) barColor = 'from-amber-500 to-yellow-400'
+                  else if (progress < 75) barColor = 'from-sky-500 to-blue-400'
 
                   return (
-                    <div key={item.id} onClick={() => { setSelectedWorkItem(item); setShowUpdateModal(true) }} className="bg-white/10 rounded-xl p-3 cursor-pointer hover:bg-white/20 transition-all">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-white font-medium text-sm truncate flex-1">{item.item_name}</span>
-                        <span className="text-white/80 text-xs ml-2">{item.remaining_qty} pcs</span>
+                    <div
+                      key={item.id}
+                      onClick={() => { setSelectedWorkItem(item); setShowUpdateModal(true) }}
+                      className="group bg-white/10 hover:bg-white/15 border border-white/15 backdrop-blur-md rounded-2xl p-3.5 cursor-pointer transition-all shadow-sm"
+                    >
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-white font-bold text-sm truncate flex-1 drop-shadow-sm">{item.item_name}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-white font-black text-xs ml-2 shrink-0 border border-white/20">
+                          Sisa: {item.remaining_qty} pcs
+                        </span>
                       </div>
-                      <div className="w-full bg-white/20 rounded-full h-1.5 mt-2">
-                        <div className={`${bgColor} h-1.5 rounded-full transition-all`} style={{ width: `${Math.min(progress, 100)}%` }}></div>
+                      <div className="w-full bg-black/25 rounded-full h-2 mt-2 overflow-hidden p-[1px]">
+                        <div
+                          className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-500`}
+                          style={{ width: `${Math.min(progress, 100)}%` }}
+                        />
                       </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-white/60 text-xs">{item.completed_qty} / {item.initial_qty} pcs</span>
+                      <div className="flex justify-between items-center mt-2 pt-1 text-xs">
+                        <span className="text-cyan-200/80 font-semibold">{item.completed_qty} / {item.initial_qty} pcs ({Math.round(progress)}%)</span>
                         <div className="flex gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); handleEditWorkItem(item) }} className="text-blue-300 hover:text-blue-200 text-xs">Edit</button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteWorkItem(item.id) }} className="text-red-300 hover:text-red-200 text-xs">Hapus</button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEditWorkItem(item) }}
+                            className="px-2 py-0.5 rounded-lg bg-sky-500/30 hover:bg-sky-500/50 text-sky-200 text-xs font-bold transition-all"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteWorkItem(item.id) }}
+                            className="px-2 py-0.5 rounded-lg bg-rose-500/30 hover:bg-rose-500/50 text-rose-200 text-xs font-bold transition-all"
+                          >
+                            Hapus
+                          </button>
                         </div>
                       </div>
                     </div>
                   )
                 })}
                 {workTracking.length === 0 && (
-                  <p className="text-white/60 text-xs text-center py-4">Belum ada work item</p>
+                  <div className="text-center py-8 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                    <p className="text-cyan-200/60 text-xs font-medium">Belum ada work item aktif</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -597,51 +660,92 @@ export default function HomeScreen() {
 
         {/* Right Panel - Job List */}
         <div className="w-full md:w-1/2 flex flex-col">
-          <div className="bg-white rounded-2xl shadow-lg p-5 flex-1"
-            style={{
-              background: 'linear-gradient(160deg, #e0f2fe 0%, #bae6fd 100%)',
-            }}
-          >
+          <div className="bg-white rounded-3xl shadow-xl shadow-slate-900/5 border border-slate-200/80 p-5 sm:p-6 flex-1 flex flex-col">
             {/* Tombol Tambah Anggota */}
-            <button onClick={() => setShowCrewForm(true)}
-              className="w-full mb-2 py-2 rounded-xl bg-purple-500 text-white text-sm font-semibold shadow hover:bg-purple-600 active:scale-95 transition-all flex items-center justify-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+            <button
+              onClick={() => setShowCrewForm(true)}
+              className="w-full mb-3 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-black shadow-lg shadow-purple-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 border border-purple-400/20"
+            >
+              <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
               Tambah Anggota
             </button>
 
             {/* Tombol Tambah Pekerjaan */}
-            <button onClick={openAddJob}
-              className="w-full mb-4 py-3 rounded-xl bg-primary text-white font-bold shadow hover:bg-primary-dark active:scale-95 transition-all flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
+            <button
+              onClick={openAddJob}
+              className="w-full mb-5 py-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 hover:from-slate-800 hover:to-slate-700 text-white font-black text-base shadow-xl shadow-slate-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 border border-slate-700/50"
+            >
+              <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
+                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
               Tambah Pekerjaan
             </button>
 
             {/* Tabs */}
-            <div className="flex bg-gray-100 rounded-xl p-1 mb-4 gap-1">
-              {['Aktif', 'Selesai'].map((tab) => (
-                <button key={tab} onClick={() => setJobTab(tab.toLowerCase())}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${jobTab === tab.toLowerCase() ? 'bg-white text-primary shadow' : 'text-gray-500'}`}>
-                  {tab}
-                </button>
-              ))}
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-4 gap-1.5 border border-slate-200/80">
+              {['Aktif', 'Selesai'].map((tab) => {
+                const isActive = jobTab === tab.toLowerCase()
+                const count = (tab.toLowerCase() === 'aktif'
+                  ? jobs.concat(projects).filter(j => (j.progress_status || j.status) !== 'selesai' && (j.progress_status || j.status) !== 'completed')
+                  : jobs.concat(projects).filter(j => (j.progress_status || j.status) === 'selesai' || (j.progress_status || j.status) === 'completed')
+                ).length
+
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setJobTab(tab.toLowerCase())}
+                    className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                      isActive
+                        ? 'bg-white text-slate-900 shadow-md border border-slate-200/60'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <span>{tab}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      isActive ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
 
-            <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Pekerjaan</h2>
+            <div className="flex items-center justify-between mb-3.5">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-orange-500 rounded-full" />
+                <h2 className="text-slate-900 font-black text-lg tracking-tight">Daftar Pekerjaan</h2>
+              </div>
+              <span className="text-xs font-bold text-slate-400">
+                {filteredJobs.length} item
+              </span>
+            </div>
+
             {loadingJobs && jobs.length === 0 && projects.length === 0 ? (
-              <div className="flex justify-center items-center py-16">
+              <div className="flex justify-center items-center py-20">
                 <svg className="w-8 h-8 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
               </div>
             ) : filteredJobs.length === 0 ? (
-              <p className="text-center text-gray-400 py-16">Belum ada pekerjaan.</p>
+              <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3 border border-slate-200">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="font-bold text-slate-600 text-sm">Belum ada pekerjaan {jobTab}.</p>
+                <p className="text-xs text-slate-400 mt-1">Tekan tombol "Tambah Pekerjaan" untuk memulai.</p>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 overflow-y-auto max-h-[580px] pr-1">
                 {filteredJobs.map((job) => {
                   const isProject = job._source === 'project'
                   const jobName = job.job_name || job.project_name || 'Tanpa nama'
@@ -650,48 +754,59 @@ export default function HomeScreen() {
                   const dpAmount = job.dp_amount || 0
                   const isLunas = job.payment_status === 'lunas' || (totalPrice > 0 && dpAmount >= totalPrice)
                   const isSelesai = (job.progress_status || job.status) === 'selesai' || (job.progress_status || job.status) === 'completed'
-                  let bgColor = 'bg-orange-50'
-                  let borderColor = 'border-orange-500'
-                  let statusText = 'DP'
-
-                  if (isSelesai) {
-                    bgColor = 'bg-gray-100'
-                    borderColor = 'border-gray-400'
-                    statusText = 'SELESAI'
-                  } else if (isLunas) {
-                    bgColor = 'bg-green-50'
-                    borderColor = 'border-green-500'
-                    statusText = 'LUNAS'
-                  }
 
                   return (
                     <div
                       key={job.id}
-                      className={`w-full rounded-xl shadow-sm p-4 transition-all border-l-4 ${bgColor} ${borderColor}`}
+                      className="group relative w-full rounded-2xl p-4 transition-all bg-white hover:bg-slate-50/80 border border-slate-200/80 hover:border-slate-300 hover:shadow-md shadow-sm overflow-hidden"
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      {/* Left accent strip */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                        isSelesai ? 'bg-slate-400' : isLunas ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`} />
+
+                      <div className="flex items-start justify-between gap-3 pl-1">
                         <button onClick={() => setSelectedJob(job)} className="flex-1 text-left min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${isProject ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                              isProject ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-purple-50 text-purple-600 border border-purple-200'
+                            }`}>
                               {isProject ? 'PROJECT' : 'JOB'}
                             </span>
-                            <p className="font-bold text-gray-800 leading-tight truncate">{jobName}</p>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isSelesai
+                                ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                                : isLunas
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {isSelesai ? 'SELESAI' : isLunas ? 'LUNAS' : 'DP'}
+                            </span>
                           </div>
-                          <p className="text-sm text-gray-500 truncate">{customerName}</p>
+                          <p className="font-black text-slate-900 text-base leading-tight truncate group-hover:text-primary transition-colors">
+                            {jobName}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium truncate mt-0.5">
+                            Customer: {customerName}
+                          </p>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteJob(job) }}
-                          className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center text-red-400 hover:bg-red-100 hover:text-red-600 shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteJob(job) }}
+                          className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white transition-all shrink-0"
+                          title="Hapus Pekerjaan"
+                        >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>
-                      <div className="flex items-center justify-between mt-2 text-xs">
-                        <span className="text-gray-400">
+
+                      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-xs pl-1">
+                        <span className="text-slate-400 font-medium">
                           {formatDate(job.date)}
                           {job.completed_at && ` · Selesai: ${formatDate(job.completed_at)}`}
                         </span>
-                        <span className="font-semibold text-gray-700">{formatRupiah(totalPrice)}</span>
+                        <span className="font-black text-slate-900 text-sm">{formatRupiah(totalPrice)}</span>
                       </div>
                     </div>
                   )
