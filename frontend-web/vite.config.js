@@ -15,6 +15,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-capacitor': ['@capacitor/core', '@capacitor/app', '@capacitor/device'],
+        },
+      },
+    },
   },
   resolve: {
     alias: {
