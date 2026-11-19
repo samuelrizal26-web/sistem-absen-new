@@ -144,6 +144,8 @@ export const getLatestCashDenomination = () =>
   request('/cash-denominations/latest')
 export const updateCashDenomination = (data) =>
   request('/cash-denominations/latest', { method: 'PUT', body: JSON.stringify(data) })
+export const exchangeCashDenomination = (data) =>
+  request('/cash-denominations/exchange', { method: 'POST', body: JSON.stringify(data) })
 
 // ─── Stock ─────────────────────────────────────────────────────
 export const getStock = () => request('/stock')

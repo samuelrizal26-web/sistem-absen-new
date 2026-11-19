@@ -884,7 +884,11 @@ export default function AdminPage() {
 
   // Gabung semua transaksi dari semua sumber
   const allCfTransactions = [
-    ...cashflows.map(c => ({ ...c, _source: ['income','modal_masuk'].includes(c.type) ? 'manual-income' : 'manual-expense', category: ['income','modal_masuk'].includes(c.type) ? 'income' : 'expense' })),
+    ...cashflows.map(c => ({
+      ...c,
+      _source: c.type === 'exchange' ? 'exchange' : ['income', 'modal_masuk'].includes(c.type) ? 'manual-income' : 'manual-expense',
+      category: c.type === 'exchange' ? 'exchange' : ['income', 'modal_masuk'].includes(c.type) ? 'income' : 'expense',
+    })),
     ...cfPrintJobs.map(j => ({ id: j.id, date: j.date, description: `Print: ${j.material} · ${j.customer_name || '-'}`, amount: j.total_price || 0, payment_method: j.payment_method || 'cash', category: 'income', _source: 'print', handled_by: '' })),
     ...cfProjects.map(p => ({ id: p.id, date: p.date, description: `Project: ${p.project_name} · ${p.customer_name || '-'}`, amount: p.selling_price || p.total_project_value || 0, payment_method: p.payment_method || 'cash', category: 'income', _source: 'project', handled_by: '' })),
     ...cfJobs.map(j => ({ id: j.id, date: j.date, description: `Job: ${j.job_name} · ${j.customer_name || '-'}`, amount: j.total_price || 0, payment_method: j.payment_method || 'cash', category: 'income', _source: 'job', handled_by: '' })),
@@ -1526,15 +1530,20 @@ export default function AdminPage() {
                       <div className="space-y-2">
                         {items.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(item => {
                           const isIncome = item.category === 'income'
-                          const isManual = item._source === 'manual-income' || item._source === 'manual-expense'
-                          const srcColor = {'print':'bg-orange-100 text-orange-600','project':'bg-purple-100 text-purple-600','kasbon':'bg-yellow-100 text-yellow-700','manual-income':'bg-green-100 text-green-600','manual-expense':'bg-red-100 text-red-600'}[item._source]||'bg-gray-100 text-gray-500'
-                          const srcLabel = {'print':'Print','project':'Project','kasbon':'Kasbon','manual-income':'Manual','manual-expense':'Manual'}[item._source]||''
+                          const isExchange = item.category === 'exchange'
+                          const isManual = item._source === 'manual-income' || item._source === 'manual-expense' || item._source === 'exchange'
+                          const srcColor = {'print':'bg-orange-100 text-orange-600','project':'bg-purple-100 text-purple-600','kasbon':'bg-yellow-100 text-yellow-700','manual-income':'bg-green-100 text-green-600','manual-expense':'bg-red-100 text-red-600','exchange':'bg-blue-100 text-blue-700'}[item._source]||'bg-gray-100 text-gray-500'
+                          const srcLabel = {'print':'Print','project':'Project','kasbon':'Kasbon','manual-income':'Manual','manual-expense':'Manual','exchange':'Tukar Uang'}[item._source]||''
                           return (
-                          <div key={`${item._source}-${item.id}`} onClick={() => handleViewCashflow(item)} className={`rounded-xl px-3 py-2.5 flex items-center gap-2.5 border cursor-pointer hover:bg-gray-100 transition-all ${item.is_edited ? 'bg-amber-50/70 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
-                              <svg className={`w-3.5 h-3.5 ${isIncome ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
-                              </svg>
+                          <div key={`${item._source}-${item.id}`} onClick={() => handleViewCashflow(item)} className={`rounded-xl px-3 py-2.5 flex items-center gap-2.5 border cursor-pointer hover:bg-gray-100 transition-all ${item.is_edited ? 'bg-amber-50/70 border-amber-200' : isExchange ? 'bg-blue-50/40 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isIncome ? 'bg-green-100' : isExchange ? 'bg-blue-100 text-blue-600 text-xs' : 'bg-red-100'}`}>
+                              {isExchange ? (
+                                <span>🔄</span>
+                              ) : (
+                                <svg className={`w-3.5 h-3.5 ${isIncome ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3'} />
+                                </svg>
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 mb-0.5 flex-wrap">
@@ -1547,9 +1556,10 @@ export default function AdminPage() {
                                 )}
                               </div>
                               <p className="text-[10px] text-gray-400">{formatDateTime(item.created_at || item.date)} · {item.payment_method === 'cash' ? 'Cash' : 'Transfer'} · Oleh: {item.handled_by || item.cashier || '-'}{item.employee_id ? ` · ${employees.find(e => e.id === item.employee_id)?.name || '-'}` : ''}</p>
+                              {isExchange && item.notes && <p className="text-[10px] text-blue-700 font-medium mt-0.5">{item.notes}</p>}
                             </div>
-                            <p className={`font-bold text-xs shrink-0 ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
-                              {isIncome ? '+' : '-'}{formatRupiah(item.amount)}
+                            <p className={`font-bold text-xs shrink-0 ${isIncome ? 'text-green-600' : isExchange ? 'text-blue-600' : 'text-red-500'}`}>
+                              {isIncome ? '+' : isExchange ? '🔄 ' : '-'}{formatRupiah(item.amount)}
                             </p>
                             {(isManual || item._source === 'kasbon') && (
                               <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>

@@ -360,6 +360,13 @@ class IdentifyByPin(BaseModel):
 class CashDenominationCreate(BaseModel):
     breakdown: Dict[str, int]  # {"100000": 5, "50000": 10, ...}
 
+class CashExchangeCreate(BaseModel):
+    in_breakdown: Dict[str, int]
+    out_breakdown: Dict[str, int]
+    handled_by: Optional[str] = ''
+    employee_id: Optional[str] = ''
+    notes: Optional[str] = ''
+
 class ResetPinByBirthdate(BaseModel):
     employee_id: str
     birthdate: str
@@ -1031,6 +1038,67 @@ async def update_latest_cash_denomination(body: CashDenominationCreate):
     await db.cash_denominations.update_one({'id': latest['id']}, {'$set': update_data})
     updated = await db.cash_denominations.find_one({'id': latest['id']}, {'_id': 0})
     return clean(updated)
+
+@api.post('/cash-denominations/exchange')
+async def exchange_cash_denomination(body: CashExchangeCreate):
+    in_total = sum(int(k) * int(v) for k, v in (body.in_breakdown or {}).items() if int(v or 0) > 0)
+    out_total = sum(int(k) * int(v) for k, v in (body.out_breakdown or {}).items() if int(v or 0) > 0)
+    if in_total <= 0:
+        raise HTTPException(status_code=400, detail='Nominal uang yang ditukar harus lebih dari 0')
+    if in_total != out_total:
+        raise HTTPException(status_code=400, detail='Total pecahan yang diambil dari laci harus sama dengan uang yang ditukar')
+
+    # Update breakdown pecahan di cash_denominations terbaru (jika ada) tanpa mereset timestamp modal
+    latest = await db.cash_denominations.find_one({}, sort=[('created_at', -1)])
+    if latest and isinstance(latest.get('breakdown'), dict):
+        bd = dict(latest['breakdown'])
+        for denom, cnt in (body.in_breakdown or {}).items():
+            c = int(cnt or 0)
+            if c > 0:
+                bd[str(denom)] = int(bd.get(str(denom), 0) or 0) + c
+        for denom, cnt in (body.out_breakdown or {}).items():
+            c = int(cnt or 0)
+            if c > 0:
+                bd[str(denom)] = max(0, int(bd.get(str(denom), 0) or 0) - c)
+        new_total = sum(int(k) * int(v) for k, v in bd.items())
+        await db.cash_denominations.update_one(
+            {'id': latest['id']},
+            {'$set': {'breakdown': bd, 'total': new_total}}
+        )
+
+    def _fmt_bd(bmap: Dict[str, int]) -> str:
+        parts = []
+        for k in sorted(bmap.keys(), key=lambda x: int(x), reverse=True):
+            cnt = int(bmap.get(k) or 0)
+            if cnt > 0:
+                val_str = f'{int(k):,}'.replace(',', '.')
+                unit_lbl = 'koin' if int(k) < 1000 else 'lbr'
+                parts.append(f'{cnt} {unit_lbl} Rp {val_str}')
+        return ', '.join(parts)
+
+    in_summary = _fmt_bd(body.in_breakdown or {})
+    out_summary = _fmt_bd(body.out_breakdown or {})
+    total_str = f'{in_total:,}'.replace(',', '.')
+    note_detail = f'Masuk: {in_summary} → Diambil dari laci: {out_summary}'
+    if body.notes:
+        note_detail = f'{note_detail} ({body.notes})'
+
+    cf_doc = {
+        'id': new_id(),
+        'type': 'exchange',
+        'date': now_str()[:10],
+        'amount': float(in_total),
+        'description': f'Tukar Uang Rp {total_str}',
+        'notes': note_detail,
+        'payment_method': 'cash',
+        'handled_by': body.handled_by or '',
+        'employee_id': body.employee_id or '',
+        'in_breakdown': body.in_breakdown,
+        'out_breakdown': body.out_breakdown,
+        'created_at': now_str(),
+    }
+    await db.cashflow.insert_one(cf_doc)
+    return clean(cf_doc)
 
 # ── Kasbon ───────────────────────────────────────────────────────────────────
 @api.get('/kasbon')
