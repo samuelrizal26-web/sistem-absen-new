@@ -41,7 +41,7 @@ const num = (v) => {
   return Number.isFinite(n) ? n : 0
 }
 
-// Harga modal turunan untuk item ADVERTISING. Mengembalikan array {label, value} untuk ditampilkan.
+// Harga modal turunan untuk item ADVERTISING (dalam Rupiah bulat, tanpa desimal).
 export function advDerivedInfo(s) {
   const price = num(s.price)
   const out = []
@@ -49,7 +49,7 @@ export function advDerivedInfo(s) {
     case 'ACRYLIC':
     case 'SHEET': {
       const area = num(s.sheet_length || 122) * num(s.sheet_width || 244)
-      if (area > 0 && price > 0) out.push({ label: 'Modal / cm²', value: `Rp ${(price / area).toFixed(2)}` })
+      if (area > 0 && price > 0) out.push({ label: 'Modal / cm²', value: `Rp ${Math.round(price / area).toLocaleString('id-ID')}` })
       break
     }
     case 'BAR': {
@@ -59,7 +59,7 @@ export function advDerivedInfo(s) {
     }
     case 'STICKER': {
       const area = num(s.roll_width_cm) * num(s.roll_length_m) * 100
-      if (area > 0 && price > 0) out.push({ label: 'Modal / cm²', value: `Rp ${(price / area).toFixed(3)}` })
+      if (area > 0 && price > 0) out.push({ label: 'Modal / cm²', value: `Rp ${Math.round(price / area).toLocaleString('id-ID')}` })
       break
     }
     case 'LAMP': {

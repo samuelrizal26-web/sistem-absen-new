@@ -27,14 +27,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
   // ── Simulator State: Akrilik (Dua Arah) ──
   const [acSim, setAcSim] = useState({
-    acrylicId: '', length: '60', width: '40', qty: '1', customRate: '',
+    acrylicId: '', length: '60', width: '40', qty: '1', customRate: '', customTotalRaw: '',
   })
 
   // ── Simulator State: Neonbox (Dua Arah) ──
   const [nbSim, setNbSim] = useState({
     length: '60', width: '150', sides: 2, frameThick: '13',
     poleId: 'tiang_25in', lampStockId: '', lampQty: '42',
-    extraCost: '0', customRate: '', customTotal: '',
+    extraCost: '0', customRate: '', customTotalRaw: '',
   })
 
   // ── Simulator State: Huruf Timbul (Dua Arah + eCut) ──
@@ -43,7 +43,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
     logoCount: '0', logoHeightCm: '20', totalWidthCm: '',
     lampStockId: '', lampQtyManual: '35',
     hasBackdrop: false, backdropLength: '', backdropWidth: '',
-    rangkaMeter: '0', extraCost: '0', customRate: '', customTotal: '',
+    rangkaMeter: '0', extraCost: '0', customRate: '', customTotalRaw: '',
   })
 
   // ── Simulator State: Rambu (Dua Arah) ──
@@ -51,14 +51,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
     boardId: 'ACP', stickerId: 'reflective_asahi', colorCount: '2',
     length: '60', width: '40', qty: '1', sides: 1,
     rangkaMeter: '0', tiangMeter: '0', penIklanQty: '0',
-    extraCost: '0', customRate: '', customTotal: '',
+    extraCost: '0', customRate: '', customTotalRaw: '',
   })
 
   // ── Simulator State: Neonflex (Dua Arah) ──
   const [nfSim, setNfSim] = useState({
     meterLength: '4.5', acrylicLength: '80', acrylicWidth: '40',
     cutShape: 'kotak', lampStockId: '', penIklanQty: '4',
-    extraCost: '0', customRate: '', customTotal: '',
+    extraCost: '0', customRate: '', customTotalRaw: '',
   })
 
   useEffect(() => {
@@ -87,26 +87,31 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
   const acRes = useMemo(() => calcAcrylic({
     ...acSim,
     overrideRate: acSim.customRate,
+    overrideTotal: acSim.customTotalRaw !== '' ? parseRupiahInput(acSim.customTotalRaw) : '',
   }, config, stocks, acrylics), [acSim, config, stocks, acrylics])
 
   const nbRes = useMemo(() => calcNeonbox({
     ...nbSim,
     overrideRate: nbSim.customRate,
+    overrideTotal: nbSim.customTotalRaw !== '' ? parseRupiahInput(nbSim.customTotalRaw) : '',
   }, config, stocks, acrylics), [nbSim, config, stocks, acrylics])
 
   const htRes = useMemo(() => calcHurufTimbul({
     ...htSim,
     overrideRate: htSim.customRate,
+    overrideTotal: htSim.customTotalRaw !== '' ? parseRupiahInput(htSim.customTotalRaw) : '',
   }, config, stocks, acrylics), [htSim, config, stocks, acrylics])
 
   const rbRes = useMemo(() => calcRambu({
     ...rbSim,
     overrideRate: rbSim.customRate,
+    overrideTotal: rbSim.customTotalRaw !== '' ? parseRupiahInput(rbSim.customTotalRaw) : '',
   }, config, stocks, acrylics), [rbSim, config, stocks, acrylics])
 
   const nfRes = useMemo(() => calcNeonflex({
     ...nfSim,
     overrideRate: nfSim.customRate,
+    overrideTotal: nfSim.customTotalRaw !== '' ? parseRupiahInput(nfSim.customTotalRaw) : '',
   }, config, stocks, acrylics), [nfSim, config, stocks, acrylics])
 
   const inp = 'w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white'
@@ -116,9 +121,11 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
     rateLabel,
     activeRate,
     defaultRate,
+    customRate,
     onRateChange,
     totalSell,
-    onTotalSellChange,
+    customTotalRaw,
+    onTotalRawChange,
     totalHpp,
     negoPct,
     hppRows = [],
@@ -135,6 +142,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
       : marginPct >= 20
       ? 'bg-amber-100 text-amber-800 border-amber-300'
       : 'bg-red-100 text-red-700 border-red-300'
+
+    const rateDisplayValue = customRate !== '' && customRate !== undefined
+      ? customRate
+      : String(Math.round(activeRate || 0))
+
+    const totalDisplayValue = customTotalRaw !== '' && customTotalRaw !== undefined
+      ? customTotalRaw
+      : formatRupiahInput(String(Math.round(totalSell || 0)))
 
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-white border-2 border-purple-200 rounded-2xl p-4 space-y-3">
@@ -160,10 +175,10 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold">Rp</span>
               <input
-                type="number"
-                step="any"
-                value={activeRate}
-                onChange={e => onRateChange(e.target.value)}
+                type="text"
+                inputMode="numeric"
+                value={rateDisplayValue}
+                onChange={e => onRateChange(e.target.value.replace(/[^\d]/g, ''))}
                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-purple-300 text-base font-black text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
@@ -181,8 +196,8 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               <input
                 type="text"
                 inputMode="numeric"
-                value={formatRupiahInput(String(Math.round(totalSell || 0)))}
-                onChange={e => onTotalSellChange(parseRupiahInput(e.target.value))}
+                value={totalDisplayValue}
+                onChange={e => onTotalRawChange(formatRupiahInput(e.target.value))}
                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-emerald-300 text-base font-black text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
@@ -429,15 +444,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               rateLabel: `Tarif Jual per cm² (${acRes.tierLabel})`,
               activeRate: acRes.rateSqcm,
               defaultRate: acRes.defaultRateSqcm,
-              onRateChange: val => setAcSim(s => ({ ...s, customRate: val })),
+              customRate: acSim.customRate,
+              onRateChange: val => setAcSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
               totalSell: acRes.recommendedSellPrice,
-              onTotalSellChange: newTotal => {
-                const computedRate = acRes.totalAreaSqcm > 0 ? Math.round((newTotal / acRes.totalAreaSqcm) * 100) / 100 : 0
-                setAcSim(s => ({ ...s, customRate: String(computedRate) }))
-              },
+              customTotalRaw: acSim.customTotalRaw,
+              onTotalRawChange: rawVal => setAcSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
               totalHpp: acRes.totalHpp,
               negoPct: config.nego_discount_pct,
-              onResetOverride: () => setAcSim(s => ({ ...s, customRate: '' })),
+              onResetOverride: () => setAcSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
               hppRows: [
                 [`Bahan Akrilik (${acRes.item.name})`, `Modal Lembar: ${formatRupiah(acRes.item.buy_price)} (Rp ${acRes.buySqcm}/cm²)`],
                 [`Total Luas Potongan (${acRes.length}×${acRes.width}cm × ${acRes.qty} pcs)`, `${acRes.totalAreaSqcm.toLocaleString('id-ID')} cm²`],
@@ -645,16 +659,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               rateLabel: `Tarif Badan per cm² (${nbRes.tierLabel})`,
               activeRate: nbRes.rateSqcm,
               defaultRate: nbRes.defaultRateSqcm,
-              onRateChange: val => setNbSim(s => ({ ...s, customRate: val })),
+              customRate: nbSim.customRate,
+              onRateChange: val => setNbSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
               totalSell: nbRes.recommendedSellPrice,
-              onTotalSellChange: newTotal => {
-                const bodyTarget = Math.max(0, newTotal - nbRes.poleSellPrice - nbRes.extraCost)
-                const computedRate = nbRes.areaSqcm > 0 ? Math.round((bodyTarget / nbRes.areaSqcm) * 100) / 100 : 0
-                setNbSim(s => ({ ...s, customRate: String(computedRate) }))
-              },
+              customTotalRaw: nbSim.customTotalRaw,
+              onTotalRawChange: rawVal => setNbSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
               totalHpp: nbRes.totalHpp,
               negoPct: config.nego_discount_pct,
-              onResetOverride: () => setNbSim(s => ({ ...s, customRate: '' })),
+              onResetOverride: () => setNbSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
               hppRows: [
                 [`Akrilik (${nbRes.sides} Sisi + Samping ${nbRes.frameThick}cm)`, formatRupiah(nbRes.acrylicCost)],
                 [`Lampu LED (${nbRes.lampQty} pcs × ${formatRupiah(nbRes.lampUnitCost)})`, formatRupiah(nbRes.lampCost)],
@@ -783,16 +795,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               rateLabel: `Tarif per cm Tinggi (${htRes.tierLabel})`,
               activeRate: htRes.ratePerCm,
               defaultRate: htRes.defaultRatePerCm,
-              onRateChange: val => setHtSim(s => ({ ...s, customRate: val })),
+              customRate: htSim.customRate,
+              onRateChange: val => setHtSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
               totalSell: htRes.recommendedSellPrice,
-              onTotalSellChange: newTotal => {
-                const charsTarget = Math.max(0, newTotal - htRes.backdropSellPrice - htRes.rangkaSellPrice - htRes.extraCost)
-                const computedRate = htRes.totalEffectiveCm > 0 ? Math.round(charsTarget / htRes.totalEffectiveCm) : 0
-                setHtSim(s => ({ ...s, customRate: String(computedRate) }))
-              },
+              customTotalRaw: htSim.customTotalRaw,
+              onTotalRawChange: rawVal => setHtSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
               totalHpp: htRes.totalHpp,
               negoPct: config.nego_discount_pct,
-              onResetOverride: () => setHtSim(s => ({ ...s, customRate: '' })),
+              onResetOverride: () => setHtSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
               hppRows: [
                 [`Modal Plat/Akrilik (${htRes.estTotalWidth}×${htRes.effectiveHeight} cm)`, formatRupiah(htRes.plateCost)],
                 ...(htRes.variant.has_led ? [
@@ -943,18 +953,17 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               rateLabel: `Tarif Gabungan per cm² (${rbRes.tierLabel} · ${rbRes.colorLabel})`,
               activeRate: rbRes.rateSqcm,
               defaultRate: rbRes.defaultRateSqcm,
-              onRateChange: val => setRbSim(s => ({ ...s, customRate: val })),
+              customRate: rbSim.customRate,
+              onRateChange: val => setRbSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
               totalSell: rbRes.recommendedSellPrice,
-              onTotalSellChange: newTotal => {
-                const computedRate = rbRes.totalAreaSqcm > 0 ? Math.round((newTotal / rbRes.totalAreaSqcm) * 100) / 100 : 0
-                setRbSim(s => ({ ...s, customRate: String(computedRate) }))
-              },
+              customTotalRaw: rbSim.customTotalRaw,
+              onTotalRawChange: rawVal => setRbSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
               totalHpp: rbRes.totalHpp,
               negoPct: config.nego_discount_pct,
-              onResetOverride: () => setRbSim(s => ({ ...s, customRate: '' })),
+              onResetOverride: () => setRbSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
               hppRows: [
                 [`Modal Board (${rbRes.board.name})`, `Rp ${rbRes.boardBuySqcm}/cm² × ${rbRes.totalAreaSqcm} cm² = ${formatRupiah(Math.round(rbRes.totalAreaSqcm * rbRes.boardBuySqcm))}`],
-                [`Modal Stiker (${rbRes.sticker.name} · ${rbRes.colorLabel})`, `Rp ${rbRes.stickerBuySqcm.toFixed(2)}/cm² × ${rbRes.totalAreaSqcm} cm² = ${formatRupiah(Math.round(rbRes.totalAreaSqcm * rbRes.stickerBuySqcm))}`],
+                [`Modal Stiker (${rbRes.sticker.name} · ${rbRes.colorLabel})`, `Rp ${rbRes.stickerBuySqcm}/cm² × ${rbRes.totalAreaSqcm} cm² = ${formatRupiah(Math.round(rbRes.totalAreaSqcm * rbRes.stickerBuySqcm))}`],
               ],
             })}
           </div>
@@ -1040,16 +1049,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               rateLabel: `Tarif LED per Meter (${nfRes.tierLabel})`,
               activeRate: nfRes.ratePerMeter,
               defaultRate: nfRes.defaultRatePerMeter,
-              onRateChange: val => setNfSim(s => ({ ...s, customRate: val })),
+              customRate: nfSim.customRate,
+              onRateChange: val => setNfSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
               totalSell: nfRes.recommendedSellPrice,
-              onTotalSellChange: newTotal => {
-                const ledTarget = Math.max(0, newTotal - nfRes.acrylicSellPrice - nfRes.penSellPrice - nfRes.extraCost)
-                const computedRate = nfRes.meterLength > 0 ? Math.round(ledTarget / nfRes.meterLength) : 0
-                setNfSim(s => ({ ...s, customRate: String(computedRate) }))
-              },
+              customTotalRaw: nfSim.customTotalRaw,
+              onTotalRawChange: rawVal => setNfSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
               totalHpp: nfRes.totalHpp,
               negoPct: config.nego_discount_pct,
-              onResetOverride: () => setNfSim(s => ({ ...s, customRate: '' })),
+              onResetOverride: () => setNfSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
               hppRows: [
                 [`Modal Lampu Neonflex (${nfRes.meterLength} m)`, formatRupiah(nfRes.ledBuyCost)],
                 [`Modal Akrilik Backing (${nfRes.acrylicLength}×${nfRes.acrylicWidth} cm)`, formatRupiah(nfRes.acrylicBuyCost)],

@@ -2507,12 +2507,21 @@ export default function AdminPage() {
                     </select>
                   </div>
                 )}
-                <input type="text" value={stockForm.name} onChange={setF('name')} placeholder="Nama Barang *" className={inp} />
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Nama Barang *</label>
+                  <input type="text" value={stockForm.name} onChange={setF('name')} placeholder="Nama Barang *" className={inp} />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="number" value={stockForm.quantity} onChange={setF('quantity')} placeholder="Jumlah *" className={inp} />
-                  <select value={stockForm.unit} onChange={setF('unit')} className={inp + ' bg-white'}>
-                    {STOCK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Jumlah Stok Gudang *</label>
+                    <input type="number" value={stockForm.quantity} onChange={setF('quantity')} placeholder="Jumlah *" className={inp} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Satuan</label>
+                    <select value={stockForm.unit} onChange={setF('unit')} className={inp + ' bg-white'}>
+                      {STOCK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">{isAdv ? 'Harga Beli (Modal) per satuan' : 'Harga per satuan'}</label>
@@ -2528,51 +2537,96 @@ export default function AdminPage() {
                   <div className="space-y-3 bg-purple-50/60 border border-purple-100 rounded-2xl p-3">
                     <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Spesifikasi {ADV_SUBS.find(a => a.key === sub)?.label}</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <input type="text" value={stockForm.brand} onChange={setF('brand')} placeholder="Merk" className={inp} />
-                      <input type="text" value={stockForm.color} onChange={setF('color')} placeholder="Warna" className={inp} />
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-1">Merk (Opsional)</label>
+                        <input type="text" value={stockForm.brand} onChange={setF('brand')} placeholder="Merk" className={inp} />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-1">Warna (Opsional)</label>
+                        <input type="text" value={stockForm.color} onChange={setF('color')} placeholder="Warna" className={inp} />
+                      </div>
                     </div>
 
                     {sub === 'LAMP' && (<>
                       <div className="grid grid-cols-2 gap-3">
-                        <input type="number" step="any" value={stockForm.watt} onChange={setF('watt')} placeholder="Daya (Watt)" className={inp} />
-                        <select value={stockForm.watt_basis} onChange={setF('watt_basis')} className={inp + ' bg-white'}>
-                          <option value="PER_UNIT">Watt per pcs</option>
-                          <option value="PER_METER">Watt per meter</option>
-                        </select>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Daya (Watt)</label>
+                          <input type="number" step="any" value={stockForm.watt} onChange={setF('watt')} placeholder="Mis: 1.5" className={inp} />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Satuan Watt</label>
+                          <select value={stockForm.watt_basis} onChange={setF('watt_basis')} className={inp + ' bg-white'}>
+                            <option value="PER_UNIT">Watt per pcs</option>
+                            <option value="PER_METER">Watt per meter</option>
+                          </select>
+                        </div>
                       </div>
-                      <input type="number" step="any" value={stockForm.spacing_cm} onChange={setF('spacing_cm')} placeholder="Jarak sebar rekomendasi (cm) — opsional" className={inp} />
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-1">Jarak Sebar Rekomendasi (cm)</label>
+                        <input type="number" step="any" value={stockForm.spacing_cm} onChange={setF('spacing_cm')} placeholder="Mis: 10 atau 12" className={inp} />
+                      </div>
                     </>)}
 
                     {sub === 'TRAFO' && (<>
                       <div className="grid grid-cols-2 gap-3">
-                        <input type="number" step="any" value={stockForm.watt_capacity} onChange={setF('watt_capacity')} placeholder="Kapasitas (Watt)" className={inp} />
-                        <input type="number" step="any" value={stockForm.ampere} onChange={setF('ampere')} placeholder="Ampere (A)" className={inp} />
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Kapasitas (Watt)</label>
+                          <input type="number" step="any" value={stockForm.watt_capacity} onChange={setF('watt_capacity')} placeholder="Mis: 100" className={inp} />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Arus (Ampere)</label>
+                          <input type="number" step="any" value={stockForm.ampere} onChange={setF('ampere')} placeholder="Mis: 8.5" className={inp} />
+                        </div>
                       </div>
-                      <select value={stockForm.trafo_type} onChange={setF('trafo_type')} className={inp + ' bg-white'}>
-                        <option value="RAINPROOF">Rainproof (outdoor)</option>
-                        <option value="INDOOR">Indoor</option>
-                      </select>
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-1">Tipe Trafo</label>
+                        <select value={stockForm.trafo_type} onChange={setF('trafo_type')} className={inp + ' bg-white'}>
+                          <option value="RAINPROOF">Rainproof (outdoor)</option>
+                          <option value="INDOOR">Indoor</option>
+                        </select>
+                      </div>
                     </>)}
 
                     {(sub === 'SHEET' || sub === 'ACRYLIC') && (<>
                       <div className="grid grid-cols-2 gap-3">
-                        <input type="number" step="any" value={stockForm.sheet_length} onChange={setF('sheet_length')} placeholder="Panjang (cm)" className={inp} />
-                        <input type="number" step="any" value={stockForm.sheet_width} onChange={setF('sheet_width')} placeholder="Lebar (cm)" className={inp} />
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Panjang Lembar (cm)</label>
+                          <input type="number" step="any" value={stockForm.sheet_length} onChange={setF('sheet_length')} placeholder="122" className={inp} />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Lebar Lembar (cm)</label>
+                          <input type="number" step="any" value={stockForm.sheet_width} onChange={setF('sheet_width')} placeholder="244" className={inp} />
+                        </div>
                       </div>
-                      <input type="number" step="any" value={stockForm.thickness_mm} onChange={setF('thickness_mm')} placeholder="Tebal (mm)" className={inp} />
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-1">Ketebalan (mm)</label>
+                        <input type="number" step="any" value={stockForm.thickness_mm} onChange={setF('thickness_mm')} placeholder="Mis: 3" className={inp} />
+                      </div>
                     </>)}
 
                     {sub === 'BAR' && (
                       <div className="grid grid-cols-2 gap-3">
-                        <input type="number" step="any" value={stockForm.bar_length_m} onChange={setF('bar_length_m')} placeholder="Panjang batang (m)" className={inp} />
-                        <input type="text" value={stockForm.diameter} onChange={setF('diameter')} placeholder='Ukuran (mis. 4x4 / 2")' className={inp} />
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Panjang per Batang (Meter)</label>
+                          <input type="number" step="any" value={stockForm.bar_length_m} onChange={setF('bar_length_m')} placeholder="6" className={inp} />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Ukuran / Dimensi</label>
+                          <input type="text" value={stockForm.diameter} onChange={setF('diameter')} placeholder='Mis: 3x3 cm / 2"' className={inp} />
+                        </div>
                       </div>
                     )}
 
                     {sub === 'STICKER' && (
                       <div className="grid grid-cols-2 gap-3">
-                        <input type="number" step="any" value={stockForm.roll_width_cm} onChange={setF('roll_width_cm')} placeholder="Lebar roll (cm)" className={inp} />
-                        <input type="number" step="any" value={stockForm.roll_length_m} onChange={setF('roll_length_m')} placeholder="Panjang roll (m)" className={inp} />
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Lebar Bahan (cm)</label>
+                          <input type="number" step="any" value={stockForm.roll_width_cm} onChange={setF('roll_width_cm')} placeholder="Mis: 60 atau 120" className={inp} />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-500 mb-1">Panjang Acuan Harga (Meter)</label>
+                          <input type="number" step="any" value={stockForm.roll_length_m} onChange={setF('roll_length_m')} placeholder="1 (untuk harga per 1m)" className={inp} />
+                        </div>
                       </div>
                     )}
 

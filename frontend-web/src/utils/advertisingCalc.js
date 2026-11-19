@@ -122,7 +122,7 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
     .filter(s => s.adv_sub_category === 'ACRYLIC')
     .map(s => {
       const area = Math.max(1, num(s.sheet_length, 122) * num(s.sheet_width, 244))
-      const buySqcm = Math.round(((num(s.price, 500000) / area) + Number.EPSILON) * 100) / 100
+      const buySqcm = Math.max(1, Math.round(num(s.price, 500000) / area))
       return {
         id: `acr_${s.id}`,
         stockId: s.id,
@@ -132,7 +132,7 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
         color: s.color || '',
         buy_price: num(s.price, 500000),
         buy_sqcm: buySqcm,
-        sell_sqcm: Math.round(buySqcm * 2 * 100) / 100,
+        sell_sqcm: Math.round(buySqcm * 2),
         sheet_length: num(s.sheet_length, 122),
         sheet_width: num(s.sheet_width, 244),
       }
@@ -142,9 +142,7 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
   const legacyAcrylics = stockAcrylics.length === 0
     ? (Array.isArray(acrylics) ? acrylics : []).map(a => {
         const area = Math.max(1, num(a.sheet_length, 122) * num(a.sheet_width, 244))
-        const buySqcm = num(a.cost_per_sqcm) > 0
-          ? num(a.cost_per_sqcm)
-          : Math.round(((num(a.buy_price, 500000) / area) + Number.EPSILON) * 100) / 100
+        const buySqcm = Math.max(1, Math.round(num(a.buy_price, 500000) / area))
         return {
           id: `acr_${a.id}`,
           acrylicId: a.id,
@@ -152,7 +150,7 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
           name: `${a.name} ${a.thickness || ''}${a.color && !a.name.toLowerCase().includes(a.color.toLowerCase()) ? ` (${a.color})` : ''}`.trim(),
           buy_price: num(a.buy_price, 500000),
           buy_sqcm: buySqcm,
-          sell_sqcm: Math.round(buySqcm * 2 * 100) / 100,
+          sell_sqcm: Math.round(buySqcm * 2),
           sheet_length: num(a.sheet_length, 122),
           sheet_width: num(a.sheet_width, 244),
         }
@@ -166,7 +164,7 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
     .filter(s => s.adv_sub_category === 'SHEET')
     .map(s => {
       const area = Math.max(1, num(s.sheet_length, 122) * num(s.sheet_width, 244))
-      const buySqcm = Math.round(((num(s.price, 600000) / area) + Number.EPSILON) * 100) / 100
+      const buySqcm = Math.max(1, Math.round(num(s.price, 600000) / area))
       return {
         id: `sheet_${s.id}`,
         stockId: s.id,
@@ -181,14 +179,14 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
 
   const boardOptions = [...sheetBoards, ...acrylicOptions]
 
-  // 2. Jenis Stiker (Dari Stok ADVERTISING -> STICKER)
+  // 2. Jenis Stiker (Dari Stok ADVERTISING -> STICKER) — Modal per cm² dalam Rupiah bulat
   const stickerOptions = advStocks
     .filter(s => s.adv_sub_category === 'STICKER')
     .map(s => {
       const w = num(s.roll_width_cm, 60)
       const lCm = num(s.roll_length_m, 1) * 100
       const area = Math.max(1, w * lCm)
-      const buySqcm = Math.round(((num(s.price, 40000) / area) + Number.EPSILON) * 100) / 100
+      const buySqcm = Math.max(1, Math.round(num(s.price, 40000) / area))
       const upper = String(s.name || '').toUpperCase()
       const isCutting = !upper.includes('PRINT') && !upper.includes('CETAK') && !upper.includes('BACKLITE')
       return {
@@ -298,19 +296,30 @@ export function calcAcrylic(input, rawConfig, stocks = [], acrylics = []) {
   const smallMult = num(acCfg.markup_small_mult, 2.8)
 
   let tierLabel = 'Tarif Normal'
-  let defaultRate = Math.round(buySqcm * normMult * 100) / 100
+  let defaultRate = Math.round(buySqcm * normMult)
   if (isSmallArea && !isBulk) {
     tierLabel = `Tarif Eceran Kecil (< ${minArea} cm²)`
-    defaultRate = Math.round(buySqcm * smallMult * 100) / 100
+    defaultRate = Math.round(buySqcm * smallMult)
   } else if (isSmallArea && isBulk) {
     tierLabel = `Tarif Partai (≥ ${minQtyBulk} pcs)`
   }
 
-  const activeRate = input.overrideRate !== undefined && input.overrideRate !== '' ? num(input.overrideRate) : defaultRate
-  const rawSell = totalAreaSqcm * activeRate
-  const minOrder = num(acCfg.min_order_price, 25000)
-  const baseSell = !input.overrideRate ? Math.max(minOrder, rawSell) : rawSell
-  const recommendedSellPrice = roundPrice(baseSell, 500)
+  const hasOverrideTotal = input.overrideTotal !== undefined && input.overrideTotal !== ''
+  const hasOverrideRate = input.overrideRate !== undefined && input.overrideRate !== ''
+
+  let activeRate = defaultRate
+  let recommendedSellPrice = 0
+  if (hasOverrideTotal) {
+    recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
+    activeRate = totalAreaSqcm > 0 ? Math.round(recommendedSellPrice / totalAreaSqcm) : 0
+  } else if (hasOverrideRate) {
+    activeRate = Math.max(0, Math.round(num(input.overrideRate)))
+    recommendedSellPrice = roundPrice(totalAreaSqcm * activeRate, 500)
+  } else {
+    const rawSell = totalAreaSqcm * activeRate
+    const minOrder = num(acCfg.min_order_price, 25000)
+    recommendedSellPrice = roundPrice(Math.max(minOrder, rawSell), 500)
+  }
   const pricePerPcs = Math.round(recommendedSellPrice / qty)
   const negoPct = num(cfg.nego_discount_pct, 15)
   const netFloorPrice = roundPrice(recommendedSellPrice * (1 - negoPct / 100), 500)
@@ -388,14 +397,9 @@ export function calcNeonbox(input, rawConfig, stocks = [], acrylics = []) {
     tierLabel = `Ukuran Sedang (${nb.small_max_area}–${nb.mid_max_area} cm²)`
   }
 
-  // Sesuaikan tarif jika bahan muka yang dipilih lebih tebal/mahal dari akrilik 3mm standar (Rp 16.8/cm²)
-  const matDiffSqcm = Math.max(0, (num(faceItem.buy_sqcm, 16.8) - 17) * sides * 1.8)
+  // Sesuaikan tarif jika bahan muka yang dipilih lebih tebal/mahal dari akrilik 3mm standar (Rp 17/cm²)
+  const matDiffSqcm = Math.max(0, (num(faceItem.buy_sqcm, 17) - 17) * sides * 1.8)
   const adjustedDefaultRate = Math.round(rateSqcm + matDiffSqcm)
-
-  const activeRate = input.overrideRate !== undefined && input.overrideRate !== '' ? num(input.overrideRate) : adjustedDefaultRate
-  const rawBodySell = areaSqcm * activeRate
-  const minOrderApplied = rawBodySell < num(nb.min_order_price, 350000) && !input.overrideRate
-  const bodySellPrice = minOrderApplied ? num(nb.min_order_price, 350000) : rawBodySell
 
   const poles = Array.isArray(nb.poles) ? nb.poles : DEFAULT_ADVERTISING_CONFIG.neonbox.poles
   const poleItem = poles.find(p => p.id === input.poleId) || poles[0]
@@ -405,9 +409,30 @@ export function calcNeonbox(input, rawConfig, stocks = [], acrylics = []) {
   const poleBuyPrice = input.customPoleBuy !== undefined && input.customPoleBuy !== ''
     ? num(input.customPoleBuy)
     : num(poleItem?.buy_price, 0)
-
   const extraCost = num(input.extraCost, 0)
-  const recommendedSellPrice = roundPrice(bodySellPrice + poleSellPrice + extraCost, cfg.rounding_step)
+
+  const hasOverrideTotal = input.overrideTotal !== undefined && input.overrideTotal !== ''
+  const hasOverrideRate = input.overrideRate !== undefined && input.overrideRate !== ''
+
+  let activeRate = adjustedDefaultRate
+  let bodySellPrice = 0
+  let recommendedSellPrice = 0
+  let minOrderApplied = false
+
+  if (hasOverrideTotal) {
+    recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
+    bodySellPrice = Math.max(0, recommendedSellPrice - poleSellPrice - extraCost)
+    activeRate = areaSqcm > 0 ? Math.round(bodySellPrice / areaSqcm) : 0
+  } else if (hasOverrideRate) {
+    activeRate = Math.max(0, Math.round(num(input.overrideRate)))
+    bodySellPrice = areaSqcm * activeRate
+    recommendedSellPrice = roundPrice(bodySellPrice + poleSellPrice + extraCost, cfg.rounding_step)
+  } else {
+    const rawBodySell = areaSqcm * activeRate
+    minOrderApplied = rawBodySell < num(nb.min_order_price, 350000)
+    bodySellPrice = minOrderApplied ? num(nb.min_order_price, 350000) : rawBodySell
+    recommendedSellPrice = roundPrice(bodySellPrice + poleSellPrice + extraCost, cfg.rounding_step)
+  }
   const negoPct = num(cfg.nego_discount_pct, 15)
   const netFloorPrice = roundPrice(recommendedSellPrice * (1 - negoPct / 100), cfg.rounding_step)
 
@@ -494,13 +519,10 @@ export function calcHurufTimbul(input, rawConfig, stocks = [], acrylics = []) {
   const effectiveHeight = Math.max(heightCm, minH)
   const isBigTier = effectiveHeight > num(ht.tier_threshold_cm, 30)
   const tierLabel = isBigTier ? `Tinggi Besar (> ${ht.tier_threshold_cm} cm)` : `Tinggi Standar (${minH}–${ht.tier_threshold_cm} cm)`
-  const defaultRate = isBigTier ? num(variant.rate_big) : num(variant.rate_std)
-  const activeRate = input.overrideRate !== undefined && input.overrideRate !== '' ? num(input.overrideRate) : defaultRate
-
-  const lettersSellPrice = letterCount * effectiveHeight * activeRate
+  const defaultRate = Math.round(isBigTier ? num(variant.rate_big) : num(variant.rate_std))
   const effLogoHeight = Math.max(logoHeightCm || effectiveHeight, minH)
   const logoMult = num(ht.logo_multiplier, 2.0)
-  const logosSellPrice = logoCount * effLogoHeight * (activeRate * logoMult)
+  const totalEffectiveCm = (letterCount * effectiveHeight) + (logoCount * effLogoHeight * logoMult)
 
   const hasBackdrop = Boolean(input.hasBackdrop)
   const backdropBoard = catalog.boardOptions.find(b => b.id === input.backdropBoardId) || catalog.boardOptions[0]
@@ -513,8 +535,31 @@ export function calcHurufTimbul(input, rawConfig, stocks = [], acrylics = []) {
   const rangkaSellPrice = Math.round(rangkaMeter * num(ht.rangka_dudukan_sell_m, 85000))
   const extraCost = num(input.extraCost, 0)
 
-  const baseCharsSell = Math.max(num(ht.min_order_price, 250000), lettersSellPrice + logosSellPrice)
-  const recommendedSellPrice = roundPrice(baseCharsSell + backdropSellPrice + rangkaSellPrice + extraCost, cfg.rounding_step)
+  const hasOverrideTotal = input.overrideTotal !== undefined && input.overrideTotal !== ''
+  const hasOverrideRate = input.overrideRate !== undefined && input.overrideRate !== ''
+
+  let activeRate = defaultRate
+  let lettersSellPrice = 0
+  let logosSellPrice = 0
+  let recommendedSellPrice = 0
+
+  if (hasOverrideTotal) {
+    recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
+    const charsTarget = Math.max(0, recommendedSellPrice - backdropSellPrice - rangkaSellPrice - extraCost)
+    activeRate = totalEffectiveCm > 0 ? Math.round(charsTarget / totalEffectiveCm) : 0
+    lettersSellPrice = letterCount * effectiveHeight * activeRate
+    logosSellPrice = logoCount * effLogoHeight * (activeRate * logoMult)
+  } else if (hasOverrideRate) {
+    activeRate = Math.max(0, Math.round(num(input.overrideRate)))
+    lettersSellPrice = letterCount * effectiveHeight * activeRate
+    logosSellPrice = logoCount * effLogoHeight * (activeRate * logoMult)
+    recommendedSellPrice = roundPrice(lettersSellPrice + logosSellPrice + backdropSellPrice + rangkaSellPrice + extraCost, cfg.rounding_step)
+  } else {
+    lettersSellPrice = letterCount * effectiveHeight * activeRate
+    logosSellPrice = logoCount * effLogoHeight * (activeRate * logoMult)
+    const baseCharsSell = Math.max(num(ht.min_order_price, 250000), lettersSellPrice + logosSellPrice)
+    recommendedSellPrice = roundPrice(baseCharsSell + backdropSellPrice + rangkaSellPrice + extraCost, cfg.rounding_step)
+  }
   const negoPct = num(cfg.nego_discount_pct, 15)
   const netFloorPrice = roundPrice(recommendedSellPrice * (1 - negoPct / 100), cfg.rounding_step)
 
@@ -542,7 +587,6 @@ export function calcHurufTimbul(input, rawConfig, stocks = [], acrylics = []) {
   const rangkaBuyCost = Math.round(rangkaMeter * num(ht.rangka_dudukan_buy_m, 45000))
   const totalHpp = plateCost + lampCost + trafoCost + backdropBuyCost + rangkaBuyCost + extraCost
 
-  const totalEffectiveCm = (letterCount * effectiveHeight) + (logoCount * effLogoHeight * logoMult)
   const materials = [
     { name: `Bahan ${plateItem ? plateItem.name : variant.name} (${letterCount} huruf, T:${heightCm}cm)`, quantity: 1, unit: 'set', price: plateCost, is_custom: true },
   ]
@@ -620,12 +664,12 @@ export function calcRambu(input, rawConfig, stocks = [], acrylics = []) {
     tierLabel = 'Eceran / Kecil'
   }
 
-  // Hitung Modal per cm² dari bahan yang dipilih di stok
-  const boardBuySqcm = num(board.buy_sqcm, 20.15)
-  const stickerBuySqcm = num(sticker.buy_sqcm, 6.67) * colorCount
-  const unitBuySqcm = Math.round((boardBuySqcm + stickerBuySqcm) * 100) / 100
+  // Hitung Modal per cm² dari bahan yang dipilih di stok (Rupiah bulat)
+  const boardBuySqcm = Math.round(num(board.buy_sqcm, 20))
+  const stickerBuySqcm = Math.round(num(sticker.buy_sqcm, 7) * colorCount)
+  const unitBuySqcm = boardBuySqcm + stickerBuySqcm
 
-  // Baseline referensi: ACP 3mm (Rp 20.15/cm²) + Asahi 2 warna (Rp 13.34/cm²) = Rp 33.5/cm² -> Jual Normal Rp 120/cm²
+  // Baseline referensi: ACP 3mm (Rp 20/cm²) + Asahi 2 warna (Rp 14/cm²) = Rp 34/cm² -> Jual Normal Rp 120/cm²
   const baseRateRef = tierKey === 'bulk'
     ? num(rb.rate_bulk_base, 100)
     : tierKey === 'ecer'
@@ -638,18 +682,13 @@ export function calcRambu(input, rawConfig, stocks = [], acrylics = []) {
     ? num(rb.extra_color_ecer, 30)
     : num(rb.extra_color_mid, 25)
 
-  // Penyesuaian otomatis tarif per cm² berdasarkan selisih harga modal Board & Stiker yang dipilih + jumlah warna
-  const baseline2ColorBuy = 20.15 + 6.67
-  const selected1ColorBuy = boardBuySqcm + num(sticker.buy_sqcm, 6.67)
+  const baseline2ColorBuy = 20 + 7
+  const selected1ColorBuy = boardBuySqcm + Math.round(num(sticker.buy_sqcm, 7))
   const matDelta = (selected1ColorBuy - baseline2ColorBuy) * 2.5
   const colorDelta = isCutting ? (colorCount - 2) * extraColorRate : -extraColorRate
 
   const defaultRate = Math.max(40, Math.round(baseRateRef + matDelta + colorDelta))
-  const activeRate = input.overrideRate !== undefined && input.overrideRate !== '' ? num(input.overrideRate) : defaultRate
-
   const sideMult = sides === 2 ? 1.75 : 1.0
-  const rawBoardSell = effectiveArea * activeRate * sideMult * qty
-  const boardSellPrice = Math.max(num(rb.min_order_price, 100000), rawBoardSell)
 
   const rangkaMeter = num(input.rangkaMeter, 0)
   const tiangMeter = num(input.tiangMeter, 0)
@@ -659,8 +698,29 @@ export function calcRambu(input, rawConfig, stocks = [], acrylics = []) {
   const rangkaSell = Math.round(rangkaMeter * num(rb.rangka_hollow_sell_m, 60000))
   const tiangSell = Math.round(tiangMeter * num(rb.tiang_pipa_sell_m, 150000))
   const penSell = Math.round(penIklanQty * num(rb.pen_iklan_sell_pcs, 15000))
+  const addonsSell = rangkaSell + tiangSell + penSell + extraCost
 
-  const recommendedSellPrice = roundPrice(boardSellPrice + rangkaSell + tiangSell + penSell + extraCost, cfg.rounding_step)
+  const hasOverrideTotal = input.overrideTotal !== undefined && input.overrideTotal !== ''
+  const hasOverrideRate = input.overrideRate !== undefined && input.overrideRate !== ''
+
+  let activeRate = defaultRate
+  let boardSellPrice = 0
+  let recommendedSellPrice = 0
+
+  if (hasOverrideTotal) {
+    recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
+    boardSellPrice = Math.max(0, recommendedSellPrice - addonsSell)
+    const denom = effectiveArea * sideMult * qty
+    activeRate = denom > 0 ? Math.round(boardSellPrice / denom) : 0
+  } else if (hasOverrideRate) {
+    activeRate = Math.max(0, Math.round(num(input.overrideRate)))
+    boardSellPrice = Math.round(effectiveArea * activeRate * sideMult * qty)
+    recommendedSellPrice = roundPrice(boardSellPrice + addonsSell, cfg.rounding_step)
+  } else {
+    const rawBoardSell = effectiveArea * activeRate * sideMult * qty
+    boardSellPrice = Math.max(num(rb.min_order_price, 100000), rawBoardSell)
+    recommendedSellPrice = roundPrice(boardSellPrice + addonsSell, cfg.rounding_step)
+  }
   const negoPct = num(cfg.nego_discount_pct, 15)
   const netFloorPrice = roundPrice(recommendedSellPrice * (1 - negoPct / 100), cfg.rounding_step)
 
@@ -731,9 +791,6 @@ export function calcNeonflex(input, rawConfig, stocks = [], acrylics = []) {
     defaultRateMeter = num(nf.rate_meter_mid, 195000)
   }
 
-  const activeRateMeter = input.overrideRate !== undefined && input.overrideRate !== '' ? num(input.overrideRate) : defaultRateMeter
-  const ledSellPrice = Math.round(meterLength * activeRateMeter)
-
   const acrylicArea = Math.max(0, Math.round(acrylicLength * acrylicWidth))
   const isContour = input.cutShape === 'contour'
   const cutMult = isContour ? (1 + num(nf.contour_cut_pct, 15) / 100) : 1.0
@@ -743,9 +800,28 @@ export function calcNeonflex(input, rawConfig, stocks = [], acrylics = []) {
   const penIklanQty = Math.max(0, parseInt(input.penIklanQty, 10) || 0)
   const penSellPrice = Math.round(penIklanQty * num(nf.pen_iklan_sell_pcs, 15000))
   const extraCost = num(input.extraCost, 0)
+  const addonsSell = acrylicSellPrice + penSellPrice + extraCost
 
-  const baseSell = Math.max(num(nf.min_order_price, 250000), ledSellPrice + acrylicSellPrice)
-  const recommendedSellPrice = roundPrice(baseSell + penSellPrice + extraCost, cfg.rounding_step)
+  const hasOverrideTotal = input.overrideTotal !== undefined && input.overrideTotal !== ''
+  const hasOverrideRate = input.overrideRate !== undefined && input.overrideRate !== ''
+
+  let activeRateMeter = Math.round(defaultRateMeter)
+  let ledSellPrice = 0
+  let recommendedSellPrice = 0
+
+  if (hasOverrideTotal) {
+    recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
+    ledSellPrice = Math.max(0, recommendedSellPrice - addonsSell)
+    activeRateMeter = meterLength > 0 ? Math.round(ledSellPrice / meterLength) : 0
+  } else if (hasOverrideRate) {
+    activeRateMeter = Math.max(0, Math.round(num(input.overrideRate)))
+    ledSellPrice = Math.round(meterLength * activeRateMeter)
+    recommendedSellPrice = roundPrice(ledSellPrice + addonsSell, cfg.rounding_step)
+  } else {
+    ledSellPrice = Math.round(meterLength * activeRateMeter)
+    const baseSell = Math.max(num(nf.min_order_price, 250000), ledSellPrice + acrylicSellPrice)
+    recommendedSellPrice = roundPrice(baseSell + penSellPrice + extraCost, cfg.rounding_step)
+  }
   const negoPct = num(cfg.nego_discount_pct, 15)
   const netFloorPrice = roundPrice(recommendedSellPrice * (1 - negoPct / 100), cfg.rounding_step)
 
