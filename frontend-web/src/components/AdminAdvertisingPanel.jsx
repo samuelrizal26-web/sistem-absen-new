@@ -32,23 +32,24 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
   // ── Simulator State: Neonbox (Dua Arah) ──
   const [nbSim, setNbSim] = useState({
+    faceBoardId: '', stickerId: '', lampStockId: '',
     length: '60', width: '150', sides: 2, frameThick: '13',
-    poleId: 'tiang_25in', lampStockId: '', lampQty: '42',
+    poleId: 'tiang_25in', lampQty: '42',
     extraCost: '0', customRate: '', customTotalRaw: '',
   })
 
   // ── Simulator State: Huruf Timbul (Dua Arah + eCut) ──
   const [htSim, setHtSim] = useState({
     text: 'LABALABA', heightCm: '20', variantId: 'stenlis_led',
+    plateBoardId: '', lampStockId: '', lampQtyManual: '35',
     logoCount: '0', logoHeightCm: '20', totalWidthCm: '',
-    lampStockId: '', lampQtyManual: '35',
-    hasBackdrop: false, backdropLength: '', backdropWidth: '',
+    hasBackdrop: false, backdropBoardId: '', backdropLength: '', backdropWidth: '',
     rangkaMeter: '0', extraCost: '0', customRate: '', customTotalRaw: '',
   })
 
   // ── Simulator State: Rambu (Dua Arah) ──
   const [rbSim, setRbSim] = useState({
-    boardId: 'ACP', stickerId: 'reflective_asahi', colorCount: '2',
+    boardId: '', stickerId: '', colorCount: '2',
     length: '60', width: '40', qty: '1', sides: 1,
     rangkaMeter: '0', tiangMeter: '0', penIklanQty: '0',
     extraCost: '0', customRate: '', customTotalRaw: '',
@@ -56,8 +57,9 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
   // ── Simulator State: Neonflex (Dua Arah) ──
   const [nfSim, setNfSim] = useState({
+    lampStockId: '', backingBoardId: '',
     meterLength: '4.5', acrylicLength: '80', acrylicWidth: '40',
-    cutShape: 'kotak', lampStockId: '', penIklanQty: '4',
+    cutShape: 'kotak', penIklanQty: '4',
     extraCost: '0', customRate: '', customTotalRaw: '',
   })
 
@@ -66,6 +68,48 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
       .then(res => { if (res) setConfig(mergeAdvConfig(res)) })
       .catch(() => {})
   }, [])
+
+  const catalog = useMemo(() => buildMaterialCatalog(stocks, acrylics), [stocks, acrylics])
+  const lampStocks = catalog.lampOptions
+
+  // Set default material IDs pada simulator saat katalog dari Stok Admin termuat
+  useEffect(() => {
+    if (catalog.acrylicOptions.length > 0) {
+      const acr3Susu = catalog.acrylicOptions.find(a => a.name.toLowerCase().includes('susu') && a.name.toLowerCase().includes('3mm'))
+      const acr3Bening = catalog.acrylicOptions.find(a => a.name.toLowerCase().includes('3mm')) || catalog.acrylicOptions[0]
+      setAcSim(s => ({ ...s, acrylicId: s.acrylicId || acr3Bening.id }))
+      setNbSim(s => ({ ...s, faceBoardId: s.faceBoardId || (acr3Susu || acr3Bening).id }))
+      setNfSim(s => ({ ...s, backingBoardId: s.backingBoardId || acr3Bening.id }))
+    }
+    if (catalog.boardOptions.length > 0) {
+      const firstAcp = catalog.boardOptions.find(b => b.name.toUpperCase().includes('ACP')) || catalog.boardOptions[0]
+      setRbSim(s => ({ ...s, boardId: s.boardId || firstAcp.id }))
+    }
+    if (catalog.stickerOptions.length > 0) {
+      const firstRef = catalog.stickerOptions.find(st => st.name.toUpperCase().includes('REFLECTIVE')) || catalog.stickerOptions[0]
+      const firstBacklite = catalog.stickerOptions.find(st => st.name.toUpperCase().includes('BACKLITE')) || catalog.stickerOptions[0]
+      setRbSim(s => ({ ...s, stickerId: s.stickerId || firstRef.id }))
+      setNbSim(s => ({ ...s, stickerId: s.stickerId || firstBacklite.id }))
+    }
+    if (catalog.lampOptions.length > 0) {
+      const firstSide = catalog.lampOptions.find(l => l.name.toUpperCase().includes('SIDELIGHT')) || catalog.lampOptions[0]
+      const firstMod = catalog.lampOptions.find(l => l.name.toUpperCase().includes('MODUL')) || catalog.lampOptions[0]
+      const firstNf = catalog.lampOptions.find(l => l.name.toUpperCase().includes('NEONFLEX')) || catalog.lampOptions[0]
+      setNbSim(s => ({ ...s, lampStockId: s.lampStockId || firstSide.id }))
+      setHtSim(s => ({ ...s, lampStockId: s.lampStockId || firstMod.id }))
+      setNfSim(s => ({ ...s, lampStockId: s.lampStockId || firstNf.id }))
+    }
+  }, [catalog])
+
+  // Helper ubah config sekaligus reset override manual di simulator agar hasil langsung update
+  const updateCfg = (updater) => {
+    setConfig(updater)
+    setAcSim(s => ({ ...s, customRate: '', customTotalRaw: '' }))
+    setNbSim(s => ({ ...s, customRate: '', customTotalRaw: '' }))
+    setHtSim(s => ({ ...s, customRate: '', customTotalRaw: '' }))
+    setRbSim(s => ({ ...s, customRate: '', customTotalRaw: '' }))
+    setNfSim(s => ({ ...s, customRate: '', customTotalRaw: '' }))
+  }
 
   const handleSaveConfig = async () => {
     setSaving(true)
@@ -79,9 +123,6 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
       setSaving(false)
     }
   }
-
-  const catalog = useMemo(() => buildMaterialCatalog(stocks, acrylics), [stocks, acrylics])
-  const lampStocks = catalog.lampOptions
 
   // ── Hasil Simulasi Live ──
   const acRes = useMemo(() => calcAcrylic({
@@ -118,6 +159,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
   // Komponen Kartu Analisis Profit & Dua Arah (Khusus Owner)
   const renderBidirectionalCompare = ({
+    result,
     rateLabel,
     activeRate,
     defaultRate,
@@ -131,6 +173,14 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
     hppRows = [],
     onResetOverride,
   }) => {
+    if (!result) {
+      return (
+        <div className="bg-purple-50/50 border-2 border-dashed border-purple-200 rounded-2xl p-8 text-center text-xs text-purple-700 font-semibold min-h-[220px] flex items-center justify-center">
+          ✏️ Masukkan angka ukuran (Panjang / Lebar / Tinggi) di atas untuk melihat kalkulasi simulasi 2 arah & bedah HPP.
+        </div>
+      )
+    }
+
     const profit = totalSell - totalHpp
     const marginPct = totalSell > 0 ? Math.round((profit / totalSell) * 1000) / 10 : 0
     const netPrice = Math.ceil((totalSell * (1 - (negoPct || 15) / 100)) / 1000) * 1000
@@ -153,18 +203,24 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
     return (
       <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-white border-2 border-purple-200 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <p className="text-xs font-extrabold text-purple-900 uppercase tracking-wide">
             🎛️ Kalkulasi 2 Arah (Isi Salah Satu, Otomatis Sinkron)
           </p>
           <button
             type="button"
             onClick={onResetOverride}
-            className="text-[11px] text-purple-600 hover:underline font-semibold"
+            className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 font-bold transition-colors"
           >
-            Reset ke Tarif Default ({formatRupiah(defaultRate)})
+            ↺ Reset ke Tarif Default ({formatRupiah(defaultRate)})
           </button>
         </div>
+
+        {result.minOrderApplied && (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs text-amber-900 font-semibold">
+            ⚠️ Ukuran ini di bawah Batas Minimal Order (<b>{formatRupiah(result.minOrderPrice)}</b>). Hitungan murni ukuran sebelum batas minimal adalah <b>{formatRupiah(result.rawCalculatedSell)}</b>.
+          </div>
+        )}
 
         {/* Input 2 Arah: Tarif Satuan <-> Total Harga Jual */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -213,9 +269,9 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             🔍 Bedah Modal Bahan Real (HPP BOM):
           </p>
           {hppRows.map(([k, v], i) => (
-            <div key={i} className="flex justify-between text-gray-600">
+            <div key={i} className="flex justify-between text-gray-600 gap-2">
               <span>• {k}</span>
-              <span className="font-semibold text-gray-800">{v}</span>
+              <span className="font-semibold text-gray-800 text-right">{v}</span>
             </div>
           ))}
           <div className="flex justify-between pt-1.5 border-t border-gray-200 font-bold text-gray-900 text-sm">
@@ -285,7 +341,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             min="0"
             max="50"
             value={config.nego_discount_pct}
-            onChange={e => setConfig(c => ({ ...c, nego_discount_pct: parseFloat(e.target.value) || 0 }))}
+            onChange={e => updateCfg(c => ({ ...c, nego_discount_pct: parseFloat(e.target.value) || 0 }))}
             className="w-16 px-2 py-1 rounded-lg border border-gray-300 text-center font-bold"
           />
           <span className="font-bold text-gray-700">%</span>
@@ -314,7 +370,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <input
                   type="number"
                   value={config.acrylic?.min_order_price ?? 25000}
-                  onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_order_price: parseFloat(e.target.value) || 0 } }))}
+                  onChange={e => updateCfg(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_order_price: parseFloat(e.target.value) || 0 } }))}
                   className={inp}
                 />
               </div>
@@ -323,7 +379,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <input
                   type="number"
                   value={config.acrylic?.min_area_sqcm ?? 400}
-                  onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_area_sqcm: parseFloat(e.target.value) || 400 } }))}
+                  onChange={e => updateCfg(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_area_sqcm: parseFloat(e.target.value) || 400 } }))}
                   className={inp}
                 />
               </div>
@@ -332,7 +388,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <input
                   type="number"
                   value={config.acrylic?.min_qty_bulk ?? 5}
-                  onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_qty_bulk: parseInt(e.target.value, 10) || 5 } }))}
+                  onChange={e => updateCfg(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_qty_bulk: parseInt(e.target.value, 10) || 5 } }))}
                   className={inp}
                 />
               </div>
@@ -347,7 +403,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                     type="number"
                     step="0.1"
                     value={config.acrylic?.markup_normal_mult ?? 2.0}
-                    onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), markup_normal_mult: parseFloat(e.target.value) || 2.0 } }))}
+                    onChange={e => updateCfg(c => ({ ...c, acrylic: { ...(c.acrylic || {}), markup_normal_mult: parseFloat(e.target.value) || 2.0 } }))}
                     className={inp}
                   />
                 </div>
@@ -357,7 +413,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                     type="number"
                     step="0.1"
                     value={config.acrylic?.markup_small_mult ?? 2.8}
-                    onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), markup_small_mult: parseFloat(e.target.value) || 2.8 } }))}
+                    onChange={e => updateCfg(c => ({ ...c, acrylic: { ...(c.acrylic || {}), markup_small_mult: parseFloat(e.target.value) || 2.8 } }))}
                     className={inp}
                   />
                 </div>
@@ -390,7 +446,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                     <div className="text-right">
                       <span className="font-bold text-cyan-700 block">Modal: Rp {a.buy_sqcm}/cm²</span>
                       <span className="text-[10px] text-emerald-700 font-semibold">
-                        Jual: Rp {Math.round(a.buy_sqcm * (config.acrylic?.markup_normal_mult ?? 2.0) * 10) / 10}/cm²
+                        Jual: Rp {Math.round(a.buy_sqcm * (config.acrylic?.markup_normal_mult ?? 2.0))}/cm²
                       </span>
                     </div>
                   </div>
@@ -417,7 +473,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Pilih Akrilik dari Stok</label>
                 <select
                   value={acSim.acrylicId}
-                  onChange={e => setAcSim(s => ({ ...s, acrylicId: e.target.value, customRate: '' }))}
+                  onChange={e => setAcSim(s => ({ ...s, acrylicId: e.target.value, customRate: '', customTotalRaw: '' }))}
                   className={inp}
                 >
                   {catalog.acrylicOptions.map(a => (
@@ -427,35 +483,36 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang (cm)</label>
-                <input type="number" value={acSim.length} onChange={e => setAcSim(s => ({ ...s, length: e.target.value }))} className={inp} />
+                <input type="number" value={acSim.length} onChange={e => setAcSim(s => ({ ...s, length: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Lebar (cm)</label>
-                <input type="number" value={acSim.width} onChange={e => setAcSim(s => ({ ...s, width: e.target.value }))} className={inp} />
+                <input type="number" value={acSim.width} onChange={e => setAcSim(s => ({ ...s, width: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
             </div>
 
             <div className="w-32">
               <label className="text-[11px] font-bold text-gray-600 block mb-1">Jumlah (Pcs)</label>
-              <input type="number" min="1" value={acSim.qty} onChange={e => setAcSim(s => ({ ...s, qty: e.target.value }))} className={inp} />
+              <input type="number" min="1" value={acSim.qty} onChange={e => setAcSim(s => ({ ...s, qty: e.target.value, customTotalRaw: '' }))} className={inp} />
             </div>
 
-            {acRes && renderBidirectionalCompare({
-              rateLabel: `Tarif Jual per cm² (${acRes.tierLabel})`,
-              activeRate: acRes.rateSqcm,
-              defaultRate: acRes.defaultRateSqcm,
+            {renderBidirectionalCompare({
+              result: acRes,
+              rateLabel: `Tarif Jual per cm² (${acRes?.tierLabel || ''})`,
+              activeRate: acRes?.rateSqcm,
+              defaultRate: acRes?.defaultRateSqcm,
               customRate: acSim.customRate,
               onRateChange: val => setAcSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
-              totalSell: acRes.recommendedSellPrice,
+              totalSell: acRes?.recommendedSellPrice,
               customTotalRaw: acSim.customTotalRaw,
               onTotalRawChange: rawVal => setAcSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
-              totalHpp: acRes.totalHpp,
+              totalHpp: acRes?.totalHpp,
               negoPct: config.nego_discount_pct,
               onResetOverride: () => setAcSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
-              hppRows: [
+              hppRows: acRes ? [
                 [`Bahan Akrilik (${acRes.item.name})`, `Modal Lembar: ${formatRupiah(acRes.item.buy_price)} (Rp ${acRes.buySqcm}/cm²)`],
-                [`Total Luas Potongan (${acRes.length}×${acRes.width}cm × ${acRes.qty} pcs)`, `${acRes.totalAreaSqcm.toLocaleString('id-ID')} cm²`],
-              ],
+                [`Total Luas Potongan (${acRes.length}×${acRes.width}cm × ${acRes.qty} pcs)`, `${acRes.totalAreaSqcm.toLocaleString('id-ID')} cm² × Rp ${acRes.buySqcm} = ${formatRupiah(acRes.totalHpp)}`],
+              ] : [],
             })}
           </div>
         </div>
@@ -476,7 +533,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <input
                   type="number"
                   value={config.neonbox.min_order_price}
-                  onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, min_order_price: parseFloat(e.target.value) || 0 } }))}
+                  onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, min_order_price: parseFloat(e.target.value) || 0 } }))}
                   className={inp}
                 />
               </div>
@@ -485,7 +542,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <input
                   type="number"
                   value={config.neonbox.small_max_area}
-                  onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, small_max_area: parseFloat(e.target.value) || 0 } }))}
+                  onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, small_max_area: parseFloat(e.target.value) || 0 } }))}
                   className={inp}
                 />
               </div>
@@ -494,7 +551,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                 <input
                   type="number"
                   value={config.neonbox.mid_max_area}
-                  onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, mid_max_area: parseFloat(e.target.value) || 0 } }))}
+                  onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, mid_max_area: parseFloat(e.target.value) || 0 } }))}
                   className={inp}
                 />
               </div>
@@ -508,18 +565,18 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               </div>
               <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="font-semibold text-gray-700">Kecil (≤{config.neonbox.small_max_area})</span>
-                <input type="number" value={config.neonbox.rate_small_1s} onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, rate_small_1s: parseFloat(e.target.value) || 0 } }))} className={inp} />
-                <input type="number" value={config.neonbox.rate_small_2s} onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, rate_small_2s: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonbox.rate_small_1s} onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, rate_small_1s: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonbox.rate_small_2s} onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, rate_small_2s: parseFloat(e.target.value) || 0 } }))} className={inp} />
               </div>
               <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="font-semibold text-gray-700">Sedang (≤{config.neonbox.mid_max_area})</span>
-                <input type="number" value={config.neonbox.rate_mid_1s} onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, rate_mid_1s: parseFloat(e.target.value) || 0 } }))} className={inp} />
-                <input type="number" value={config.neonbox.rate_mid_2s} onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, rate_mid_2s: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonbox.rate_mid_1s} onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, rate_mid_1s: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonbox.rate_mid_2s} onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, rate_mid_2s: parseFloat(e.target.value) || 0 } }))} className={inp} />
               </div>
               <div className="grid grid-cols-3 gap-2 items-center">
                 <span className="font-semibold text-gray-700">Besar (&gt;{config.neonbox.mid_max_area})</span>
-                <input type="number" value={config.neonbox.rate_big_1s} onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, rate_big_1s: parseFloat(e.target.value) || 0 } }))} className={inp} />
-                <input type="number" value={config.neonbox.rate_big_2s} onChange={e => setConfig(c => ({ ...c, neonbox: { ...c.neonbox, rate_big_2s: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonbox.rate_big_1s} onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, rate_big_1s: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonbox.rate_big_2s} onChange={e => updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, rate_big_2s: parseFloat(e.target.value) || 0 } }))} className={inp} />
               </div>
             </div>
 
@@ -531,7 +588,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                   type="button"
                   onClick={() => {
                     const newPole = { id: `pole_${Date.now()}`, name: 'Paket Tiang Baru', buy_price: 1000000, sell_price: 1300000, unit: 'paket' }
-                    setConfig(c => ({ ...c, neonbox: { ...c.neonbox, poles: [...(c.neonbox.poles || []), newPole] } }))
+                    updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, poles: [...(c.neonbox.poles || []), newPole] } }))
                   }}
                   className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-bold border border-purple-200"
                 >
@@ -548,7 +605,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                         onChange={e => {
                           const list = [...config.neonbox.poles]
                           list[idx] = { ...p, name: e.target.value }
-                          setConfig(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
+                          updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
                         }}
                         className={inp}
                       />
@@ -557,7 +614,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                           type="button"
                           onClick={() => {
                             const list = config.neonbox.poles.filter((_, i) => i !== idx)
-                            setConfig(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
+                            updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
                           }}
                           className="px-2 rounded-lg bg-red-50 text-red-500 text-xs font-bold"
                         >
@@ -574,7 +631,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                           onChange={e => {
                             const list = [...config.neonbox.poles]
                             list[idx] = { ...p, buy_price: parseFloat(e.target.value) || 0 }
-                            setConfig(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
+                            updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
                           }}
                           className={inp}
                         />
@@ -587,7 +644,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                           onChange={e => {
                             const list = [...config.neonbox.poles]
                             list[idx] = { ...p, sell_price: parseFloat(e.target.value) || 0 }
-                            setConfig(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
+                            updateCfg(c => ({ ...c, neonbox: { ...c.neonbox, poles: list } }))
                           }}
                           className={inp}
                         />
@@ -616,15 +673,15 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang (cm)</label>
-                <input type="number" value={nbSim.length} onChange={e => setNbSim(s => ({ ...s, length: e.target.value }))} className={inp} />
+                <input type="number" value={nbSim.length} onChange={e => setNbSim(s => ({ ...s, length: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Lebar (cm)</label>
-                <input type="number" value={nbSim.width} onChange={e => setNbSim(s => ({ ...s, width: e.target.value }))} className={inp} />
+                <input type="number" value={nbSim.width} onChange={e => setNbSim(s => ({ ...s, width: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Sisi Muka</label>
-                <select value={nbSim.sides} onChange={e => setNbSim(s => ({ ...s, sides: parseInt(e.target.value, 10) }))} className={inp}>
+                <select value={nbSim.sides} onChange={e => setNbSim(s => ({ ...s, sides: parseInt(e.target.value, 10), customRate: '', customTotalRaw: '' }))} className={inp}>
                   <option value={1}>1 Sisi</option>
                   <option value={2}>2 Sisi</option>
                 </select>
@@ -637,8 +694,28 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Pilih Bahan Muka (Dari Stok)</label>
+                <select value={nbSim.faceBoardId} onChange={e => setNbSim(s => ({ ...s, faceBoardId: e.target.value, customRate: '', customTotalRaw: '' }))} className={inp}>
+                  {catalog.boardOptions.map(b => (
+                    <option key={b.id} value={b.id}>{b.name} (Modal Rp {b.buy_sqcm}/cm²)</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Pilih Jenis Stiker Visual (Dari Stok)</label>
+                <select value={nbSim.stickerId} onChange={e => setNbSim(s => ({ ...s, stickerId: e.target.value }))} className={inp}>
+                  {catalog.stickerOptions.map(st => (
+                    <option key={st.id} value={st.id}>{st.name} (Modal Rp {st.buy_sqcm}/cm²)</option>
+                  ))}
+                  <option value="NONE">Tanpa Stiker (Polos)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Pilih Paket Tiang / Rangka Las</label>
-                <select value={nbSim.poleId} onChange={e => setNbSim(s => ({ ...s, poleId: e.target.value }))} className={inp}>
+                <select value={nbSim.poleId} onChange={e => setNbSim(s => ({ ...s, poleId: e.target.value, customTotalRaw: '' }))} className={inp}>
                   {(config.neonbox.poles || []).map(p => (
                     <option key={p.id} value={p.id}>{p.name} (Modal: {formatRupiah(p.buy_price)} / Jual: {formatRupiah(p.sell_price)})</option>
                   ))}
@@ -647,7 +724,6 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Pilih Lampu dari Stok Advertising</label>
                 <select value={nbSim.lampStockId} onChange={e => setNbSim(s => ({ ...s, lampStockId: e.target.value }))} className={inp}>
-                  <option value="">Default (Sidelight Rp 3.000 / 1.5W)</option>
                   {lampStocks.map(l => (
                     <option key={l.id} value={l.id}>{l.name} ({formatRupiah(l.price)} · {l.watt || 1.5}W)</option>
                   ))}
@@ -655,25 +731,26 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               </div>
             </div>
 
-            {nbRes && renderBidirectionalCompare({
-              rateLabel: `Tarif Badan per cm² (${nbRes.tierLabel})`,
-              activeRate: nbRes.rateSqcm,
-              defaultRate: nbRes.defaultRateSqcm,
+            {renderBidirectionalCompare({
+              result: nbRes,
+              rateLabel: `Tarif Badan per cm² (${nbRes?.tierLabel || ''})`,
+              activeRate: nbRes?.rateSqcm,
+              defaultRate: nbRes?.defaultRateSqcm,
               customRate: nbSim.customRate,
               onRateChange: val => setNbSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
-              totalSell: nbRes.recommendedSellPrice,
+              totalSell: nbRes?.recommendedSellPrice,
               customTotalRaw: nbSim.customTotalRaw,
               onTotalRawChange: rawVal => setNbSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
-              totalHpp: nbRes.totalHpp,
+              totalHpp: nbRes?.totalHpp,
               negoPct: config.nego_discount_pct,
               onResetOverride: () => setNbSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
-              hppRows: [
-                [`Akrilik (${nbRes.sides} Sisi + Samping ${nbRes.frameThick}cm)`, formatRupiah(nbRes.acrylicCost)],
+              hppRows: nbRes ? [
+                [`${nbRes.faceItem?.name} (${nbRes.sides} Sisi + Samping ${nbRes.frameThick}cm)`, formatRupiah(nbRes.acrylicCost)],
                 [`Lampu LED (${nbRes.lampQty} pcs × ${formatRupiah(nbRes.lampUnitCost)})`, formatRupiah(nbRes.lampCost)],
                 [`${nbRes.trafoName} (Beban ${nbRes.totalWatt}W)`, formatRupiah(nbRes.trafoCost)],
                 ['Visual Stiker / Print + Kabel & Lem', formatRupiah(nbRes.stickerCost + nbRes.miscCost)],
                 ...(nbRes.poleBuyPrice > 0 ? [[`Modal Las (${nbRes.poleItem?.name})`, formatRupiah(nbRes.poleBuyPrice)]] : []),
-              ],
+              ] : [],
             })}
           </div>
         </div>
@@ -691,15 +768,15 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Min Tinggi (cm)</label>
-                <input type="number" value={config.huruf_timbul.min_height_cm} onChange={e => setConfig(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, min_height_cm: parseFloat(e.target.value) || 10 } }))} className={inp} />
+                <input type="number" value={config.huruf_timbul.min_height_cm} onChange={e => updateCfg(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, min_height_cm: parseFloat(e.target.value) || 10 } }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Batas Besar (cm)</label>
-                <input type="number" value={config.huruf_timbul.tier_threshold_cm} onChange={e => setConfig(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, tier_threshold_cm: parseFloat(e.target.value) || 30 } }))} className={inp} />
+                <input type="number" value={config.huruf_timbul.tier_threshold_cm} onChange={e => updateCfg(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, tier_threshold_cm: parseFloat(e.target.value) || 30 } }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Pengali Logo</label>
-                <input type="number" step="0.1" value={config.huruf_timbul.logo_multiplier} onChange={e => setConfig(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, logo_multiplier: parseFloat(e.target.value) || 2 } }))} className={inp} />
+                <input type="number" step="0.1" value={config.huruf_timbul.logo_multiplier} onChange={e => updateCfg(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, logo_multiplier: parseFloat(e.target.value) || 2 } }))} className={inp} />
               </div>
             </div>
 
@@ -716,7 +793,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                         onChange={e => {
                           const list = [...config.huruf_timbul.variants]
                           list[idx] = { ...v, rate_std: parseFloat(e.target.value) || 0 }
-                          setConfig(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, variants: list } }))
+                          updateCfg(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, variants: list } }))
                         }}
                         className={inp}
                       />
@@ -729,7 +806,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                         onChange={e => {
                           const list = [...config.huruf_timbul.variants]
                           list[idx] = { ...v, rate_big: parseFloat(e.target.value) || 0 }
-                          setConfig(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, variants: list } }))
+                          updateCfg(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, variants: list } }))
                         }}
                         className={inp}
                       />
@@ -742,7 +819,7 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                         onChange={e => {
                           const list = [...config.huruf_timbul.variants]
                           list[idx] = { ...v, buy_sqcm: parseFloat(e.target.value) || 0 }
-                          setConfig(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, variants: list } }))
+                          updateCfg(c => ({ ...c, huruf_timbul: { ...c.huruf_timbul, variants: list } }))
                         }}
                         className={inp}
                       />
@@ -765,19 +842,21 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div className="sm:col-span-2">
-                <label className="text-[11px] font-bold text-gray-600 block mb-1">Teks Tulisan</label>
-                <input type="text" value={htSim.text} onChange={e => setHtSim(s => ({ ...s, text: e.target.value }))} className={inp} />
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">
+                  Teks Tulisan ({(htSim.text || '').replace(/\s+/g, '').length} Huruf)
+                </label>
+                <input type="text" value={htSim.text} onChange={e => setHtSim(s => ({ ...s, text: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Tinggi Huruf (cm)</label>
-                <input type="number" value={htSim.heightCm} onChange={e => setHtSim(s => ({ ...s, heightCm: e.target.value }))} className={inp} />
+                <input type="number" value={htSim.heightCm} onChange={e => setHtSim(s => ({ ...s, heightCm: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Varian Bahan</label>
-                <select value={htSim.variantId} onChange={e => setHtSim(s => ({ ...s, variantId: e.target.value }))} className={inp}>
+                <select value={htSim.variantId} onChange={e => setHtSim(s => ({ ...s, variantId: e.target.value, customRate: '', customTotalRaw: '' }))} className={inp}>
                   {(config.huruf_timbul.variants || []).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
               </div>
@@ -791,26 +870,33 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               </div>
             </div>
 
-            {htRes && renderBidirectionalCompare({
-              rateLabel: `Tarif per cm Tinggi (${htRes.tierLabel})`,
-              activeRate: htRes.ratePerCm,
-              defaultRate: htRes.defaultRatePerCm,
+            {htRes?.belowMinWarning && (
+              <div className="bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs text-amber-900 font-semibold">
+                ⚠️ Tinggi huruf di bawah {config.huruf_timbul.min_height_cm} cm! Otomatis dihitung menggunakan tinggi minimum {config.huruf_timbul.min_height_cm} cm.
+              </div>
+            )}
+
+            {renderBidirectionalCompare({
+              result: htRes,
+              rateLabel: `Tarif per cm Tinggi (${htRes?.tierLabel || ''})`,
+              activeRate: htRes?.ratePerCm,
+              defaultRate: htRes?.defaultRatePerCm,
               customRate: htSim.customRate,
               onRateChange: val => setHtSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
-              totalSell: htRes.recommendedSellPrice,
+              totalSell: htRes?.recommendedSellPrice,
               customTotalRaw: htSim.customTotalRaw,
               onTotalRawChange: rawVal => setHtSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
-              totalHpp: htRes.totalHpp,
+              totalHpp: htRes?.totalHpp,
               negoPct: config.nego_discount_pct,
               onResetOverride: () => setHtSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
-              hppRows: [
+              hppRows: htRes ? [
                 [`Modal Plat/Akrilik (${htRes.estTotalWidth}×${htRes.effectiveHeight} cm)`, formatRupiah(htRes.plateCost)],
                 ...(htRes.variant.has_led ? [
                   [`Modal Lampu LED eCut (${htRes.estLampQty} pcs)`, formatRupiah(htRes.lampCost)],
                   [`Modal Trafo Include (Beban ~${htRes.totalWatt}W)`, formatRupiah(htRes.trafoCost)],
                 ] : []),
                 ...(htRes.backdropBuyCost > 0 ? [['Modal Backdrop ACP', formatRupiah(htRes.backdropBuyCost)]] : []),
-              ],
+              ] : [],
             })}
           </div>
         </div>
@@ -831,15 +917,15 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Min Order (Rp)</label>
-                <input type="number" value={config.rambu.min_order_price} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, min_order_price: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.rambu.min_order_price} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, min_order_price: parseFloat(e.target.value) || 0 } }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Min Qty Menengah</label>
-                <input type="number" value={config.rambu.qty_mid_min} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, qty_mid_min: parseInt(e.target.value, 10) || 3 } }))} className={inp} />
+                <input type="number" value={config.rambu.qty_mid_min} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, qty_mid_min: parseInt(e.target.value, 10) || 3 } }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Min Qty Partai</label>
-                <input type="number" value={config.rambu.qty_bulk_min} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, qty_bulk_min: parseInt(e.target.value, 10) || 5 } }))} className={inp} />
+                <input type="number" value={config.rambu.qty_bulk_min} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, qty_bulk_min: parseInt(e.target.value, 10) || 5 } }))} className={inp} />
               </div>
             </div>
 
@@ -848,15 +934,15 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <span className="text-[10px] text-gray-500 block">Eceran (/cm²)</span>
-                  <input type="number" value={config.rambu.rate_ecer_base ?? 150} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, rate_ecer_base: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.rambu.rate_ecer_base ?? 150} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, rate_ecer_base: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 block">Menengah (/cm²)</span>
-                  <input type="number" value={config.rambu.rate_mid_base ?? 120} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, rate_mid_base: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.rambu.rate_mid_base ?? 120} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, rate_mid_base: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 block">Partai (/cm²)</span>
-                  <input type="number" value={config.rambu.rate_bulk_base ?? 100} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, rate_bulk_base: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.rambu.rate_bulk_base ?? 100} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, rate_bulk_base: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
               </div>
 
@@ -864,22 +950,22 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <span className="text-[10px] text-gray-500 block">+Wrn Ecer</span>
-                  <input type="number" value={config.rambu.extra_color_ecer ?? 30} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, extra_color_ecer: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.rambu.extra_color_ecer ?? 30} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, extra_color_ecer: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 block">+Wrn Menengah</span>
-                  <input type="number" value={config.rambu.extra_color_mid ?? 25} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, extra_color_mid: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.rambu.extra_color_mid ?? 25} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, extra_color_mid: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 block">+Wrn Partai</span>
-                  <input type="number" value={config.rambu.extra_color_bulk ?? 20} onChange={e => setConfig(c => ({ ...c, rambu: { ...c.rambu, extra_color_bulk: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.rambu.extra_color_bulk ?? 20} onChange={e => updateCfg(c => ({ ...c, rambu: { ...c.rambu, extra_color_bulk: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
               </div>
             </div>
 
             {/* Daftar Bahan Board & Stiker yang Terbaca dari Stok Admin */}
             <div className="bg-purple-50/60 rounded-xl p-3 border border-purple-100 space-y-2 text-xs max-h-64 overflow-y-auto">
-              <p className="font-bold text-purple-900">📦 Bahan Board Terbaca dari Stok & Akrilik ({catalog.boardOptions.length}):</p>
+              <p className="font-bold text-purple-900">📦 Bahan Board Terbaca dari Stok ({catalog.boardOptions.length}):</p>
               {catalog.boardOptions.map(b => (
                 <div key={b.id} className="flex justify-between text-gray-700 border-b border-purple-100/60 pb-1">
                   <span>• {b.name}</span>
@@ -893,9 +979,6 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
                   <span className="font-semibold text-purple-700">Modal: Rp {s.buy_sqcm}/cm²</span>
                 </div>
               ))}
-              <p className="text-[10px] text-gray-500 italic pt-1">
-                *Untuk menambah/mengubah bahan Board atau Stiker, silakan kelola di tab <b>Stok &gt; ADVERTISING</b> atau tab <b>Akrilik</b>.
-              </p>
             </div>
 
             <button onClick={handleSaveConfig} disabled={saving} className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow">
@@ -912,20 +995,20 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">1. Pilih Bahan Board</label>
-                <select value={rbSim.boardId} onChange={e => setRbSim(s => ({ ...s, boardId: e.target.value, customRate: '' }))} className={inp}>
+                <select value={rbSim.boardId} onChange={e => setRbSim(s => ({ ...s, boardId: e.target.value, customRate: '', customTotalRaw: '' }))} className={inp}>
                   {catalog.boardOptions.map(b => <option key={b.id} value={b.id}>{b.name} (Rp {b.buy_sqcm}/cm²)</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">2. Pilih Jenis Stiker</label>
-                <select value={rbSim.stickerId} onChange={e => setRbSim(s => ({ ...s, stickerId: e.target.value, customRate: '' }))} className={inp}>
+                <select value={rbSim.stickerId} onChange={e => setRbSim(s => ({ ...s, stickerId: e.target.value, customRate: '', customTotalRaw: '' }))} className={inp}>
                   {catalog.stickerOptions.map(st => <option key={st.id} value={st.id}>{st.name} (Rp {st.buy_sqcm}/cm²)</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">3. Jumlah Warna Stiker</label>
                 {simSticker?.is_cutting !== false ? (
-                  <select value={rbSim.colorCount} onChange={e => setRbSim(s => ({ ...s, colorCount: e.target.value, customRate: '' }))} className={inp}>
+                  <select value={rbSim.colorCount} onChange={e => setRbSim(s => ({ ...s, colorCount: e.target.value, customRate: '', customTotalRaw: '' }))} className={inp}>
                     {[1, 2, 3, 4, 5].map(c => <option key={c} value={String(c)}>{c} Warna</option>)}
                   </select>
                 ) : (
@@ -937,34 +1020,35 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             <div className="grid grid-cols-3 gap-2.5">
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang (cm)</label>
-                <input type="number" value={rbSim.length} onChange={e => setRbSim(s => ({ ...s, length: e.target.value }))} className={inp} />
+                <input type="number" value={rbSim.length} onChange={e => setRbSim(s => ({ ...s, length: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Lebar (cm)</label>
-                <input type="number" value={rbSim.width} onChange={e => setRbSim(s => ({ ...s, width: e.target.value }))} className={inp} />
+                <input type="number" value={rbSim.width} onChange={e => setRbSim(s => ({ ...s, width: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-gray-600 block mb-1">Jumlah (Pcs)</label>
-                <input type="number" value={rbSim.qty} onChange={e => setRbSim(s => ({ ...s, qty: e.target.value }))} className={inp} />
+                <input type="number" value={rbSim.qty} onChange={e => setRbSim(s => ({ ...s, qty: e.target.value, customTotalRaw: '' }))} className={inp} />
               </div>
             </div>
 
-            {rbRes && renderBidirectionalCompare({
-              rateLabel: `Tarif Gabungan per cm² (${rbRes.tierLabel} · ${rbRes.colorLabel})`,
-              activeRate: rbRes.rateSqcm,
-              defaultRate: rbRes.defaultRateSqcm,
+            {renderBidirectionalCompare({
+              result: rbRes,
+              rateLabel: `Tarif Gabungan per cm² (${rbRes?.tierLabel || ''} · ${rbRes?.colorLabel || ''})`,
+              activeRate: rbRes?.rateSqcm,
+              defaultRate: rbRes?.defaultRateSqcm,
               customRate: rbSim.customRate,
               onRateChange: val => setRbSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
-              totalSell: rbRes.recommendedSellPrice,
+              totalSell: rbRes?.recommendedSellPrice,
               customTotalRaw: rbSim.customTotalRaw,
               onTotalRawChange: rawVal => setRbSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
-              totalHpp: rbRes.totalHpp,
+              totalHpp: rbRes?.totalHpp,
               negoPct: config.nego_discount_pct,
               onResetOverride: () => setRbSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
-              hppRows: [
-                [`Modal Board (${rbRes.board.name})`, `Rp ${rbRes.boardBuySqcm}/cm² × ${rbRes.totalAreaSqcm} cm² = ${formatRupiah(Math.round(rbRes.totalAreaSqcm * rbRes.boardBuySqcm))}`],
-                [`Modal Stiker (${rbRes.sticker.name} · ${rbRes.colorLabel})`, `Rp ${rbRes.stickerBuySqcm}/cm² × ${rbRes.totalAreaSqcm} cm² = ${formatRupiah(Math.round(rbRes.totalAreaSqcm * rbRes.stickerBuySqcm))}`],
-              ],
+              hppRows: rbRes ? [
+                [`Modal Board (${rbRes.board.name})`, `Rp ${rbRes.boardBuySqcm}/cm² × ${rbRes.totalAreaSqcm.toLocaleString('id-ID')} cm² = ${formatRupiah(Math.round(rbRes.totalAreaSqcm * rbRes.boardBuySqcm))}`],
+                [`Modal Stiker (${rbRes.sticker.name} · ${rbRes.colorLabel})`, `Rp ${rbRes.stickerBuySqcm}/cm² × ${rbRes.totalAreaSqcm.toLocaleString('id-ID')} cm² = ${formatRupiah(Math.round(rbRes.totalAreaSqcm * rbRes.stickerBuySqcm))}`],
+              ] : [],
             })}
           </div>
         </div>
@@ -983,11 +1067,11 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Min Order (Rp)</label>
-                <input type="number" value={config.neonflex.min_order_price} onChange={e => setConfig(c => ({ ...c, neonflex: { ...c.neonflex, min_order_price: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonflex.min_order_price} onChange={e => updateCfg(c => ({ ...c, neonflex: { ...c.neonflex, min_order_price: parseFloat(e.target.value) || 0 } }))} className={inp} />
               </div>
               <div>
                 <label className="text-[11px] text-gray-500 block mb-1">Tambahan Potong Pola (%)</label>
-                <input type="number" value={config.neonflex.contour_cut_pct} onChange={e => setConfig(c => ({ ...c, neonflex: { ...c.neonflex, contour_cut_pct: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                <input type="number" value={config.neonflex.contour_cut_pct} onChange={e => updateCfg(c => ({ ...c, neonflex: { ...c.neonflex, contour_cut_pct: parseFloat(e.target.value) || 0 } }))} className={inp} />
               </div>
             </div>
 
@@ -996,25 +1080,25 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <span className="text-[10px] text-gray-500 block">Ecer (&lt;{config.neonflex.mid_meter_min}m)</span>
-                  <input type="number" value={config.neonflex.rate_meter_ecer} onChange={e => setConfig(c => ({ ...c, neonflex: { ...c.neonflex, rate_meter_ecer: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.neonflex.rate_meter_ecer} onChange={e => updateCfg(c => ({ ...c, neonflex: { ...c.neonflex, rate_meter_ecer: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 block">Sedang (≥{config.neonflex.mid_meter_min}m)</span>
-                  <input type="number" value={config.neonflex.rate_meter_mid} onChange={e => setConfig(c => ({ ...c, neonflex: { ...c.neonflex, rate_meter_mid: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.neonflex.rate_meter_mid} onChange={e => updateCfg(c => ({ ...c, neonflex: { ...c.neonflex, rate_meter_mid: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 block">Partai (≥{config.neonflex.bulk_meter_min}m)</span>
-                  <input type="number" value={config.neonflex.rate_meter_bulk} onChange={e => setConfig(c => ({ ...c, neonflex: { ...c.neonflex, rate_meter_bulk: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.neonflex.rate_meter_bulk} onChange={e => updateCfg(c => ({ ...c, neonflex: { ...c.neonflex, rate_meter_bulk: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <div>
                   <span className="text-[10px] text-gray-500 block">Jual Akrilik Backing (/cm²)</span>
-                  <input type="number" value={config.neonflex.acrylic_sell_sqcm} onChange={e => setConfig(c => ({ ...c, neonflex: { ...c.neonflex, acrylic_sell_sqcm: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.neonflex.acrylic_sell_sqcm} onChange={e => updateCfg(c => ({ ...c, neonflex: { ...c.neonflex, acrylic_sell_sqcm: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
                 <div>
                   <span className="text-[10px] text-gray-500 block">Modal Akrilik Backing (/cm²)</span>
-                  <input type="number" value={config.neonflex.acrylic_buy_sqcm} onChange={e => setConfig(c => ({ ...c, neonflex: { ...c.neonflex, acrylic_buy_sqcm: parseFloat(e.target.value) || 0 } }))} className={inp} />
+                  <input type="number" value={config.neonflex.acrylic_buy_sqcm} onChange={e => updateCfg(c => ({ ...c, neonflex: { ...c.neonflex, acrylic_buy_sqcm: parseFloat(e.target.value) || 0 } }))} className={inp} />
                 </div>
               </div>
             </div>
@@ -1030,38 +1114,54 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
               🧪 Simulator Dua Arah Neonflex (Panjang eCut + Akrilik)
             </h3>
 
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang LED eCut (m)</label>
-                <input type="number" step="any" value={nfSim.meterLength} onChange={e => setNfSim(s => ({ ...s, meterLength: e.target.value }))} className={inp} />
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">1. Pilih Lampu Neonflex (Dari Stok)</label>
+                <select value={nfSim.lampStockId} onChange={e => setNfSim(s => ({ ...s, lampStockId: e.target.value, customTotalRaw: '' }))} className={inp}>
+                  {catalog.lampOptions.map(l => <option key={l.id} value={l.id}>{l.name} ({formatRupiah(l.price)}/m)</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang Akrilik (cm)</label>
-                <input type="number" value={nfSim.acrylicLength} onChange={e => setNfSim(s => ({ ...s, acrylicLength: e.target.value }))} className={inp} />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-600 block mb-1">Lebar Akrilik (cm)</label>
-                <input type="number" value={nfSim.acrylicWidth} onChange={e => setNfSim(s => ({ ...s, acrylicWidth: e.target.value }))} className={inp} />
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">2. Pilih Akrilik Backing (Dari Stok)</label>
+                <select value={nfSim.backingBoardId} onChange={e => setNfSim(s => ({ ...s, backingBoardId: e.target.value, customTotalRaw: '' }))} className={inp}>
+                  {catalog.boardOptions.map(b => <option key={b.id} value={b.id}>{b.name} (Modal Rp {b.buy_sqcm}/cm²)</option>)}
+                </select>
               </div>
             </div>
 
-            {nfRes && renderBidirectionalCompare({
-              rateLabel: `Tarif LED per Meter (${nfRes.tierLabel})`,
-              activeRate: nfRes.ratePerMeter,
-              defaultRate: nfRes.defaultRatePerMeter,
+            <div className="grid grid-cols-3 gap-2.5">
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang LED eCut (m)</label>
+                <input type="number" step="any" value={nfSim.meterLength} onChange={e => setNfSim(s => ({ ...s, meterLength: e.target.value, customTotalRaw: '' }))} className={inp} />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang Akrilik (cm)</label>
+                <input type="number" value={nfSim.acrylicLength} onChange={e => setNfSim(s => ({ ...s, acrylicLength: e.target.value, customTotalRaw: '' }))} className={inp} />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Lebar Akrilik (cm)</label>
+                <input type="number" value={nfSim.acrylicWidth} onChange={e => setNfSim(s => ({ ...s, acrylicWidth: e.target.value, customTotalRaw: '' }))} className={inp} />
+              </div>
+            </div>
+
+            {renderBidirectionalCompare({
+              result: nfRes,
+              rateLabel: `Tarif LED per Meter (${nfRes?.tierLabel || ''})`,
+              activeRate: nfRes?.ratePerMeter,
+              defaultRate: nfRes?.defaultRatePerMeter,
               customRate: nfSim.customRate,
               onRateChange: val => setNfSim(s => ({ ...s, customRate: val, customTotalRaw: '' })),
-              totalSell: nfRes.recommendedSellPrice,
+              totalSell: nfRes?.recommendedSellPrice,
               customTotalRaw: nfSim.customTotalRaw,
               onTotalRawChange: rawVal => setNfSim(s => ({ ...s, customTotalRaw: rawVal, customRate: '' })),
-              totalHpp: nfRes.totalHpp,
+              totalHpp: nfRes?.totalHpp,
               negoPct: config.nego_discount_pct,
               onResetOverride: () => setNfSim(s => ({ ...s, customRate: '', customTotalRaw: '' })),
-              hppRows: [
-                [`Modal Lampu Neonflex (${nfRes.meterLength} m)`, formatRupiah(nfRes.ledBuyCost)],
-                [`Modal Akrilik Backing (${nfRes.acrylicLength}×${nfRes.acrylicWidth} cm)`, formatRupiah(nfRes.acrylicBuyCost)],
+              hppRows: nfRes ? [
+                [`Modal Lampu (${nfRes.lampItem?.name} × ${nfRes.meterLength} m)`, formatRupiah(nfRes.ledBuyCost)],
+                [`Modal Akrilik (${nfRes.backingItem?.name} ${nfRes.acrylicLength}×${nfRes.acrylicWidth} cm)`, formatRupiah(nfRes.acrylicBuyCost)],
                 ['Modal Adaptor 12V + Baut Pen', formatRupiah(nfRes.adaptorBuyCost + (nfRes.penIklanQty * 6000))],
-              ],
+              ] : [],
             })}
           </div>
         </div>

@@ -309,6 +309,10 @@ export function calcAcrylic(input, rawConfig, stocks = [], acrylics = []) {
 
   let activeRate = defaultRate
   let recommendedSellPrice = 0
+  let minOrderApplied = false
+  const rawCalculatedSell = Math.round(totalAreaSqcm * defaultRate)
+  const minOrderPrice = num(acCfg.min_order_price, 25000)
+
   if (hasOverrideTotal) {
     recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
     activeRate = totalAreaSqcm > 0 ? Math.round(recommendedSellPrice / totalAreaSqcm) : 0
@@ -317,8 +321,8 @@ export function calcAcrylic(input, rawConfig, stocks = [], acrylics = []) {
     recommendedSellPrice = roundPrice(totalAreaSqcm * activeRate, 500)
   } else {
     const rawSell = totalAreaSqcm * activeRate
-    const minOrder = num(acCfg.min_order_price, 25000)
-    recommendedSellPrice = roundPrice(Math.max(minOrder, rawSell), 500)
+    minOrderApplied = rawSell < minOrderPrice
+    recommendedSellPrice = roundPrice(Math.max(minOrderPrice, rawSell), 500)
   }
   const pricePerPcs = Math.round(recommendedSellPrice / qty)
   const negoPct = num(cfg.nego_discount_pct, 15)
@@ -344,6 +348,7 @@ export function calcAcrylic(input, rawConfig, stocks = [], acrylics = []) {
     item, length, width, qty,
     areaPerPcs, totalAreaSqcm,
     tierLabel, rateSqcm: activeRate, defaultRateSqcm: defaultRate,
+    minOrderApplied, minOrderPrice, rawCalculatedSell,
     buySqcm, totalHpp, hppPerPcs,
     recommendedSellPrice, pricePerPcs, netFloorPrice, negoPct,
     profitAtRecommended: recommendedSellPrice - totalHpp,
@@ -367,11 +372,13 @@ export function calcNeonbox(input, rawConfig, stocks = [], acrylics = []) {
   const areaSqcm = Math.round(length * width)
   const perimeterCm = Math.round(2 * (length + width))
 
-  // Pilih Bahan Muka Akrilik dari Katalog
+  // Pilih Bahan Muka Akrilik dari Katalog (utamakan Akrilik 3mm sebagai default neonbox)
   const faceItem = catalog.boardOptions.find(b => b.id === input.faceBoardId)
-    || catalog.boardOptions.find(b => b.source === 'ACRYLIC')
+    || catalog.acrylicOptions.find(a => a.name.toLowerCase().includes('susu') && a.name.toLowerCase().includes('3mm'))
+    || catalog.acrylicOptions.find(a => a.name.toLowerCase().includes('3mm'))
+    || catalog.acrylicOptions[0]
     || catalog.boardOptions[0]
-    || { name: 'Akrilik 3mm', buy_sqcm: 16.8 }
+    || { name: 'Akrilik Putih Susu 3mm', buy_sqcm: 17 }
 
   // Pilih Jenis Stiker Visual dari Katalog
   const stickerItem = catalog.stickerOptions.find(s => s.id === input.stickerId)
@@ -418,6 +425,8 @@ export function calcNeonbox(input, rawConfig, stocks = [], acrylics = []) {
   let bodySellPrice = 0
   let recommendedSellPrice = 0
   let minOrderApplied = false
+  const minOrderPrice = num(nb.min_order_price, 350000)
+  const rawCalculatedSell = Math.round((areaSqcm * adjustedDefaultRate) + poleSellPrice + extraCost)
 
   if (hasOverrideTotal) {
     recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
@@ -429,8 +438,8 @@ export function calcNeonbox(input, rawConfig, stocks = [], acrylics = []) {
     recommendedSellPrice = roundPrice(bodySellPrice + poleSellPrice + extraCost, cfg.rounding_step)
   } else {
     const rawBodySell = areaSqcm * activeRate
-    minOrderApplied = rawBodySell < num(nb.min_order_price, 350000)
-    bodySellPrice = minOrderApplied ? num(nb.min_order_price, 350000) : rawBodySell
+    minOrderApplied = rawBodySell < minOrderPrice
+    bodySellPrice = minOrderApplied ? minOrderPrice : rawBodySell
     recommendedSellPrice = roundPrice(bodySellPrice + poleSellPrice + extraCost, cfg.rounding_step)
   }
   const negoPct = num(cfg.nego_discount_pct, 15)
@@ -481,7 +490,7 @@ export function calcNeonbox(input, rawConfig, stocks = [], acrylics = []) {
     faceItem, stickerItem, lampItem,
     areaSqcm, perimeterCm,
     tierLabel, rateSqcm: activeRate, defaultRateSqcm: adjustedDefaultRate,
-    minOrderApplied,
+    minOrderApplied, minOrderPrice, rawCalculatedSell,
     bodySellPrice, poleItem, poleSellPrice, poleBuyPrice, extraCost,
     recommendedSellPrice, netFloorPrice, negoPct,
     acrylicCost, lampQty, lampUnitCost: num(lampItem.price, 3000), lampCost, totalWatt, trafoName, trafoCost, stickerCost, miscCost,
@@ -542,6 +551,9 @@ export function calcHurufTimbul(input, rawConfig, stocks = [], acrylics = []) {
   let lettersSellPrice = 0
   let logosSellPrice = 0
   let recommendedSellPrice = 0
+  let minOrderApplied = false
+  const minOrderPrice = num(ht.min_order_price, 250000)
+  const rawCalculatedSell = Math.round((totalEffectiveCm * defaultRate) + backdropSellPrice + rangkaSellPrice + extraCost)
 
   if (hasOverrideTotal) {
     recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
@@ -557,7 +569,8 @@ export function calcHurufTimbul(input, rawConfig, stocks = [], acrylics = []) {
   } else {
     lettersSellPrice = letterCount * effectiveHeight * activeRate
     logosSellPrice = logoCount * effLogoHeight * (activeRate * logoMult)
-    const baseCharsSell = Math.max(num(ht.min_order_price, 250000), lettersSellPrice + logosSellPrice)
+    minOrderApplied = (lettersSellPrice + logosSellPrice) < minOrderPrice
+    const baseCharsSell = Math.max(minOrderPrice, lettersSellPrice + logosSellPrice)
     recommendedSellPrice = roundPrice(baseCharsSell + backdropSellPrice + rangkaSellPrice + extraCost, cfg.rounding_step)
   }
   const negoPct = num(cfg.nego_discount_pct, 15)
@@ -610,6 +623,7 @@ export function calcHurufTimbul(input, rawConfig, stocks = [], acrylics = []) {
     logoCount, logoHeightCm: effLogoHeight, logoMult,
     variant, plateItem, lampItem, backdropBoard,
     tierLabel, ratePerCm: activeRate, defaultRatePerCm: defaultRate,
+    minOrderApplied, minOrderPrice, rawCalculatedSell,
     totalEffectiveCm,
     lettersSellPrice, logosSellPrice,
     hasBackdrop, backdropL, backdropW, backdropArea, backdropSellPrice, backdropBuyCost,
@@ -651,7 +665,7 @@ export function calcRambu(input, rawConfig, stocks = [], acrylics = []) {
   const extraColors = Math.max(0, colorCount - 1)
 
   const areaPerPcs = Math.round(length * width)
-  const effectiveArea = Math.max(areaPerPcs, num(rb.min_area_sqcm, 600))
+  const totalAreaSqcm = areaPerPcs * qty
 
   // Deteksi skala: Eceran / Menengah / Partai
   let tierKey = 'mid'
@@ -706,19 +720,23 @@ export function calcRambu(input, rawConfig, stocks = [], acrylics = []) {
   let activeRate = defaultRate
   let boardSellPrice = 0
   let recommendedSellPrice = 0
+  let minOrderApplied = false
+  const minOrderPrice = num(rb.min_order_price, 100000)
+  const denomArea = totalAreaSqcm * sideMult
+  const rawCalculatedSell = Math.round((denomArea * defaultRate) + addonsSell)
 
   if (hasOverrideTotal) {
     recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
     boardSellPrice = Math.max(0, recommendedSellPrice - addonsSell)
-    const denom = effectiveArea * sideMult * qty
-    activeRate = denom > 0 ? Math.round(boardSellPrice / denom) : 0
+    activeRate = denomArea > 0 ? Math.round(boardSellPrice / denomArea) : 0
   } else if (hasOverrideRate) {
     activeRate = Math.max(0, Math.round(num(input.overrideRate)))
-    boardSellPrice = Math.round(effectiveArea * activeRate * sideMult * qty)
+    boardSellPrice = Math.round(denomArea * activeRate)
     recommendedSellPrice = roundPrice(boardSellPrice + addonsSell, cfg.rounding_step)
   } else {
-    const rawBoardSell = effectiveArea * activeRate * sideMult * qty
-    boardSellPrice = Math.max(num(rb.min_order_price, 100000), rawBoardSell)
+    const rawBoardSell = Math.round(denomArea * activeRate)
+    minOrderApplied = rawBoardSell < minOrderPrice
+    boardSellPrice = Math.max(minOrderPrice, rawBoardSell)
     recommendedSellPrice = roundPrice(boardSellPrice + addonsSell, cfg.rounding_step)
   }
   const negoPct = num(cfg.nego_discount_pct, 15)
@@ -749,8 +767,9 @@ export function calcRambu(input, rawConfig, stocks = [], acrylics = []) {
     length, width, qty, sides,
     board, sticker, isCutting, colorCount, colorLabel, specName,
     boardBuySqcm, stickerBuySqcm, unitBuySqcm,
-    areaPerPcs, totalAreaSqcm: areaPerPcs * qty,
+    areaPerPcs, totalAreaSqcm,
     tierLabel, rateSqcm: activeRate, defaultRateSqcm: defaultRate,
+    minOrderApplied, minOrderPrice, rawCalculatedSell,
     boardSellPrice, rangkaMeter, rangkaSell, tiangMeter, tiangSell, penIklanQty, penSell, extraCost,
     recommendedSellPrice, netFloorPrice, negoPct,
     boardBuyCost, totalHpp,
@@ -808,6 +827,9 @@ export function calcNeonflex(input, rawConfig, stocks = [], acrylics = []) {
   let activeRateMeter = Math.round(defaultRateMeter)
   let ledSellPrice = 0
   let recommendedSellPrice = 0
+  let minOrderApplied = false
+  const minOrderPrice = num(nf.min_order_price, 250000)
+  const rawCalculatedSell = Math.round((meterLength * activeRateMeter) + addonsSell)
 
   if (hasOverrideTotal) {
     recommendedSellPrice = Math.max(0, Math.round(num(input.overrideTotal)))
@@ -819,7 +841,8 @@ export function calcNeonflex(input, rawConfig, stocks = [], acrylics = []) {
     recommendedSellPrice = roundPrice(ledSellPrice + addonsSell, cfg.rounding_step)
   } else {
     ledSellPrice = Math.round(meterLength * activeRateMeter)
-    const baseSell = Math.max(num(nf.min_order_price, 250000), ledSellPrice + acrylicSellPrice)
+    minOrderApplied = (ledSellPrice + acrylicSellPrice) < minOrderPrice
+    const baseSell = Math.max(minOrderPrice, ledSellPrice + acrylicSellPrice)
     recommendedSellPrice = roundPrice(baseSell + penSellPrice + extraCost, cfg.rounding_step)
   }
   const negoPct = num(cfg.nego_discount_pct, 15)
@@ -857,6 +880,7 @@ export function calcNeonflex(input, rawConfig, stocks = [], acrylics = []) {
     meterLength, acrylicLength, acrylicWidth, acrylicArea, isContour,
     lampItem, backingItem, autoTrafo, totalWatt,
     tierLabel, ratePerMeter: activeRateMeter, defaultRatePerMeter: defaultRateMeter,
+    minOrderApplied, minOrderPrice, rawCalculatedSell,
     ledSellPrice, acrylicSellPrice, penIklanQty, penSellPrice, extraCost,
     recommendedSellPrice, netFloorPrice, negoPct,
     ledBuyCost, acrylicBuyCost, adaptorBuyCost, totalHpp,
