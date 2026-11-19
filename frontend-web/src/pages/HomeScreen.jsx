@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, deleteJob, deleteProject, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getFloatingMenu, getStock, createStock, updateStock } from '../services/api'
+import { getEmployees, verifyEmployeePin, verifyBirthdate, resetPinByBirthdate, getJobs, getProjects, deleteJob, deleteProject, getWorkTracking, createWorkTracking, updateWorkTracking, deleteWorkTracking, getStock, createStock, updateStock } from '../services/api'
 import { getInitials, formatRupiah, formatDate } from '../utils/format'
 import PinModal from '../components/PinModal'
 import JobFormModal from '../components/JobFormModal'
 import JobDetailModal from '../components/JobDetailModal'
 import CrewFormModal from '../components/CrewFormModal'
 import Toast from '../components/Toast'
-import FloatingButton from '../components/FloatingButton'
-import PiketModal from '../components/PiketModal'
 import AdvertisingCalculatorModal from '../components/AdvertisingCalculatorModal'
 import { useToast } from '../hooks/useToast'
 
@@ -123,11 +121,6 @@ export default function HomeScreen() {
   const [newPin, setNewPin] = useState('')
   const [newPinConfirm, setNewPinConfirm] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
-
-  // Floating menu state
-  const [menuItems, setMenuItems] = useState([])
-  const [showPiketModal, setShowPiketModal] = useState(false)
-  const [selectedPiketGroupId, setSelectedPiketGroupId] = useState(null)
   const [resetError, setResetError] = useState('')
 
   // Work Tracking state
@@ -335,27 +328,7 @@ export default function HomeScreen() {
       .finally(() => setLoadingEmployees(false))
     loadJobs()
     loadWorkTracking()
-    loadFloatingMenu()
   }, [])
-
-  const loadFloatingMenu = async () => {
-    try {
-      const data = await getFloatingMenu()
-      setMenuItems(data || [])
-    } catch {
-      // If no menu items, set empty array
-      setMenuItems([])
-    }
-  }
-
-  const handleFloatingMenuItemClick = (item) => {
-    if (item.type === 'navigation' && item.target) {
-      navigate(item.target)
-    } else if (item.type === 'piket' && item.target) {
-      setSelectedPiketGroupId(item.target)
-      setShowPiketModal(true)
-    }
-  }
 
   const handleNavClick = (btn) => {
     if (btn.action === 'kasbon') setShowEmployeePicker(true)
@@ -1003,18 +976,6 @@ export default function HomeScreen() {
       {/* Toast */}
       {toast && (
         <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />
-      )}
-      
-      {/* Floating Button */}
-      <FloatingButton menuItems={menuItems} onItemClick={handleFloatingMenuItemClick} />
-      
-      {/* Piket Modal */}
-      {showPiketModal && (
-        <PiketModal
-          groupId={selectedPiketGroupId}
-          onClose={() => setShowPiketModal(false)}
-          showToast={showToast}
-        />
       )}
 
       {/* Kalkulator Advertising (1 tombol, tab produk) */}
