@@ -755,7 +755,7 @@ export default function AdminPage() {
         notes: cf.notes
       })
       employeeMap[empName].totalTransactions += 1
-      employeeMap[empName].totalAmount += (cf.type === 'income' ? (cf.amount || 0) : -(cf.amount || 0))
+      employeeMap[empName].totalAmount += (cf.type === 'income' ? (cf.amount || 0) : cf.type === 'exchange' ? 0 : -(cf.amount || 0))
     })
     
     return Object.values(employeeMap).sort((a, b) => a.name.localeCompare(b.name))

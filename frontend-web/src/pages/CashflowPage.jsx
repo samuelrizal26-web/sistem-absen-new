@@ -66,6 +66,8 @@ export default function CashflowPage() {
   const [exchangeInMap, setExchangeInMap] = useState(() => emptyDenomMap(IN_DENOMINATIONS))
   const [exchangeOutMap, setExchangeOutMap] = useState(() => emptyDenomMap(OUT_DENOMINATIONS))
   const [exchangeSaving, setExchangeSaving] = useState(false)
+  const [showExchangeStaffPin, setShowExchangeStaffPin] = useState(false)
+  const [exchangeEmployee, setExchangeEmployee] = useState(null)
 
   const [form, setForm] = useState({
     amount: '',
@@ -121,20 +123,30 @@ export default function CashflowPage() {
     setShowTypePicker(false)
     setExchangeInMap(emptyDenomMap(IN_DENOMINATIONS))
     setExchangeOutMap(emptyDenomMap(OUT_DENOMINATIONS))
+    setExchangeEmployee(null)
+    setShowExchangeStaffPin(false)
     setExchangeStep('in')
   }
 
-  // Langkah 1 -> Klik Tombol "TUKAR": Laci Terbuka & Muncul Popup Pecahan Uang yang Diambil
+  // Langkah 1 -> Klik Tombol "TUKAR": Minta PIN Karyawan terlebih dahulu sebelum laci terbuka
   const handleStartExchangeDrawer = () => {
     if (exchangeInTotal <= 0) {
       showToast('Pilih / isi jumlah lembar uang yang akan ditukar terlebih dahulu', 'error')
       return
     }
-    // Buka laci fisik kasir langsung dalam user-gesture
+    setExchangeStep(null)
+    setShowExchangeStaffPin(true)
+  }
+
+  // Setelah PIN Karyawan valid -> Buka Laci Fisik & Masuk ke Langkah 2 (Isi Pecahan Diambil)
+  const handleExchangeStaffConfirm = (employee) => {
+    setShowExchangeStaffPin(false)
+    setExchangeEmployee(employee)
+    // Buka laci fisik kasir langsung setelah PIN terverifikasi
     openCashDrawerOnly()
     setExchangeOutMap(emptyDenomMap(OUT_DENOMINATIONS))
     setExchangeStep('out')
-    showToast('Laci kasir terbuka! Silakan isi pecahan uang yang diambil dari laci.', 'info')
+    showToast(`PIN ${employee.name} terverifikasi! Laci terbuka, silakan isi pecahan yang diambil.`, 'info')
   }
 
   // Langkah 2 -> Klik Tombol "SELESAI" setelah pecahan yang diambil diisi
@@ -157,9 +169,12 @@ export default function CashflowPage() {
       await exchangeCashDenomination({
         in_breakdown: exchangeInMap,
         out_breakdown: exchangeOutMap,
+        handled_by: exchangeEmployee?.name || '',
+        employee_id: exchangeEmployee?.id || '',
       })
-      showToast(`Tukar uang ${formatRupiah(exchangeInTotal)} selesai & tercatat!`, 'success')
+      showToast(`Tukar uang ${formatRupiah(exchangeInTotal)} oleh ${exchangeEmployee?.name || 'Karyawan'} selesai & tercatat!`, 'success')
       setExchangeStep(null)
+      setExchangeEmployee(null)
       setTab(TAB.TUKAR)
       await loadData()
     } catch (e) {
@@ -713,6 +728,11 @@ export default function CashflowPage() {
                   <div>
                     <p className="text-[11px] font-bold text-blue-700 uppercase">Uang Masuk (Ditukar)</p>
                     <p className="text-lg font-black text-blue-900">{formatRupiah(exchangeInTotal)}</p>
+                    {exchangeEmployee && (
+                      <p className="text-[11px] font-bold text-blue-600 mt-0.5">
+                        👤 Dilakukan oleh: {exchangeEmployee.name}
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -933,6 +953,14 @@ export default function CashflowPage() {
 
       {showEditStaffPin && (
         <StaffPinModal title="Masukkan PIN Karyawan untuk Simpan Edit" onConfirm={handleEditStaffConfirm} onCancel={() => setShowEditStaffPin(false)} />
+      )}
+
+      {showExchangeStaffPin && (
+        <StaffPinModal
+          title="Masukkan PIN Karyawan untuk Tukar Uang & Buka Laci"
+          onConfirm={handleExchangeStaffConfirm}
+          onCancel={() => { setShowExchangeStaffPin(false); setExchangeStep('in') }}
+        />
       )}
 
       {/* Custom Numeric Keypad */}
