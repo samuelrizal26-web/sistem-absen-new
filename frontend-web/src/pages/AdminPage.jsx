@@ -2498,15 +2498,69 @@ export default function AdminPage() {
                 <button onClick={resetStockForm} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">✕</button>
               </div>
               <div className="space-y-3">
-                {isAdv && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Komponen</label>
-                    <select value={sub} onChange={e => { const v = e.target.value; setStockForm(f => ({ ...f, adv_sub_category: v, unit: ADV_SUBS.find(a => a.key === v)?.defaultUnit || f.unit })) }}
-                      className={inp + ' bg-white'}>
-                      {ADV_SUBS.map(a => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}
-                    </select>
-                  </div>
-                )}
+                {isAdv && (() => {
+                  const itemsInSub = stocks
+                    .filter(s => stockTabOf(s) === 'ADVERTISING' && s.adv_sub_category === sub)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                  return (
+                    <>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">1. Pilih Jenis Komponen</label>
+                        <select
+                          value={sub}
+                          onChange={e => {
+                            const v = e.target.value
+                            const defUnit = ADV_SUBS.find(a => a.key === v)?.defaultUnit || 'pcs'
+                            const listForSub = stocks
+                              .filter(s => stockTabOf(s) === 'ADVERTISING' && s.adv_sub_category === v)
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                            if (editStock && listForSub.length > 0) {
+                              setEditStock(listForSub[0])
+                              setStockForm(stockToForm(listForSub[0], formatRupiahInput))
+                            } else {
+                              setEditStock(null)
+                              setStockForm({ ...EMPTY_STOCK_FORM, usage_category: 'ADVERTISING', adv_sub_category: v, unit: defUnit })
+                            }
+                          }}
+                          className={inp + ' bg-white'}
+                        >
+                          {ADV_SUBS.map(a => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}
+                        </select>
+                      </div>
+
+                      {itemsInSub.length > 0 && (
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">
+                            2. Pilih Barang {ADV_SUBS.find(a => a.key === sub)?.label} (Edit / Tambah Baru)
+                          </label>
+                          <select
+                            value={editStock ? editStock.id : '__NEW__'}
+                            onChange={e => {
+                              const val = e.target.value
+                              const defUnit = ADV_SUBS.find(a => a.key === sub)?.defaultUnit || 'pcs'
+                              if (val === '__NEW__') {
+                                setEditStock(null)
+                                setStockForm({ ...EMPTY_STOCK_FORM, usage_category: 'ADVERTISING', adv_sub_category: sub, unit: defUnit })
+                              } else {
+                                const found = itemsInSub.find(it => it.id === val)
+                                if (found) {
+                                  setEditStock(found)
+                                  setStockForm(stockToForm(found, formatRupiahInput))
+                                }
+                              }
+                            }}
+                            className={inp + ' bg-teal-50/60 border-teal-200 font-semibold text-teal-900'}
+                          >
+                            <option value="__NEW__">➕ Buat / Tambah {ADV_SUBS.find(a => a.key === sub)?.label} Baru...</option>
+                            {itemsInSub.map(it => (
+                              <option key={it.id} value={it.id}>✏️ Edit: {it.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Nama Barang *</label>
                   <input type="text" value={stockForm.name} onChange={setF('name')} placeholder="Nama Barang *" className={inp} />
