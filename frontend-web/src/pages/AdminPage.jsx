@@ -948,20 +948,43 @@ export default function AdminPage() {
   // ─────────────────── RENDER ───────────────────
   if (!authed) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <div className="flex items-center gap-3 px-4 pt-12 pb-5"
-          style={{ background: 'linear-gradient(160deg, #7c3aed 0%, #6d28d9 100%)', borderBottomLeftRadius: '1.5rem', borderBottomRightRadius: '1.5rem' }}>
-          <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <h1 className="text-white text-lg font-bold">Masuk Admin</h1>
+      <div className="min-h-screen flex flex-col bg-slate-100/90 text-slate-800">
+        <div
+          className="px-4 sm:px-6 pt-10 pb-5 shadow-xl shadow-purple-950/15 border-b border-purple-400/20"
+          style={{
+            background: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #7c3aed 100%)',
+            borderBottomLeftRadius: '2rem',
+            borderBottomRightRadius: '2rem',
+          }}
+        >
+          <div className="max-w-md mx-auto flex items-center gap-3.5">
+            <button
+              onClick={() => navigate('/home')}
+              className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all shadow-sm shrink-0"
+              title="Kembali ke Beranda"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-black/15 text-white/95 border border-white/10">
+                  ADMIN SECURITY
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse" />
+              </div>
+              <h1 className="text-white text-xl font-black tracking-tight leading-tight">Masuk Admin</h1>
+              <p className="text-purple-100/80 text-xs font-medium">Verifikasi identitas pemilik sistem</p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className={`bg-white rounded-3xl shadow-lg p-7 w-full max-w-sm transition-transform ${shake ? 'animate-shake' : ''}`}>
-            <div className="flex items-center justify-center gap-1 mb-6">
-              <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mx-auto">
-                <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
+          <div className={`bg-white rounded-3xl shadow-2xl border border-slate-200/80 p-6 sm:p-7 w-full max-w-sm transition-transform ${shake ? 'animate-shake' : ''}`}>
+            <div className="flex items-center justify-center gap-1 mb-5">
+              <div className="w-16 h-16 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center shadow-xs">
+                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
@@ -970,38 +993,38 @@ export default function AdminPage() {
             {!hasAdminPin ? (
               <div className="space-y-4">
                 <div className="text-center">
-                  <h2 className="font-bold text-gray-800 text-base">Setup PIN Admin Pertama Kali</h2>
-                  <p className="text-xs text-gray-500 mt-1">Buat 6 digit PIN untuk keamanan akses dashboard admin.</p>
+                  <h2 className="font-black text-slate-800 text-base">Setup PIN Admin Pertama Kali</h2>
+                  <p className="text-xs text-slate-500 mt-1">Buat 6 digit PIN untuk keamanan akses dashboard admin.</p>
                 </div>
-                {authError && <p className="text-red-500 text-center text-xs">{authError}</p>}
+                {authError && <p className="text-rose-500 text-center text-xs font-bold">{authError}</p>}
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">PIN Baru (6 digit)</label>
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider block mb-1">PIN Baru (6 digit)</label>
                   <input type="password" maxLength={6} value={setupPinInput} onChange={e => setSetupPinInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Contoh: 123456" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-center tracking-widest text-lg font-mono focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                    placeholder="Contoh: 123456" className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-center tracking-widest text-xl font-mono font-black focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">Konfirmasi PIN</label>
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wider block mb-1">Konfirmasi PIN</label>
                   <input type="password" maxLength={6} value={setupPinConfirm} onChange={e => setSetupPinConfirm(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Ulangi PIN" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-center tracking-widest text-lg font-mono focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                    placeholder="Ulangi PIN" className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-center tracking-widest text-xl font-mono font-black focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
                 </div>
                 <button onClick={handleInitialSetupPin} disabled={authLoading || setupPinInput.length !== 6 || setupPinInput !== setupPinConfirm}
-                  className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-40 transition-colors">
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 text-white font-black shadow-lg shadow-purple-600/20 disabled:opacity-40 active:scale-[0.98] transition-all border border-purple-400/25">
                   {authLoading ? 'Menyimpan...' : 'Simpan & Masuk'}
                 </button>
               </div>
             ) : (
               <div>
                 <div className="text-center mb-5">
-                  <h2 className="font-bold text-gray-800 text-base">Masukkan PIN Admin</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Akses khusus pemilik</p>
+                  <h2 className="font-black text-slate-900 text-lg">Masukkan PIN Admin</h2>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">Akses khusus pemilik</p>
                 </div>
-                <div className="flex justify-center gap-3 mb-4">
+                <div className="flex justify-center gap-3 mb-5">
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className={`w-3.5 h-3.5 rounded-full transition-all ${i < pinInput.length ? 'bg-purple-600 scale-110' : 'bg-gray-300'}`} />
+                    <div key={i} className={`w-3.5 h-3.5 rounded-full transition-all ${i < pinInput.length ? 'bg-purple-600 scale-125 shadow-xs' : 'bg-slate-200'}`} />
                   ))}
                 </div>
-                {authError && <p className="text-red-500 text-center text-sm mb-3">{authError}</p>}
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                {authError && <p className="text-rose-500 text-center text-xs font-bold mb-3">{authError}</p>}
+                <div className="grid grid-cols-3 gap-2.5 mb-2">
                   {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((d, i) => {
                     if (d === '') return <div key={i} />
                     const isBack = d === '⌫'
@@ -1015,7 +1038,9 @@ export default function AdminPage() {
                           if (newPin.length === 6) handlePinAuth(newPin)
                         }
                       }}
-                        className={`h-12 rounded-2xl text-xl font-semibold active:scale-95 ${isBack ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-800 hover:bg-purple-50 hover:text-purple-600'}`}>
+                        className={`h-12 rounded-2xl text-xl font-black active:scale-95 transition-all shadow-xs flex items-center justify-center ${
+                          isBack ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-800 hover:bg-purple-50 hover:text-purple-700'
+                        }`}>
                         {d}
                       </button>
                     )
@@ -1031,91 +1056,176 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-4"
-        style={{ background: 'linear-gradient(160deg, #7c3aed 0%, #6d28d9 100%)', borderBottomLeftRadius: '1.5rem', borderBottomRightRadius: '1.5rem' }}>
-        <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white shrink-0">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-        </button>
-        <div className="flex-1">
-          <h1 className="text-white text-lg font-bold">Dashboard Admin</h1>
-          <p className="text-white/70 text-xs">Labalaba Advertising</p>
+    <div className="min-h-screen flex flex-col bg-slate-100/90 text-slate-800">
+      {/* Modern Header */}
+      <div
+        className="px-4 sm:px-6 pt-10 pb-5 shadow-xl shadow-purple-950/15 border-b border-purple-400/20"
+        style={{
+          background: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #7c3aed 100%)',
+          borderBottomLeftRadius: '2rem',
+          borderBottomRightRadius: '2rem',
+        }}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3.5">
+            <button
+              onClick={() => navigate('/home')}
+              className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white hover:bg-white/25 active:scale-95 transition-all shadow-sm shrink-0"
+              title="Kembali ke Beranda"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-black/15 text-white/95 border border-white/10">
+                  ADMINISTRATIVE CONSOLE
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse" />
+                <span className="text-[10px] text-purple-100/90 font-bold hidden sm:inline">SECURE ACCESS</span>
+              </div>
+              <h1 className="text-white text-xl sm:text-2xl font-black tracking-tight leading-tight">Dashboard Admin</h1>
+              <p className="text-purple-100/80 text-xs font-medium">Labalaba Advertising · Manajemen staf, stok barang, kasir & konfigurasi sistem</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setAuthed(false)}
+            className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 text-white text-xs font-black border border-white/20 backdrop-blur-sm transition-all shadow-sm flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Logout</span>
+          </button>
         </div>
-        <button onClick={() => setAuthed(false)} className="px-3 py-1.5 rounded-xl bg-white/20 text-white text-xs font-medium">Logout</button>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 px-4 py-3 overflow-x-auto no-scrollbar">
-        {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.ACRYLIC, 'Kalkulator & Tarif'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => {
-          const incompleteCount = t === TAB.STOCK ? stocks.filter(s => isStockIncomplete(s).incomplete).length : 0
-          return (
-            <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${tab === t ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-500 border border-gray-100'}`}>
-              <span>{label}</span>
-              {incompleteCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-red-500 text-white shadow-sm animate-pulse">
-                  {incompleteCount}
-                </span>
-              )}
-            </button>
-          )
-        })}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 pb-1">
+        <div className="flex gap-1.5 p-1.5 bg-slate-200/70 rounded-2xl overflow-x-auto no-scrollbar border border-slate-300/60 shadow-inner">
+          {[[TAB.CREW, 'Crew'], [TAB.STOCK, 'Stok'], [TAB.CASHFLOW, 'Cashflow'], [TAB.ACRYLIC, 'Kalkulator & Tarif'], [TAB.EMPLOYEE_TX, 'Transaksi Karyawan'], [TAB.HISTORY, 'Riwayat'], [TAB.SETTINGS, 'Pengaturan']].map(([t, label]) => {
+            const incompleteCount = t === TAB.STOCK ? stocks.filter(s => isStockIncomplete(s).incomplete).length : 0
+            const isActive = tab === t
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-black whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
+                  isActive
+                    ? 'bg-white text-slate-900 shadow-md border border-slate-200/60'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                <span>{label}</span>
+                {incompleteCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-sm animate-pulse">
+                    {incompleteCount}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* ── TAB: CREW ── */}
       {tab === TAB.CREW && (
-        <div className="flex-1 flex flex-col md:flex-row gap-4 p-4">
+        <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col md:flex-row gap-5">
           {/* Left Panel - Controls & Stats */}
           <div className="w-full md:w-1/2 flex flex-col gap-4">
-            <div className="bg-purple-500 rounded-2xl p-4 text-white shadow">
-              <p className="text-xs opacity-80">Total Crew</p>
-              <p className="text-3xl font-bold mt-1">{employees.length}</p>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <div className="bg-white/20 rounded-xl p-2.5">
-                  <p className="text-xs opacity-80">Tetap</p>
-                  <p className="text-xl font-bold">{employees.filter(e => e.status_crew === 'Tetap').length}</p>
+            <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl shadow-purple-950/15 border border-purple-400/30 bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-800 transition-all">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black uppercase tracking-wider text-purple-100/90">Total Crew Terdaftar</span>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black tracking-widest text-white border border-white/25">
+                  STAFF
+                </span>
+              </div>
+              <p className="text-3xl sm:text-4xl font-black tracking-tight leading-none drop-shadow-sm mt-1">{employees.length}</p>
+              
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/20 shadow-xs">
+                  <p className="text-xs font-black text-purple-100 uppercase tracking-wider">Tetap</p>
+                  <p className="text-xl font-black mt-0.5">{employees.filter(e => e.status_crew === 'Tetap').length}</p>
                 </div>
-                <div className="bg-white/20 rounded-xl p-2.5">
-                  <p className="text-xs opacity-80">Freelancer</p>
-                  <p className="text-xl font-bold">{employees.filter(e => e.status_crew === 'Freelancer').length}</p>
+                <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/20 shadow-xs">
+                  <p className="text-xs font-black text-purple-100 uppercase tracking-wider">Freelancer</p>
+                  <p className="text-xl font-black mt-0.5">{employees.filter(e => e.status_crew === 'Freelancer').length}</p>
                 </div>
               </div>
             </div>
             
-            <input type="text" value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder="Cari nama, posisi, atau WhatsApp..."
-              className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 text-sm" />
+            <input
+              type="text"
+              value={empSearch}
+              onChange={e => setEmpSearch(e.target.value)}
+              placeholder="Cari nama, posisi, atau WhatsApp..."
+              className="w-full px-4 py-3 rounded-2xl border border-slate-200/90 bg-white shadow-sm text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+            />
             
-            <button onClick={() => { resetEmpForm(); setShowAddEmp(true) }}
-              className="w-full py-3.5 rounded-2xl bg-purple-600 text-white font-semibold flex items-center justify-center gap-2 shadow hover:bg-purple-700 active:scale-95 transition-all">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              Tambah Anggota
+            <button
+              onClick={() => { resetEmpForm(); setShowAddEmp(true) }}
+              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black flex items-center justify-center gap-2.5 shadow-lg shadow-purple-600/20 active:scale-[0.98] transition-all text-sm border border-purple-400/25"
+            >
+              <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <span>Tambah Anggota</span>
             </button>
           </div>
 
           {/* Right Panel - List */}
           <div className="w-full md:w-1/2 flex flex-col">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex-1 overflow-y-auto">
-              <h2 className="text-gray-800 font-bold text-lg mb-4">Daftar Crew</h2>
+            <div className="bg-white rounded-3xl shadow-xl shadow-slate-900/5 border border-slate-200/80 p-5 sm:p-6 flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-purple-600 rounded-full" />
+                  <h2 className="text-slate-900 font-black text-lg tracking-tight">Daftar Crew</h2>
+                </div>
+                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                  {filteredEmp.length} Anggota
+                </span>
+              </div>
+
               {empLoading ? (
-                <div className="flex justify-center py-8"><svg className="w-7 h-7 animate-spin text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg></div>
+                <div className="flex justify-center items-center py-20">
+                  <svg className="w-8 h-8 animate-spin text-purple-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                </div>
               ) : filteredEmp.length === 0 ? (
-                <p className="text-center text-gray-400 py-16">Belum ada data crew.</p>
+                <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3 border border-slate-200">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <p className="font-bold text-slate-600 text-sm">Belum ada data crew.</p>
+                  <p className="text-xs text-slate-400 mt-1">Gunakan tombol "Tambah Anggota" di panel kiri.</p>
+                </div>
               ) : (
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-3 overflow-y-auto max-h-[60vh] pr-1">
                   {filteredEmp.map(emp => (
-                    <div key={emp.id} className="bg-gray-50 rounded-xl p-4 flex items-center gap-3 border border-gray-100">
-                      <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden" onClick={() => handleViewEmployee(emp)}>
+                    <div key={emp.id} className="group rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 border transition-all bg-white hover:bg-slate-50/80 border-slate-200/80 hover:border-purple-200 hover:shadow-sm shadow-xs">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden shadow-xs" onClick={() => handleViewEmployee(emp)}>
                         {emp.photo ? (
                           <img src={emp.photo} alt={emp.name} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-purple-600 font-bold text-sm">{(emp.name || '?')[0].toUpperCase()}</span>
+                          <span className="font-black text-base">{(emp.name || '?')[0].toUpperCase()}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleViewEmployee(emp)}>
-                        <p className="font-semibold text-gray-800 text-sm truncate">{emp.name}</p>
-                        <p className="text-xs text-gray-400">{emp.position} · {emp.whatsapp}</p>
-                        <p className="text-xs text-gray-400">{emp.status_crew || '-'}</p>
+                        <p className="font-black text-slate-900 text-sm sm:text-base leading-tight truncate group-hover:text-purple-600 transition-colors">{emp.name}</p>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">{emp.position} · {emp.whatsapp}</p>
+                        <div className="mt-1">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700">
+                            {emp.status_crew || '-'}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button
@@ -1123,18 +1233,30 @@ export default function AdminPage() {
                           role="switch"
                           aria-checked={emp.status !== 'inactive'}
                           onClick={() => handleEmployeeStatusToggle(emp)}
-                          className={`relative w-10 h-6 rounded-full transition-colors ${emp.status !== 'inactive' ? 'bg-green-500' : 'bg-gray-300'}`}
+                          className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${emp.status !== 'inactive' ? 'bg-emerald-500' : 'bg-slate-300'}`}
                           title={emp.status !== 'inactive' ? 'Aktif: tampil di pilihan Kasbon' : 'Nonaktif: sembunyikan dari pilihan Kasbon'}
                         >
-                          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${emp.status !== 'inactive' ? 'translate-x-5' : 'translate-x-1'}`} />
+                          <span className={`inline-block w-4 h-4 rounded-full bg-white shadow-md transition-transform transform ${emp.status !== 'inactive' ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
-                        <button onClick={() => handleViewEmployee(emp)} className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center hover:bg-indigo-100" title="Lihat Transaksi">
+                        <button
+                          onClick={() => handleViewEmployee(emp)}
+                          className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-all shadow-xs"
+                          title="Lihat Transaksi"
+                        >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                         </button>
-                        <button onClick={() => handleEditEmployee(emp)} className="w-8 h-8 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-100">
+                        <button
+                          onClick={() => handleEditEmployee(emp)}
+                          className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all shadow-xs"
+                          title="Edit Anggota"
+                        >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
-                        <button onClick={() => handleDeleteEmployee(emp.id)} className="w-8 h-8 rounded-xl bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-100">
+                        <button
+                          onClick={() => handleDeleteEmployee(emp.id)}
+                          className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-all shadow-xs"
+                          title="Hapus Anggota"
+                        >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
