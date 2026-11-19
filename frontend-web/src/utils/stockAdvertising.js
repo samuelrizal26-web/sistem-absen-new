@@ -7,11 +7,12 @@ export const STOCK_TABS = [
 ]
 
 export const ADV_SUBS = [
+  { key: 'ACRYLIC', label: 'Akrilik', icon: '💎', defaultUnit: 'lembar' },
+  { key: 'SHEET', label: 'ACP / Plat', icon: '🟦', defaultUnit: 'lembar' },
+  { key: 'STICKER', label: 'Stiker', icon: '🏷️', defaultUnit: 'Meter' },
   { key: 'LAMP', label: 'Lampu', icon: '💡', defaultUnit: 'pcs' },
   { key: 'TRAFO', label: 'Trafo', icon: '🔌', defaultUnit: 'pcs' },
-  { key: 'SHEET', label: 'Plat / Lembaran', icon: '🟦', defaultUnit: 'lembar' },
   { key: 'BAR', label: 'Hollow / Profil / Pipa', icon: '📏', defaultUnit: 'batang' },
-  { key: 'STICKER', label: 'Stiker', icon: '🏷️', defaultUnit: 'Roll' },
   { key: 'ACCESSORY', label: 'Aksesoris', icon: '🔩', defaultUnit: 'pcs' },
 ]
 
@@ -19,7 +20,7 @@ export const STOCK_UNITS = ['pcs', 'Roll', 'Meter', 'Kg (Kilogram)', 'Liter', 'B
 
 export const EMPTY_STOCK_FORM = {
   name: '', quantity: '', unit: 'pcs', price: '', price_raw: '', usage_category: 'PRINT', notes: '',
-  adv_sub_category: 'LAMP', brand: '', color: '',
+  adv_sub_category: 'ACRYLIC', brand: '', color: '',
   watt: '', watt_basis: 'PER_UNIT', spacing_cm: '',
   watt_capacity: '', ampere: '', trafo_type: 'RAINPROOF',
   thickness_mm: '', sheet_length: '122', sheet_width: '244',
@@ -45,8 +46,9 @@ export function advDerivedInfo(s) {
   const price = num(s.price)
   const out = []
   switch (s.adv_sub_category) {
+    case 'ACRYLIC':
     case 'SHEET': {
-      const area = num(s.sheet_length) * num(s.sheet_width)
+      const area = num(s.sheet_length || 122) * num(s.sheet_width || 244)
       if (area > 0 && price > 0) out.push({ label: 'Modal / cm²', value: `Rp ${(price / area).toFixed(2)}` })
       break
     }
@@ -102,7 +104,7 @@ export function buildStockPayload(form, parseRupiahInput) {
   const extra = { adv_sub_category: sub, brand: t(form.brand), color: t(form.color) }
   if (sub === 'LAMP') Object.assign(extra, { watt: n(form.watt), watt_basis: form.watt_basis, spacing_cm: n(form.spacing_cm) })
   if (sub === 'TRAFO') Object.assign(extra, { watt_capacity: n(form.watt_capacity), ampere: n(form.ampere), trafo_type: form.trafo_type })
-  if (sub === 'SHEET') Object.assign(extra, { thickness_mm: n(form.thickness_mm), sheet_length: n(form.sheet_length), sheet_width: n(form.sheet_width) })
+  if (sub === 'SHEET' || sub === 'ACRYLIC') Object.assign(extra, { thickness_mm: n(form.thickness_mm), sheet_length: n(form.sheet_length), sheet_width: n(form.sheet_width) })
   if (sub === 'BAR') Object.assign(extra, { bar_length_m: n(form.bar_length_m), diameter: t(form.diameter) })
   if (sub === 'STICKER') Object.assign(extra, { roll_width_cm: n(form.roll_width_cm), roll_length_m: n(form.roll_length_m) })
   Object.keys(extra).forEach(k => extra[k] === undefined && delete extra[k])

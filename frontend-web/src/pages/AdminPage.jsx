@@ -1161,7 +1161,7 @@ export default function AdminPage() {
             <p className="text-xs text-gray-400 -mt-2 px-1">{tabCfg.hint}</p>
 
             {/* Add button (kontekstual) */}
-            <button onClick={() => { resetStockForm(); setStockForm({ ...EMPTY_STOCK_FORM, usage_category: stockTab, adv_sub_category: advFilter !== 'ALL' ? advFilter : 'LAMP', unit: stockTab === 'ADVERTISING' ? (ADV_SUBS.find(a => a.key === (advFilter !== 'ALL' ? advFilter : 'LAMP'))?.defaultUnit || 'pcs') : 'pcs' }); setShowAddStock(true) }}
+            <button onClick={() => { resetStockForm(); setStockForm({ ...EMPTY_STOCK_FORM, usage_category: stockTab, adv_sub_category: advFilter !== 'ALL' ? advFilter : 'ACRYLIC', unit: stockTab === 'ADVERTISING' ? (ADV_SUBS.find(a => a.key === (advFilter !== 'ALL' ? advFilter : 'ACRYLIC'))?.defaultUnit || 'lembar') : 'pcs' }); setShowAddStock(true) }}
               className="w-full py-3.5 rounded-2xl bg-teal-500 text-white font-semibold shadow hover:bg-teal-600 active:scale-95 transition-all">
               {addLabel}
             </button>
@@ -1532,115 +1532,11 @@ export default function AdminPage() {
           stocks={stocks}
           acrylics={acrylics}
           showToast={showToast}
-          renderAcrylicTab={() => (
-            <div className="flex-1 flex flex-col md:flex-row gap-4">
-              {/* Left Panel */}
-          <div className="w-full md:w-1/3 flex flex-col gap-4">
-            <div className="bg-gradient-to-br from-cyan-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
-              <p className="text-xs text-white/80 uppercase tracking-wider font-semibold">Katalog Master Akrilik</p>
-              <p className="text-3xl font-extrabold mt-1">{acrylics.length} <span className="text-sm font-normal text-white/80">Jenis Bahan</span></p>
-              <p className="text-xs text-white/70 mt-2">
-                Atur modal kulakan lembaran, harga jual acuan, tarif eceran potongan kecil (&lt;400 cm²), dan batas partai.
-              </p>
-            </div>
-
-            <button
-              onClick={openAddAcrylic}
-              className="w-full py-3.5 rounded-2xl bg-cyan-600 text-white font-bold flex items-center justify-center gap-2 shadow-md hover:bg-cyan-700 active:scale-95 transition-all"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Tambah Bahan Akrilik
-            </button>
-          </div>
-
-          {/* Right Panel */}
-          <div className="w-full md:w-2/3 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-base font-bold text-gray-800">Daftar Bahan & Skema Harga</h2>
-              <span className="text-xs text-gray-400 font-medium">{acrylics.length} bahan terdaftar</span>
-            </div>
-
-            {acrylicLoading && acrylics.length === 0 ? (
-              <div className="flex justify-center py-12">
-                <svg className="w-7 h-7 animate-spin text-cyan-600" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-              </div>
-            ) : acrylics.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                <p className="font-semibold text-gray-600 mb-1">Belum ada bahan akrilik</p>
-                <p className="text-xs mb-3">Klik tombol "Tambah Bahan Akrilik" untuk memasukkan data pertama.</p>
-                <button onClick={openAddAcrylic} className="px-4 py-2 bg-cyan-50 text-cyan-700 font-bold text-xs rounded-xl border border-cyan-200">
-                  + Tambah Sekarang
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {acrylics.map(item => (
-                  <div key={item.id} className="border border-gray-200 rounded-2xl p-4 hover:border-cyan-300 transition-colors bg-white">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-gray-900 text-sm truncate">{item.name}</h3>
-                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-200">
-                            {item.thickness}
-                          </span>
-                          {item.color && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                              {item.color}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Rincian Harga */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100 text-xs">
-                          <div>
-                            <span className="text-gray-400 block text-[10px]">Modal Lembar (Owner)</span>
-                            <span className="font-semibold text-gray-700">{formatRupiah(item.buy_price)}</span>
-                            <span className="text-[10px] text-gray-400 block">({formatRupiah(item.cost_per_sqcm)}/cm²)</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400 block text-[10px]">Harga Jual Lembar</span>
-                            <span className="font-semibold text-gray-700">{formatRupiah(item.sell_price)}</span>
-                            <span className="text-[10px] text-emerald-600 font-bold block">Normal: {formatRupiah(item.price_normal_sqcm)}/cm²</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400 block text-[10px]">Eceran (&lt;{item.min_area_sqcm} cm²)</span>
-                            <span className="font-bold text-amber-700 block">{formatRupiah(item.price_small_sqcm)}/cm²</span>
-                            <span className="text-[10px] text-gray-400 block">Partai: ≥ {item.min_qty_bulk} pcs</span>
-                          </div>
-                        </div>
-
-                        {item.notes && (
-                          <p className="text-[11px] text-gray-400 mt-2 italic">Catatan: {item.notes}</p>
-                        )}
-                      </div>
-
-                      <div className="flex gap-1.5 shrink-0">
-                        <button
-                          onClick={() => openEditAcrylic(item)}
-                          className="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAcrylic(item.id)}
-                          className="px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-          )}
+          onGoToStock={(filterKey = 'ALL') => {
+            setTab(TAB.STOCK)
+            setStockTab('ADVERTISING')
+            setAdvFilter(filterKey)
+          }}
         />
       )}
 
@@ -2658,7 +2554,7 @@ export default function AdminPage() {
                       </select>
                     </>)}
 
-                    {sub === 'SHEET' && (<>
+                    {(sub === 'SHEET' || sub === 'ACRYLIC') && (<>
                       <div className="grid grid-cols-2 gap-3">
                         <input type="number" step="any" value={stockForm.sheet_length} onChange={setF('sheet_length')} placeholder="Panjang (cm)" className={inp} />
                         <input type="number" step="any" value={stockForm.sheet_width} onChange={setF('sheet_width')} placeholder="Lebar (cm)" className={inp} />

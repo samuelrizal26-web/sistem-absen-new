@@ -5,6 +5,7 @@ import {
   DEFAULT_ADVERTISING_CONFIG,
   mergeAdvConfig,
   buildMaterialCatalog,
+  calcAcrylic,
   calcNeonbox,
   calcHurufTimbul,
   calcRambu,
@@ -19,10 +20,15 @@ const SUB_TABS = [
   { key: 'neonflex', label: 'Neonflex', icon: '✨' },
 ]
 
-export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], showToast, renderAcrylicTab }) {
+export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], showToast, onGoToStock }) {
   const [subTab, setSubTab] = useState('akrilik')
   const [config, setConfig] = useState(DEFAULT_ADVERTISING_CONFIG)
   const [saving, setSaving] = useState(false)
+
+  // ── Simulator State: Akrilik (Dua Arah) ──
+  const [acSim, setAcSim] = useState({
+    acrylicId: '', length: '60', width: '40', qty: '1', customRate: '',
+  })
 
   // ── Simulator State: Neonbox (Dua Arah) ──
   const [nbSim, setNbSim] = useState({
@@ -78,6 +84,11 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
   const lampStocks = catalog.lampOptions
 
   // ── Hasil Simulasi Live ──
+  const acRes = useMemo(() => calcAcrylic({
+    ...acSim,
+    overrideRate: acSim.customRate,
+  }, config, stocks, acrylics), [acSim, config, stocks, acrylics])
+
   const nbRes = useMemo(() => calcNeonbox({
     ...nbSim,
     overrideRate: nbSim.customRate,
@@ -243,7 +254,16 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
           ))}
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          {onGoToStock && (
+            <button
+              type="button"
+              onClick={() => onGoToStock('ALL')}
+              className="px-3 py-2 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 font-bold text-xs transition-colors"
+            >
+              📦 Input / Edit Barang di Menu Stok
+            </button>
+          )}
           <span className="text-gray-500 font-medium">Space Nego Kasir:</span>
           <input
             type="number"
@@ -264,8 +284,168 @@ export default function AdminAdvertisingPanel({ stocks = [], acrylics = [], show
         </div>
       </div>
 
-      {/* ── SUB-TAB 1: AKRILIK (Memakai UI Katalog Akrilik yang sudah ada) ── */}
-      {subTab === 'akrilik' && renderAcrylicTab?.()}
+      {/* ── SUB-TAB 1: AKRILIK (Disatukan dengan Stok > ADVERTISING > Akrilik) ── */}
+      {subTab === 'akrilik' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Kiri: Titik Mati Tarif Potongan Akrilik & Daftar Bahan dari Stok */}
+          <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
+            <h3 className="font-bold text-gray-800 text-sm border-b pb-2">
+              ⚙️ Titik Mati Tarif Potongan Akrilik (Terhubung ke Stok)
+            </h3>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-[11px] text-gray-500 block mb-1">Min Order (Rp)</label>
+                <input
+                  type="number"
+                  value={config.acrylic?.min_order_price ?? 25000}
+                  onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_order_price: parseFloat(e.target.value) || 0 } }))}
+                  className={inp}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-gray-500 block mb-1">Batas Kecil (cm²)</label>
+                <input
+                  type="number"
+                  value={config.acrylic?.min_area_sqcm ?? 400}
+                  onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_area_sqcm: parseFloat(e.target.value) || 400 } }))}
+                  className={inp}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-gray-500 block mb-1">Min Qty Partai</label>
+                <input
+                  type="number"
+                  value={config.acrylic?.min_qty_bulk ?? 5}
+                  onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), min_qty_bulk: parseInt(e.target.value, 10) || 5 } }))}
+                  className={inp}
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-3 space-y-2 border border-gray-200 text-xs">
+              <p className="font-bold text-purple-800">Pengali Harga Jual dari Modal Lembaran:</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <span className="text-[10px] text-gray-500 block">Pengali Normal / Partai (× Modal)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={config.acrylic?.markup_normal_mult ?? 2.0}
+                    onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), markup_normal_mult: parseFloat(e.target.value) || 2.0 } }))}
+                    className={inp}
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 block">Pengali Eceran Kecil (× Modal)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={config.acrylic?.markup_small_mult ?? 2.8}
+                    onChange={e => setConfig(c => ({ ...c, acrylic: { ...(c.acrylic || {}), markup_small_mult: parseFloat(e.target.value) || 2.8 } }))}
+                    className={inp}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Daftar Lembaran Akrilik yang Terbaca dari Stok > ADVERTISING > Akrilik */}
+            <div className="bg-cyan-50/70 rounded-xl p-3 border border-cyan-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-cyan-900">
+                  💎 Lembaran Akrilik di Menu Stok ({catalog.acrylicOptions.length}):
+                </p>
+                {onGoToStock && (
+                  <button
+                    type="button"
+                    onClick={() => onGoToStock('ACRYLIC')}
+                    className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] shadow-sm"
+                  >
+                    + Tambah / Edit di Stok
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {catalog.acrylicOptions.map(a => (
+                  <div key={a.id} className="flex justify-between items-center bg-white rounded-lg px-2.5 py-1.5 border border-cyan-100">
+                    <div>
+                      <span className="font-bold text-gray-800 block">{a.name}</span>
+                      <span className="text-[10px] text-gray-400">Modal Lembar: {formatRupiah(a.buy_price)} ({a.sheet_length}×{a.sheet_width}cm)</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-cyan-700 block">Modal: Rp {a.buy_sqcm}/cm²</span>
+                      <span className="text-[10px] text-emerald-700 font-semibold">
+                        Jual: Rp {Math.round(a.buy_sqcm * (config.acrylic?.markup_normal_mult ?? 2.0) * 10) / 10}/cm²
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-500 italic">
+                *Seluruh input & edit lembaran akrilik kini sudah disatukan di menu <b>Stok &gt; ADVERTISING &gt; 💎 Akrilik</b>.
+              </p>
+            </div>
+
+            <button onClick={handleSaveConfig} disabled={saving} className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow">
+              {saving ? 'Menyimpan...' : '💾 Simpan Tarif Akrilik'}
+            </button>
+          </div>
+
+          {/* Kanan: Simulator 2 Arah Potongan Akrilik */}
+          <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
+            <h3 className="font-bold text-gray-800 text-sm border-b pb-2">
+              🧪 Simulator Dua Arah Potongan Akrilik (Dari Stok Admin)
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+              <div className="sm:col-span-2">
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Pilih Akrilik dari Stok</label>
+                <select
+                  value={acSim.acrylicId}
+                  onChange={e => setAcSim(s => ({ ...s, acrylicId: e.target.value, customRate: '' }))}
+                  className={inp}
+                >
+                  {catalog.acrylicOptions.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} (Modal Rp {a.buy_sqcm}/cm²)</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Panjang (cm)</label>
+                <input type="number" value={acSim.length} onChange={e => setAcSim(s => ({ ...s, length: e.target.value }))} className={inp} />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-600 block mb-1">Lebar (cm)</label>
+                <input type="number" value={acSim.width} onChange={e => setAcSim(s => ({ ...s, width: e.target.value }))} className={inp} />
+              </div>
+            </div>
+
+            <div className="w-32">
+              <label className="text-[11px] font-bold text-gray-600 block mb-1">Jumlah (Pcs)</label>
+              <input type="number" min="1" value={acSim.qty} onChange={e => setAcSim(s => ({ ...s, qty: e.target.value }))} className={inp} />
+            </div>
+
+            {acRes && renderBidirectionalCompare({
+              rateLabel: `Tarif Jual per cm² (${acRes.tierLabel})`,
+              activeRate: acRes.rateSqcm,
+              defaultRate: acRes.defaultRateSqcm,
+              onRateChange: val => setAcSim(s => ({ ...s, customRate: val })),
+              totalSell: acRes.recommendedSellPrice,
+              onTotalSellChange: newTotal => {
+                const computedRate = acRes.totalAreaSqcm > 0 ? Math.round((newTotal / acRes.totalAreaSqcm) * 100) / 100 : 0
+                setAcSim(s => ({ ...s, customRate: String(computedRate) }))
+              },
+              totalHpp: acRes.totalHpp,
+              negoPct: config.nego_discount_pct,
+              onResetOverride: () => setAcSim(s => ({ ...s, customRate: '' })),
+              hppRows: [
+                [`Bahan Akrilik (${acRes.item.name})`, `Modal Lembar: ${formatRupiah(acRes.item.buy_price)} (Rp ${acRes.buySqcm}/cm²)`],
+                [`Total Luas Potongan (${acRes.length}×${acRes.width}cm × ${acRes.qty} pcs)`, `${acRes.totalAreaSqcm.toLocaleString('id-ID')} cm²`],
+              ],
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── SUB-TAB 2: NEONBOX & LAS ── */}
       {subTab === 'neonbox' && (

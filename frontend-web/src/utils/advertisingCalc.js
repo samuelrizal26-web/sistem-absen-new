@@ -6,6 +6,13 @@ export const DEFAULT_ADVERTISING_CONFIG = {
   id: 'master_config',
   nego_discount_pct: 15.0,
   rounding_step: 1000,
+  acrylic: {
+    min_order_price: 25000,
+    min_area_sqcm: 400,
+    min_qty_bulk: 5,
+    markup_normal_mult: 2.0,
+    markup_small_mult: 2.8,
+  },
   neonbox: {
     min_order_price: 350000,
     small_max_area: 4000,
@@ -96,6 +103,7 @@ export function mergeAdvConfig(raw) {
   return {
     ...DEFAULT_ADVERTISING_CONFIG,
     ...raw,
+    acrylic: { ...DEFAULT_ADVERTISING_CONFIG.acrylic, ...(raw.acrylic || {}) },
     neonbox: { ...DEFAULT_ADVERTISING_CONFIG.neonbox, ...(raw.neonbox || {}) },
     huruf_timbul: { ...DEFAULT_ADVERTISING_CONFIG.huruf_timbul, ...(raw.huruf_timbul || {}) },
     rambu: { ...DEFAULT_ADVERTISING_CONFIG.rambu, ...(raw.rambu || {}) },
@@ -103,13 +111,57 @@ export function mergeAdvConfig(raw) {
   }
 }
 
-// ─── PEMBANGUN KATALOG MATERIAL DARI STOK & AKRILIK ADMIN ──────
+// ─── PEMBANGUN KATALOG MATERIAL DARI STOK ADMIN (SATU PINTU) ───
 export function buildMaterialCatalog(stocks = [], acrylics = []) {
   const advStocks = (Array.isArray(stocks) ? stocks : []).filter(
     s => String(s.usage_category || '').toUpperCase() === 'ADVERTISING'
   )
 
-  // 1. Bahan Board / Lembaran (Gabungan Stok SHEET + Master Akrilik)
+  // 1a. Bahan Akrilik dari Stok ADVERTISING -> ACRYLIC
+  const stockAcrylics = advStocks
+    .filter(s => s.adv_sub_category === 'ACRYLIC')
+    .map(s => {
+      const area = Math.max(1, num(s.sheet_length, 122) * num(s.sheet_width, 244))
+      const buySqcm = Math.round(((num(s.price, 500000) / area) + Number.EPSILON) * 100) / 100
+      return {
+        id: `acr_${s.id}`,
+        stockId: s.id,
+        source: 'ACRYLIC',
+        name: `${s.name}${s.thickness_mm && !s.name.toLowerCase().includes(`${s.thickness_mm}mm`) ? ` ${s.thickness_mm}mm` : ''}${s.color && !s.name.toLowerCase().includes(s.color.toLowerCase()) ? ` (${s.color})` : ''}`.trim(),
+        thickness_mm: s.thickness_mm || '',
+        color: s.color || '',
+        buy_price: num(s.price, 500000),
+        buy_sqcm: buySqcm,
+        sell_sqcm: Math.round(buySqcm * 2 * 100) / 100,
+        sheet_length: num(s.sheet_length, 122),
+        sheet_width: num(s.sheet_width, 244),
+      }
+    })
+
+  // Fallback jika stok ACRYLIC belum dimuat namun koleksi legacy acrylics masih ada
+  const legacyAcrylics = stockAcrylics.length === 0
+    ? (Array.isArray(acrylics) ? acrylics : []).map(a => {
+        const area = Math.max(1, num(a.sheet_length, 122) * num(a.sheet_width, 244))
+        const buySqcm = num(a.cost_per_sqcm) > 0
+          ? num(a.cost_per_sqcm)
+          : Math.round(((num(a.buy_price, 500000) / area) + Number.EPSILON) * 100) / 100
+        return {
+          id: `acr_${a.id}`,
+          acrylicId: a.id,
+          source: 'ACRYLIC',
+          name: `${a.name} ${a.thickness || ''}${a.color && !a.name.toLowerCase().includes(a.color.toLowerCase()) ? ` (${a.color})` : ''}`.trim(),
+          buy_price: num(a.buy_price, 500000),
+          buy_sqcm: buySqcm,
+          sell_sqcm: Math.round(buySqcm * 2 * 100) / 100,
+          sheet_length: num(a.sheet_length, 122),
+          sheet_width: num(a.sheet_width, 244),
+        }
+      })
+    : []
+
+  const acrylicOptions = [...stockAcrylics, ...legacyAcrylics]
+
+  // 1b. Bahan ACP / Plat dari Stok ADVERTISING -> SHEET
   const sheetBoards = advStocks
     .filter(s => s.adv_sub_category === 'SHEET')
     .map(s => {
@@ -119,7 +171,7 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
         id: `sheet_${s.id}`,
         stockId: s.id,
         source: 'STOCK_SHEET',
-        name: `${s.name}${s.thickness_mm && !s.name.includes(`${s.thickness_mm}mm`) ? ` (${s.thickness_mm}mm)` : ''}${s.color ? ` - ${s.color}` : ''}`,
+        name: `${s.name}${s.thickness_mm && !s.name.toLowerCase().includes(`${s.thickness_mm}mm`) ? ` (${s.thickness_mm}mm)` : ''}${s.color ? ` - ${s.color}` : ''}`,
         buy_price: num(s.price, 600000),
         buy_sqcm: buySqcm,
         sheet_length: num(s.sheet_length, 122),
@@ -127,28 +179,7 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
       }
     })
 
-  const acrylicBoards = (Array.isArray(acrylics) ? acrylics : []).map(a => {
-    const area = Math.max(1, num(a.sheet_length, 122) * num(a.sheet_width, 244))
-    const buySqcm = num(a.cost_per_sqcm) > 0
-      ? num(a.cost_per_sqcm)
-      : Math.round(((num(a.buy_price, 500000) / area) + Number.EPSILON) * 100) / 100
-    const sellSqcm = num(a.price_normal_sqcm) > 0
-      ? num(a.price_normal_sqcm)
-      : Math.round(((num(a.sell_price, 1000000) / area) + Number.EPSILON) * 100) / 100
-    return {
-      id: `acr_${a.id}`,
-      acrylicId: a.id,
-      source: 'ACRYLIC',
-      name: `${a.name} ${a.thickness || ''}${a.color && !a.name.toLowerCase().includes(a.color.toLowerCase()) ? ` (${a.color})` : ''}`.trim(),
-      buy_price: num(a.buy_price, 500000),
-      buy_sqcm: buySqcm,
-      sell_sqcm: sellSqcm,
-      sheet_length: num(a.sheet_length, 122),
-      sheet_width: num(a.sheet_width, 244),
-    }
-  })
-
-  const boardOptions = [...sheetBoards, ...acrylicBoards]
+  const boardOptions = [...sheetBoards, ...acrylicOptions]
 
   // 2. Jenis Stiker (Dari Stok ADVERTISING -> STICKER)
   const stickerOptions = advStocks
@@ -229,12 +260,86 @@ export function buildMaterialCatalog(stocks = [], acrylics = []) {
     }))
 
   return {
+    acrylicOptions,
     boardOptions,
     stickerOptions,
     lampOptions,
     trafoOptions,
     barOptions,
     accessoryOptions,
+  }
+}
+
+// ─── 0. KALKULASI POTONGAN AKRILIK (Dari Stok ADVERTISING > ACRYLIC) ───
+export function calcAcrylic(input, rawConfig, stocks = [], acrylics = []) {
+  const cfg = mergeAdvConfig(rawConfig)
+  const acCfg = cfg.acrylic
+  const catalog = buildMaterialCatalog(stocks, acrylics)
+
+  const length = num(input.length)
+  const width = num(input.width)
+  const qty = Math.max(1, parseInt(input.qty, 10) || 1)
+  if (length <= 0 || width <= 0) return null
+
+  const item = catalog.acrylicOptions.find(a => a.id === input.acrylicId)
+    || catalog.acrylicOptions[0]
+    || { id: 'default_acr', name: 'Akrilik Bening 3mm', buy_price: 500000, buy_sqcm: 16.8 }
+
+  const areaPerPcs = Math.round(length * width * 100) / 100
+  const totalAreaSqcm = Math.round(areaPerPcs * qty * 100) / 100
+
+  const minArea = num(acCfg.min_area_sqcm, 400)
+  const minQtyBulk = num(acCfg.min_qty_bulk, 5)
+  const isSmallArea = areaPerPcs < minArea
+  const isBulk = qty >= minQtyBulk
+
+  const buySqcm = num(item.buy_sqcm, 16.8)
+  const normMult = num(acCfg.markup_normal_mult, 2.0)
+  const smallMult = num(acCfg.markup_small_mult, 2.8)
+
+  let tierLabel = 'Tarif Normal'
+  let defaultRate = Math.round(buySqcm * normMult * 100) / 100
+  if (isSmallArea && !isBulk) {
+    tierLabel = `Tarif Eceran Kecil (< ${minArea} cm²)`
+    defaultRate = Math.round(buySqcm * smallMult * 100) / 100
+  } else if (isSmallArea && isBulk) {
+    tierLabel = `Tarif Partai (≥ ${minQtyBulk} pcs)`
+  }
+
+  const activeRate = input.overrideRate !== undefined && input.overrideRate !== '' ? num(input.overrideRate) : defaultRate
+  const rawSell = totalAreaSqcm * activeRate
+  const minOrder = num(acCfg.min_order_price, 25000)
+  const baseSell = !input.overrideRate ? Math.max(minOrder, rawSell) : rawSell
+  const recommendedSellPrice = roundPrice(baseSell, 500)
+  const pricePerPcs = Math.round(recommendedSellPrice / qty)
+  const negoPct = num(cfg.nego_discount_pct, 15)
+  const netFloorPrice = roundPrice(recommendedSellPrice * (1 - negoPct / 100), 500)
+
+  const totalHpp = Math.round(totalAreaSqcm * buySqcm)
+  const hppPerPcs = Math.round(areaPerPcs * buySqcm)
+
+  const materials = [
+    {
+      name: `${item.name} (${length}x${width}cm)`,
+      quantity: qty,
+      unit: 'pcs',
+      price: hppPerPcs,
+      stock_id: item.stockId || null,
+      is_custom: !item.stockId,
+    },
+  ]
+
+  return {
+    productType: 'ACRYLIC',
+    projectTitle: `Akrilik ${item.name} ${length}x${width}cm (${qty} pcs)`,
+    item, length, width, qty,
+    areaPerPcs, totalAreaSqcm,
+    tierLabel, rateSqcm: activeRate, defaultRateSqcm: defaultRate,
+    buySqcm, totalHpp, hppPerPcs,
+    recommendedSellPrice, pricePerPcs, netFloorPrice, negoPct,
+    profitAtRecommended: recommendedSellPrice - totalHpp,
+    marginPctAtRecommended: recommendedSellPrice > 0 ? Math.round(((recommendedSellPrice - totalHpp) / recommendedSellPrice) * 1000) / 10 : 0,
+    materials,
   }
 }
 

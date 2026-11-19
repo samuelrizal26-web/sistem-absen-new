@@ -526,7 +526,18 @@ async def delete_employee(emp_id: str):
     return {'message': 'Karyawan dihapus'}
 
 # ── Stock ────────────────────────────────────────────────────────────────────
+INITIAL_ACRYLIC_STOCK = [
+    {'name': 'Akrilik Bening 2mm', 'quantity': 10, 'unit': 'lembar', 'price': 360000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC', 'thickness_mm': 2, 'color': 'Bening', 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran Akrilik 2mm 122x244 cm'},
+    {'name': 'Akrilik Bening 3mm', 'quantity': 15, 'unit': 'lembar', 'price': 500000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC', 'thickness_mm': 3, 'color': 'Bening', 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran Akrilik 3mm 122x244 cm'},
+    {'name': 'Akrilik Putih Susu 3mm', 'quantity': 15, 'unit': 'lembar', 'price': 520000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC', 'thickness_mm': 3, 'color': 'Putih Susu', 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran Akrilik Susu 3mm 122x244 cm'},
+    {'name': 'Akrilik Hitam 3mm', 'quantity': 10, 'unit': 'lembar', 'price': 540000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC', 'thickness_mm': 3, 'color': 'Hitam', 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran Akrilik Hitam 3mm 122x244 cm'},
+    {'name': 'Akrilik Bening 5mm', 'quantity': 10, 'unit': 'lembar', 'price': 820000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC', 'thickness_mm': 5, 'color': 'Bening', 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran Akrilik 5mm 122x244 cm'},
+    {'name': 'Akrilik Putih Susu 5mm', 'quantity': 10, 'unit': 'lembar', 'price': 850000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC', 'thickness_mm': 5, 'color': 'Putih Susu', 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran Akrilik Susu 5mm 122x244 cm'},
+    {'name': 'Akrilik Bening 10mm', 'quantity': 5, 'unit': 'lembar', 'price': 1650000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC', 'thickness_mm': 10, 'color': 'Bening', 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran Akrilik 10mm 122x244 cm'},
+]
+
 INITIAL_ADVERTISING_STOCK = [
+    *INITIAL_ACRYLIC_STOCK,
     # SHEET (Plat & Lembaran Board)
     {'name': 'ACP 3mm Indoor/Standar', 'quantity': 10, 'unit': 'lembar', 'price': 600000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'SHEET', 'thickness_mm': 3, 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran ACP 3mm 122x244 cm'},
     {'name': 'ACP 4mm Outdoor PVDF', 'quantity': 10, 'unit': 'lembar', 'price': 750000, 'usage_category': 'ADVERTISING', 'adv_sub_category': 'SHEET', 'thickness_mm': 4, 'sheet_length': 122, 'sheet_width': 244, 'notes': 'Lembaran ACP 4mm Outdoor 122x244 cm'},
@@ -570,6 +581,43 @@ async def get_stock():
             docs = [{'id': new_id(), 'created_at': now, **item} for item in INITIAL_ADVERTISING_STOCK]
             await db.stock.insert_many(docs)
             await db.advertising_config.update_one({'id': 'adv_stock_seeded'}, {'$set': {'id': 'adv_stock_seeded', 'seeded_at': now}}, upsert=True)
+            await db.advertising_config.update_one({'id': 'acrylic_stock_migrated'}, {'$set': {'id': 'acrylic_stock_migrated', 'migrated_at': now}}, upsert=True)
+    else:
+        acr_in_stock = await db.stock.count_documents({'usage_category': 'ADVERTISING', 'adv_sub_category': 'ACRYLIC'})
+        if acr_in_stock == 0:
+            mig_flag = await db.advertising_config.find_one({'id': 'acrylic_stock_migrated'})
+            if not mig_flag:
+                now = now_str()
+                old_acrylics = await db.acrylics.find({}, {'_id': 0}).to_list(None)
+                if old_acrylics:
+                    docs = []
+                    for a in old_acrylics:
+                        th_raw = str(a.get('thickness', '')).lower().replace('mm', '').strip()
+                        try:
+                            th_num = float(th_raw)
+                        except Exception:
+                            th_num = 3.0
+                        nm = f"{a.get('name', 'Akrilik')} {a.get('thickness', '')}".strip()
+                        docs.append({
+                            'id': new_id(),
+                            'name': nm,
+                            'quantity': 10,
+                            'unit': 'lembar',
+                            'price': float(a.get('buy_price') or 500000),
+                            'usage_category': 'ADVERTISING',
+                            'adv_sub_category': 'ACRYLIC',
+                            'thickness_mm': th_num,
+                            'color': a.get('color', ''),
+                            'sheet_length': float(a.get('sheet_length') or 122),
+                            'sheet_width': float(a.get('sheet_width') or 244),
+                            'notes': a.get('notes') or 'Lembaran Akrilik 122x244 cm',
+                            'created_at': now,
+                        })
+                    await db.stock.insert_many(docs)
+                else:
+                    docs = [{'id': new_id(), 'created_at': now, **item} for item in INITIAL_ACRYLIC_STOCK]
+                    await db.stock.insert_many(docs)
+                await db.advertising_config.update_one({'id': 'acrylic_stock_migrated'}, {'$set': {'id': 'acrylic_stock_migrated', 'migrated_at': now}}, upsert=True)
     return await db.stock.find({}, {'_id': 0}).to_list(None)
 
 @api.get('/stock/{stock_id}')
@@ -1716,6 +1764,13 @@ DEFAULT_ADVERTISING_CONFIG = {
     'id': 'master_config',
     'nego_discount_pct': 15.0,
     'rounding_step': 1000,
+    'acrylic': {
+        'min_order_price': 25000,
+        'min_area_sqcm': 400,
+        'min_qty_bulk': 5,
+        'markup_normal_mult': 2.0,
+        'markup_small_mult': 2.8,
+    },
     'neonbox': {
         'min_order_price': 350000,
         'small_max_area': 4000,

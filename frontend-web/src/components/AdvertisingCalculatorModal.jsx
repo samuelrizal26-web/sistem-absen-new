@@ -6,12 +6,12 @@ import {
   DEFAULT_ADVERTISING_CONFIG,
   mergeAdvConfig,
   buildMaterialCatalog,
+  calcAcrylic,
   calcNeonbox,
   calcHurufTimbul,
   calcRambu,
   calcNeonflex,
 } from '../utils/advertisingCalc'
-import AcrylicCalculatorModal from './AcrylicCalculatorModal'
 
 const PRODUCT_TABS = [
   { key: 'akrilik', label: 'Akrilik', icon: '🟦' },
@@ -28,8 +28,13 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
   const [stocks, setStocks] = useState([])
   const [acrylics, setAcrylics] = useState([])
 
-  // Katalog Dinamis dari Stok Material Admin & Master Akrilik
+  // Katalog Dinamis dari Stok Material Admin
   const catalog = useMemo(() => buildMaterialCatalog(stocks, acrylics), [stocks, acrylics])
+
+  // ── State Akrilik ──
+  const [acForm, setAcForm] = useState({
+    acrylicId: '', length: '', width: '', qty: '1', customDealRaw: '',
+  })
 
   // ── State Neonbox ──
   const [nbForm, setNbForm] = useState({
@@ -75,6 +80,10 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
 
   // Set default pilihan dropdown pertama kali begitu katalog dari Stok Admin termuat
   useEffect(() => {
+    if (catalog.acrylicOptions.length > 0) {
+      const defAcr = catalog.acrylicOptions.find(a => a.name.includes('3mm')) || catalog.acrylicOptions[0]
+      setAcForm(f => ({ ...f, acrylicId: f.acrylicId || defAcr.id }))
+    }
     if (catalog.boardOptions.length > 0) {
       const firstAcr = catalog.boardOptions.find(b => b.source === 'ACRYLIC' && b.name.includes('3mm')) || catalog.boardOptions[0]
       const firstAcp = catalog.boardOptions.find(b => b.name.toUpperCase().includes('ACP')) || catalog.boardOptions[0]
@@ -100,6 +109,8 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
   }, [catalog])
 
   // ── Live Calculations ──
+  const acResult = useMemo(() => calcAcrylic(acForm, config, stocks, acrylics), [acForm, config, stocks, acrylics])
+
   const nbResult = useMemo(() => calcNeonbox({
     ...nbForm,
     extraCost: parseRupiahInput(nbForm.extraCostRaw),
@@ -287,14 +298,82 @@ export default function AdvertisingCalculatorModal({ onClose, showToast }) {
 
         {/* Body */}
         <div className="overflow-y-auto flex-1">
-          {/* ── TAB 1: AKRILIK ── */}
+          {/* ── TAB 1: AKRILIK (Dari Stok ADVERTISING > Akrilik) ── */}
           {active === 'akrilik' && (
-            <AcrylicCalculatorModal
-              embedded
-              onClose={onClose}
-              showToast={showToast}
-              onSaveToProject={handleSaveToProject}
-            />
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">
+                  1. Pilih Jenis & Ketebalan Akrilik (Dari Stok Admin)
+                </label>
+                <select
+                  value={acForm.acrylicId}
+                  onChange={e => setAcForm(f => ({ ...f, acrylicId: e.target.value }))}
+                  className={inpCls}
+                >
+                  {catalog.acrylicOptions.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Panjang (cm) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={acForm.length}
+                    onChange={e => setAcForm(f => ({ ...f, length: e.target.value }))}
+                    placeholder="Contoh: 60"
+                    className={inpCls}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Lebar (cm) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={acForm.width}
+                    onChange={e => setAcForm(f => ({ ...f, width: e.target.value }))}
+                    placeholder="Contoh: 40"
+                    className={inpCls}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Jumlah (Pcs)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={acForm.qty}
+                    onChange={e => setAcForm(f => ({ ...f, qty: e.target.value }))}
+                    placeholder="1"
+                    className={inpCls}
+                  />
+                </div>
+              </div>
+
+              {renderKasirResultCard({
+                result: acResult,
+                customDealRaw: acForm.customDealRaw,
+                onCustomDealChange: v => setAcForm(f => ({ ...f, customDealRaw: v })),
+                onReset: () => setAcForm(f => ({ ...f, length: '', width: '', qty: '1', customDealRaw: '' })),
+                summaryLines: acResult ? [
+                  ['Bahan Akrilik:', acResult.item.name],
+                  ['Ukuran & Luas:', `${acResult.length} × ${acResult.width} cm (${acResult.areaPerPcs.toLocaleString('id-ID')} cm²/pcs)`],
+                  ['Jumlah:', `${acResult.qty} pcs (Total ${acResult.totalAreaSqcm.toLocaleString('id-ID')} cm²)`],
+                  ...(acResult.qty > 1 ? [['Harga Satuan:', `${formatRupiah(acResult.pricePerPcs)} / pcs`]] : []),
+                ] : [],
+                waText: (finalPrice) =>
+`*Penawaran Harga Akrilik - Labalaba Advertising*
+---------------------------------------
+Bahan    : ${acResult.item.name}
+Ukuran   : ${acResult.length} x ${acResult.width} cm (${acResult.areaPerPcs.toLocaleString('id-ID')} cm²)
+Jumlah   : ${acResult.qty} pcs
+Kategori : ${acResult.tierLabel}
+---------------------------------------
+*Total   : ${formatRupiah(finalPrice)}*${acResult.qty > 1 ? ` (@ ${formatRupiah(Math.round(finalPrice / acResult.qty))})` : ''}`,
+              })}
+            </div>
           )}
 
           {/* ── TAB 2: NEONBOX (Spek Material dari Stok Admin) ── */}
