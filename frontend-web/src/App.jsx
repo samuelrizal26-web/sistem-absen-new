@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import { Device } from '@capacitor/device'
+import { executeBackHandler } from './utils/backButton'
 import SplashScreen from './pages/SplashScreen'
 import HomeScreen from './pages/HomeScreen'
 import PrintJobPage from './pages/PrintJobPage'
@@ -55,6 +56,11 @@ function AppContent() {
     if (!Capacitor.isNativePlatform()) return
 
     const handleBackButton = () => {
+      // If any active modal or screen intercepts back button, consume it
+      if (executeBackHandler()) {
+        return
+      }
+
       if (location.pathname === '/') {
         CapacitorApp.exitApp()
       } else if (location.pathname === '/home') {

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
+import { registerBackHandler } from '../utils/backButton'
 import {
   getEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee,
   getStock, createStock, updateStock, deleteStock,
@@ -226,6 +227,133 @@ export default function AdminPage() {
   const [bluetoothDevices, setBluetoothDevices] = useState([])
   const [scanningBluetooth, setScanningBluetooth] = useState(false)
   const [selectedPrinterMAC, setSelectedPrinterMAC] = useState('')
+
+  // ── Android Back Button & Modal Interceptor ──
+  const backHandlerRef = useRef(null)
+
+  backHandlerRef.current = () => {
+    // 1. Numeric Keypad
+    if (keypadField) {
+      setKeypadField(null)
+      return true
+    }
+    // 2. Pay Salary Confirmation
+    if (payConfirmOpen) {
+      setPayConfirmOpen(false)
+      return true
+    }
+    // 3. Employee Detail / Transaction Modal
+    if (selectedEmployee) {
+      setSelectedEmployee(null)
+      return true
+    }
+    // 4. Employee Info Modals
+    if (viewEmp) {
+      setViewEmp(null)
+      return true
+    }
+    if (viewEmployeeDetails) {
+      setViewEmployeeDetails(null)
+      return true
+    }
+    // 5. Add / Edit Employee Modal
+    if (showAddEmp) {
+      if (empStep === 2) {
+        setEmpStep(1)
+      } else {
+        setEmpStep(1)
+        setEditEmp(null)
+        setShowAddEmp(false)
+      }
+      return true
+    }
+    // 6. Stock Modals
+    if (showAddStock) {
+      setShowAddStock(false)
+      setEditStock(null)
+      return true
+    }
+    if (viewStock) {
+      setViewStock(null)
+      return true
+    }
+    // 7. Acrylic Catalog Modal
+    if (showAcrylicForm) {
+      setShowAcrylicForm(false)
+      setEditingAcrylic(null)
+      return true
+    }
+    // 8. Cashflow Modals
+    if (showAddCf) {
+      setShowAddCf(false)
+      setEditCf(null)
+      setIsUpdatingModal(false)
+      return true
+    }
+    if (viewCf) {
+      setViewCf(null)
+      return true
+    }
+    if (showModalView) {
+      setShowModalView(false)
+      return true
+    }
+    // 9. History Detail Modal
+    if (viewHistoryItem) {
+      setViewHistoryItem(null)
+      return true
+    }
+    // 10. Device Settings Modal
+    if (showDeviceSettings) {
+      setShowDeviceSettings(false)
+      return true
+    }
+
+    return false
+  }
+
+  // Register with global back handler for Android hardware back button (Capacitor)
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (backHandlerRef.current) {
+        return backHandlerRef.current()
+      }
+      return false
+    })
+    return () => unregister()
+  }, [])
+
+  // Web mobile browser back button fallback (when not on native Capacitor)
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return
+
+    const isAnyModalOpen = Boolean(
+      keypadField || payConfirmOpen || selectedEmployee || viewEmp ||
+      viewEmployeeDetails || showAddEmp || showAddStock || viewStock ||
+      showAcrylicForm || showAddCf || viewCf || showModalView ||
+      viewHistoryItem || showDeviceSettings
+    )
+
+    if (isAnyModalOpen) {
+      window.history.pushState({ adminModal: true }, '')
+
+      const handlePopState = () => {
+        if (backHandlerRef.current) {
+          backHandlerRef.current()
+        }
+      }
+
+      window.addEventListener('popstate', handlePopState)
+      return () => {
+        window.removeEventListener('popstate', handlePopState)
+      }
+    }
+  }, [
+    keypadField, payConfirmOpen, selectedEmployee, viewEmp,
+    viewEmployeeDetails, showAddEmp, showAddStock, viewStock,
+    showAcrylicForm, showAddCf, viewCf, showModalView,
+    viewHistoryItem, showDeviceSettings, empStep
+  ])
 
   // ─────────────────── AUTH ───────────────────
   const handlePinAuth = async (pinValue) => {
